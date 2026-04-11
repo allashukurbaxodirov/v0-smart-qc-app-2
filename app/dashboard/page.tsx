@@ -1,14 +1,41 @@
 'use client'
 
+import { useState } from 'react'
 import PageHeader from '@/components/dashboard/page-header'
+import { SmenaDetailModal } from '@/components/dashboard/smena-detail-modal'
 import KPICard from '@/components/dashboard/kpi-card'
-import { kpiData, topDefects, shiftPerformance } from '@/lib/mock-data'
-import { Bell, AlertTriangle, TrendingUp } from 'lucide-react'
+import { kpiData, topDefects, shiftPerformance, smenaDetails } from '@/lib/mock-data'
+import { Bell, AlertTriangle, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import Link from 'next/link'
 
 export default function DashboardHome() {
-  const criticalDefects = topDefects.slice(0, 5)
+  const [selectedSmena, setSelectedSmena] = useState<string | null>(null)
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'good':
+        return 'border-success/30 bg-success/5'
+      case 'critical':
+        return 'border-critical/30 bg-critical/5'
+      default:
+        return 'border-warning/30 bg-warning/5'
+    }
+  }
+
+  const getStatusBadgeColor = (status: string) => {
+    switch (status) {
+      case 'good':
+        return 'bg-success text-white'
+      case 'critical':
+        return 'bg-critical text-white'
+      default:
+        return 'bg-warning text-white'
+    }
+  }
+
+  const topDefectsList = topDefects.slice(0, 8)
 
   return (
     <div className="min-h-screen bg-background">
@@ -111,12 +138,12 @@ export default function DashboardHome() {
 
         {/* Summary Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Top Defects */}
+          {/* Top Defects - Ranking */}
           <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-critical" />
-                Eng yuqori defektlar
+                Eng ko'p uchraydigan nuqsonlar
               </h2>
               <Link href="/dashboard/top-defects">
                 <Button variant="ghost" size="sm">
@@ -124,15 +151,29 @@ export default function DashboardHome() {
                 </Button>
               </Link>
             </div>
-            <div className="space-y-3">
-              {criticalDefects.map((defect) => (
-                <div key={defect.id} className="flex items-center justify-between pb-3 border-b border-border last:border-0">
-                  <div>
-                    <p className="font-medium text-foreground">{defect.name}</p>
-                    <p className="text-xs text-muted-foreground">{defect.workshop}</p>
+            <div className="space-y-2">
+              {topDefectsList.map((defect, idx) => (
+                <div
+                  key={defect.id}
+                  className={`flex items-center justify-between p-3 rounded-lg border transition-all hover:border-primary ${
+                    defect.status === 'critical' ? 'bg-critical/5 border-critical/20' : 'bg-warning/5 border-warning/20'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xs">
+                      {idx + 1}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-sm text-foreground truncate">
+                        {defect.code} - {defect.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {defect.workshop} • {defect.shift} smena
+                      </p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-critical">{defect.count} ta</p>
+                  <div className="text-right flex-shrink-0 ml-2">
+                    <p className="font-bold text-foreground">{defect.count}</p>
                     <p className="text-xs text-muted-foreground">{defect.percent}%</p>
                   </div>
                 </div>
@@ -140,31 +181,46 @@ export default function DashboardHome() {
             </div>
           </div>
 
-          {/* Shift Performance */}
-          <div className="bg-card border border-border rounded-xl p-6">
-            <h2 className="text-lg font-bold text-foreground mb-6 flex items-center gap-2">
+          {/* Smena Performance Cards */}
+          <div>
+            <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-success" />
-              Shift samaradorligi
+              Smenalar samaradorligi
             </h2>
-            <div className="space-y-4">
-              {shiftPerformance.map((shift) => (
-                <div key={shift.name} className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-foreground">{shift.name}</span>
-                    <span className="text-sm font-bold text-success">{shift.efficiency}%</span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div
-                      className="bg-success h-2 rounded-full"
-                      style={{ width: `${shift.efficiency}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>{shift.output} ta</span>
-                    <span>{shift.defects} ta defekt</span>
-                  </div>
-                </div>
-              ))}
+            <div className="space-y-3">
+              {shiftPerformance.map((shift) => {
+                const smenaName = shift.name
+                const statusColor = getStatusColor(shift.status)
+                const statusBadge = getStatusBadgeColor(shift.status)
+
+                return (
+                  <button
+                    key={smenaName}
+                    onClick={() => setSelectedSmena(smenaName)}
+                    className={`w-full p-4 rounded-lg border-2 transition-all hover:shadow-lg text-left ${statusColor}`}
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <h3 className="font-bold text-foreground">{smenaName}</h3>
+                      <Badge className={statusBadge}>
+                        {shift.status === 'good' ? '✓ Yaxshi' : '✕ Muammo'}
+                      </Badge>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Jami nuqsonlar</span>
+                        <span className="font-bold text-foreground">{shift.defects}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {shift.topDefect}
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                        <span className="text-xs text-muted-foreground">Samaradorlik</span>
+                        <span className="text-xs font-semibold text-foreground">{shift.efficiency}%</span>
+                      </div>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
           </div>
         </div>
@@ -188,6 +244,15 @@ export default function DashboardHome() {
             <p className="font-semibold text-sm text-foreground">Sozlamalar</p>
           </Link>
         </div>
+
+        {/* Smena Detail Modal */}
+        {selectedSmena && smenaDetails[selectedSmena as keyof typeof smenaDetails] && (
+          <SmenaDetailModal
+            smena={selectedSmena}
+            data={smenaDetails[selectedSmena as keyof typeof smenaDetails]}
+            onClose={() => setSelectedSmena(null)}
+          />
+        )}
       </div>
     </div>
   )

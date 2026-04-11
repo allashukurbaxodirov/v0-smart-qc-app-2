@@ -75,24 +75,115 @@ export const workshopPerformance = [
   { name: 'PAINT SHOP', gca: 94.8, ftq: 85.3, drr: 89.1, defects: 42, rank: 5, status: 'critical', trend: 'up' },
 ]
 
-// Shift Performance Data
+// Shift Performance Data - Updated with A/B/D naming
 export const shiftPerformance = [
-  { name: '1-Shift', output: 145, defects: 12, efficiency: 94.2 },
-  { name: '2-Shift', output: 138, defects: 15, efficiency: 89.7 },
-  { name: '3-Shift', output: 132, defects: 18, efficiency: 85.5 },
+  { name: 'A smena', output: 145, defects: 35, efficiency: 94.2, status: 'good', topDefect: '86 - Bo\'yoq oqishi' },
+  { name: 'B smena', output: 138, defects: 29, efficiency: 89.7, status: 'good', topDefect: '18 - Detalda nuqson bor' },
+  { name: 'D smena', output: 132, defects: 43, efficiency: 85.5, status: 'critical', topDefect: '86 - Bo\'yoq oqishi' },
 ]
 
-// Top Defects Data
+// Top Defects Data - Standardized with codes and Uzbek names
 export const topDefects = [
-  { id: 1, name: 'Paint scratch', count: 34, percent: 15.2, workshop: 'Boyama' },
-  { id: 2, name: 'Electrical malfunction', count: 28, percent: 12.5, workshop: 'Elektr' },
-  { id: 3, name: 'Alignment issue', count: 24, percent: 10.7, workshop: 'Umumiy Montaj' },
-  { id: 4, name: 'Missing component', count: 21, percent: 9.4, workshop: 'Montaj' },
-  { id: 5, name: 'Weld defect', count: 18, percent: 8.0, workshop: 'Qaynash' },
-  { id: 6, name: 'Seal failure', count: 15, percent: 6.7, workshop: 'Mexanika' },
-  { id: 7, name: 'Door gap variance', count: 13, percent: 5.8, workshop: 'Umumiy Montaj' },
-  { id: 8, name: 'Thread damage', count: 11, percent: 4.9, workshop: 'Mexanika' },
+  { id: 1, code: '86', name: 'Bo\'yoq oqishi', count: 34, percent: 15.2, workshop: 'PAINT SHOP', shift: 'A', status: 'critical', trend: 'up' },
+  { id: 2, code: '81', name: 'Bo\'yoq notekis sepilgan', count: 28, percent: 12.5, workshop: 'PAINT SHOP', shift: 'A', status: 'critical', trend: 'up' },
+  { id: 3, code: '18', name: 'Detalda nuqson bor', count: 24, percent: 10.7, workshop: 'GA', shift: 'B', status: 'warning', trend: 'down' },
+  { id: 4, code: '20', name: 'Sifatsiz o\'rnatilgan', count: 21, percent: 9.4, workshop: 'GA', shift: 'A', status: 'warning', trend: 'up' },
+  { id: 5, code: '77', name: 'Bo\'yoq yuzasida kir bor', count: 18, percent: 8.0, workshop: 'PAINT SHOP', shift: 'D', status: 'warning', trend: 'down' },
+  { id: 6, code: '75', name: 'Germetik nuqsoni bor', count: 15, percent: 6.7, workshop: 'PAINT SHOP', shift: 'B', status: 'warning', trend: 'down' },
+  { id: 7, code: '24', name: 'Detalga shikast yetgan', count: 13, percent: 5.8, workshop: 'GA', shift: 'D', status: 'warning', trend: 'up' },
+  { id: 8, code: '44', name: 'Butlovchi qism to\'liq qotirilmagan', count: 11, percent: 4.9, workshop: 'GA', shift: 'A', status: 'warning', trend: 'down' },
+  { id: 9, code: '32', name: 'Detal funksiyasini bajarmayapti', count: 9, percent: 4.0, workshop: 'GA', shift: 'B', status: 'warning', trend: 'down' },
+  { id: 10, code: '35', name: 'Regulirovka qilinmagan', count: 7, percent: 3.1, workshop: 'GA', shift: 'D', status: 'warning', trend: 'up' },
 ]
+
+// Smena Details - Defects by shift with recommendations
+export const smenaDetails = {
+  'A smena': {
+    totalDefects: 35,
+    status: 'good',
+    defects: [
+      { code: '86', name: 'Bo\'yoq oqishi', workshop: 'PAINT SHOP', count: 12, status: 'critical' },
+      { code: '81', name: 'Bo\'yoq notekis sepilgan', workshop: 'PAINT SHOP', count: 10, status: 'critical' },
+      { code: '20', name: 'Sifatsiz o\'rnatilgan', workshop: 'GA', count: 8, status: 'warning' },
+      { code: '44', name: 'Butlovchi qism to\'liq qotirilmagan', workshop: 'GA', count: 5, status: 'warning' },
+    ],
+    recommendations: [
+      'Nazoratni kuchaytirish',
+      'Standart bo\'yicha tekshirish',
+      'Defektli joyni qayta ko\'rib chiqish',
+      'Master nazoratini oshirish',
+      'Regilirovka qilish',
+    ],
+    rootCauses: [
+      'Xodim xatosi',
+      'Noto\'g\'ri o\'rnatish',
+      'Nazorat yetarli emas',
+      'Material sifati past',
+    ],
+    nextSteps: [
+      'Mas\'ul tayinlash',
+      'Muddat belgilash',
+      'Qayta tekshiruv',
+      'IRAS ochish',
+      'Rahbarga xabar berish',
+    ],
+  },
+  'B smena': {
+    totalDefects: 29,
+    status: 'good',
+    defects: [
+      { code: '18', name: 'Detalda nuqson bor', workshop: 'GA', count: 8, status: 'warning' },
+      { code: '75', name: 'Germetik nuqsoni bor', workshop: 'PAINT SHOP', count: 6, status: 'warning' },
+      { code: '32', name: 'Detal funksiyasini bajarmayapti', workshop: 'GA', count: 5, status: 'warning' },
+    ],
+    recommendations: [
+      'Operatorlarni amaliy o\'qitish',
+      'Mashina sozlanishini tekshirish',
+      'Kundalik SPC tahlili',
+      'Xodimlarning mahoratini oshirish',
+    ],
+    rootCauses: [
+      'Noto\'g\'ri o\'rnatish',
+      'Nazorat yetarli emas',
+      'Jarayon parametrlari',
+    ],
+    nextSteps: [
+      'Mukammal o\'qitish sessiyasi',
+      'Tekshirish jadvali',
+      'Statistic tahlil',
+    ],
+  },
+  'D smena': {
+    totalDefects: 43,
+    status: 'critical',
+    defects: [
+      { code: '86', name: 'Bo\'yoq oqishi', workshop: 'PAINT SHOP', count: 16, status: 'critical' },
+      { code: '77', name: 'Bo\'yoq yuzasida kir bor', workshop: 'PAINT SHOP', count: 11, status: 'critical' },
+      { code: '24', name: 'Detalga shikast yetgan', workshop: 'GA', count: 9, status: 'warning' },
+      { code: '35', name: 'Regulirovka qilinmagan', workshop: 'GA', count: 7, status: 'warning' },
+    ],
+    recommendations: [
+      'Shiftning davomiyligi analizi',
+      'Operatorlar uchun qo\'shimcha pauzalar',
+      'Mashinaning kunlik xizmat ko\'rsatilishi',
+      'Nazoratni kuchaytirish',
+      'Shift pauzalarini optimallashtirish',
+    ],
+    rootCauses: [
+      'Shiftning oxiridagi charchoq',
+      'Ehtiyotkorlikning pasayishi',
+      'Mashinaning texnik xizmat ko\'rsatish',
+      'Nazorat standartlarining pasayishi',
+    ],
+    nextSteps: [
+      'Shift pauzalarini qayta o\'rganish',
+      'Tekshiruv stansiyasini o\'rnatish',
+      'Sensorlarni tekshirish',
+      'D smena rahbari bilan uchrashuv',
+      'Kundalik QC monitoring',
+    ],
+  },
+}
 
 // Daily Production Data
 export const dailyProduction = [
