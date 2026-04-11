@@ -201,18 +201,20 @@ export const gaSectors = {
   ],
 }
 
-// Top 10 Defects
+// Top 10 Defects with Codes and Uzbek Names
 export const topDefectsList = [
-  { name: 'Rang çatlagi', workshop: 'PAINT SHOP', shift: 'A', count: 28, severity: 'high' },
-  { name: 'Jingalak nuqsoni', workshop: 'WELDING 2', shift: 'D', count: 24, severity: 'high' },
-  { name: 'Misalignment', workshop: 'GA', shift: 'A', count: 22, severity: 'high' },
-  { name: 'Elektr uzilishi', workshop: 'WELDING 1', shift: 'D', count: 20, severity: 'high' },
-  { name: 'Qaynash nuqsoni', workshop: 'WELDING 1', shift: 'B', count: 18, severity: 'medium' },
-  { name: 'O\'lcham xatosi', workshop: 'PRESS SHOP', shift: 'A', count: 16, severity: 'medium' },
-  { name: 'Teshik xatosi', workshop: 'GA', shift: 'D', count: 14, severity: 'medium' },
-  { name: 'Ehtiraz profili', workshop: 'PAINT SHOP', shift: 'B', count: 12, severity: 'medium' },
-  { name: 'Teg xatosi', workshop: 'WELDING 2', shift: 'A', count: 11, severity: 'low' },
-  { name: 'Sirtni o\'chizish', workshop: 'PRESS SHOP', shift: 'D', count: 10, severity: 'low' },
+  // PAINT SHOP
+  { code: '86', name: 'Bo\'yoq oqishi', workshop: 'PAINT SHOP', shift: 'A', count: 28, severity: 'high' },
+  { code: '81', name: 'Bo\'yoq notekis sepilgan', workshop: 'PAINT SHOP', shift: 'A', count: 24, severity: 'high' },
+  { code: '77', name: 'Bo\'yoq yuzasida kir bor', workshop: 'PAINT SHOP', shift: 'B', count: 18, severity: 'high' },
+  { code: '75', name: 'Germetik nuqsoni bor', workshop: 'PAINT SHOP', shift: 'D', count: 15, severity: 'high' },
+  // GA
+  { code: '18', name: 'Detalda nuqsoni bor', workshop: 'GA', shift: 'A', count: 22, severity: 'high' },
+  { code: '20', name: 'Sifatsiz o\'rnatilgan', workshop: 'GA', shift: 'B', count: 19, severity: 'high' },
+  { code: '24', name: 'Detalga shikast yetgan', workshop: 'GA', shift: 'D', count: 17, severity: 'medium' },
+  { code: '44', name: 'Butlovchi qism to\'liq qotirilmagan', workshop: 'GA', shift: 'A', count: 14, severity: 'medium' },
+  { code: '32', name: 'Detal funksiyasini bajarmayabdi', workshop: 'GA', shift: 'B', count: 12, severity: 'medium' },
+  { code: '35', name: 'Regirilovka qilinmagan', workshop: 'GA', shift: 'D', count: 11, severity: 'low' },
 ]
 
 // Shift Rankings
@@ -250,3 +252,225 @@ export const shiftComparisonData = [
   { workshop: 'PAINT SHOP', A: 42, B: 38, D: 45 },
   { workshop: 'GA', A: 35, B: 29, D: 38 },
 ]
+
+// Sector Details with Mitigation Plans and Analysis
+export const sectorDetails = {
+  TRIM: {
+    shifts: {
+      A: {
+        defects: 12,
+        rating: 'A',
+        measures: [
+          'Trimm mashinasining markazlashtirilgan tekshirilishi',
+          'Operatorlar uchun qo\'shimcha o\'quv sessiyalari',
+          'Kunlik sifat nazoratlash taza'mirlash',
+        ],
+        rootCause: 'Operatorning texnik mahorati va mashina tekshirlashining nomuvofiqliги',
+        nextSteps: [
+          'Trim stansiyada sensorlar o\'rnatish',
+          'Ish sifatining kundalik kuzatuvi',
+          'Xodimlarning aftarepiligi kursini o\'tish',
+        ],
+      },
+      B: {
+        defects: 9,
+        rating: 'A+',
+        measures: [
+          'Mavjud talimlarni saqlash va amalga oshirish',
+          'Operatorlarning yaxshi amaliyotlari bilan murojaat',
+          'Kunlik sifat ko\'rsatkichlarini qayd etish',
+        ],
+        rootCause: 'Samarali operatsion jarayonlar va o\'quv dasturlari',
+        nextSteps: [
+          'Mavjud jarayonlarni dokumentalab qolish',
+          'A smena bilan o\'zaro bog\'lanish',
+          'Sifat chuqurligini 5% ga oshirish',
+        ],
+      },
+      D: {
+        defects: 14,
+        rating: 'A',
+        measures: [
+          'Mashinaning nozik sozlanishini tekshirish',
+          'Soat oxiridagi operatorlar uchun monitiring',
+          'Shiftning davomiyligi bilan bog\'langan muammo analizi',
+        ],
+        rootCause: 'Shiftning oxiridagi operatorlarning charchoqligi va ehtiyotkorliği',
+        nextSteps: [
+          'Shift pauzalarini optimallashtirish',
+          'Shiftni davomli ishlashning ta\'siri analizi',
+          'Qo\'shimcha texnik kolkalarni o\'rnatish',
+        ],
+      },
+    },
+  },
+  SHOSSE: {
+    shifts: {
+      A: {
+        defects: 8,
+        rating: 'A+',
+        measures: [
+          'Hozirgi jarayonni o\'z holida saqlash',
+          'Sifat standartlarini oshirish uchun yaqin ko\'zni ushlab turish',
+          'Operatorlar bilan muntazam feedback sessiyalari',
+        ],
+        rootCause: 'Mukammal operatsion protokollari va yuqori mashina tekshirish',
+        nextSteps: [
+          'A smena protokollarini boshqa smenalarga kiritish',
+          'Operatorlar bilan noma\'lum muammolarni aniqlash',
+          'Sifat standartlarini A+ da saqlash',
+        ],
+      },
+      B: {
+        defects: 6,
+        rating: 'A+',
+        measures: [
+          'Mavjud mukammal jarayonlarni saqlab qolish',
+          'B smena operatorlarining mahorati tasdiqlovchi sessiyalari',
+          'Kundalik sifat ko\'rsatkichlarini nazorat qilish',
+        ],
+        rootCause: 'Yaxshi o\'qitilgan operatorlar va samarali texnik xizmat ko\'rsatish',
+        nextSteps: [
+          'Mavjud o\'quv dasturini A va D smenalarga kengaytirish',
+          'B smena amaliyotlarini standarti etish',
+          'Sifatning barqarorligini ta\'minlash',
+        ],
+      },
+      D: {
+        defects: 10,
+        rating: 'A',
+        measures: [
+          'Mashinaning o\'zining texnik xizmat ko\'rsatish jadvaliga rioya qilish',
+          'Shiftda operatorlarning ehtiyotkorligini oshirish',
+          'Kundalik texnik xizmat ko\'rsatish schedulini o\'tkazish',
+        ],
+        rootCause: 'Shiftning davomiyligi va mashinaning kundalik ehtiyojlari',
+        nextSteps: [
+          'Kundalik saharli tekshirvllarni amalga oshirish',
+          'Shiftning tugamovida texnik xizmat ko\'rsatish',
+          'Sensorlarning ish holatini tekshirish',
+        ],
+      },
+    },
+  },
+  FINAL: {
+    shifts: {
+      A: {
+        defects: 10,
+        rating: 'A',
+        measures: [
+          'Final inspeksiya stansiyasida kattalik kontrol',
+          'Operatorlar uchun o\'quv sessiyalari',
+          'Defekt o\'rtalarining tahlili va tuzatish',
+        ],
+        rootCause: 'Sifat kontrol stansiyasining aniqligida o\'zgaruvchanlik',
+        nextSteps: [
+          'Final stansiyada avtomatlashgan sensorlarni o\'rnatish',
+          'Kundalik QC auditini o\'tkazish',
+          'Statistic SPC tahlili',
+        ],
+      },
+      B: {
+        defects: 8,
+        rating: 'A',
+        measures: [
+          'Mavjud final tekshirvni saqlab qolish',
+          'Final inspeksiyasi uchun standart protokollari kiritish',
+          'Kundalik defekt qaydlari',
+        ],
+        rootCause: 'Yaxshi final tekshirish jarayonlari',
+        nextSteps: [
+          'Final stansiyaning texnik xizmatlashtirilishini oshirish',
+          'Boshqa smenalarga best practices kiritish',
+          'Defekt qaydlarini tahlil qilish',
+        ],
+      },
+      D: {
+        defects: 9,
+        rating: 'A+',
+        measures: [
+          'D smena final stansiyasining yaxshi amaliyotlarini davom ettirilishi',
+          'Muntazam operatorlar bilan feedback',
+          'Kundalik sifat auditini saqlash',
+        ],
+        rootCause: 'Mukammal final tekshirvni jarayoni va attentiv operatorlar',
+        nextSteps: [
+          'D smena amaliyotlarini standart etish',
+          'Boshqa smenalarga protokollari ko\'chirish',
+          'Quality auditi har 2-kunda o\'tkazish',
+        ],
+      },
+    },
+  },
+  SUB: {
+    shifts: {
+      A: {
+        defects: 5,
+        rating: 'A+',
+        measures: [
+          'Mavjud mukammal jarayonlarni saqlab qolish',
+          'Operatorlar bilan ish yurisining jaryonini ta\'rsitlash',
+          'Kundalik sifat chuqurligini saqlash',
+        ],
+        rootCause: 'Yaxshi assembly jarayonlari va attentiv operatorlar',
+        nextSteps: [
+          'SUB stansiyaning best practices ni dokumentalab qolish',
+          'Boshqa smenalarga protokollari kiritish',
+          'Sifatning barqarorligini ta\'minlash',
+        ],
+      },
+      B: {
+        defects: 6,
+        rating: 'A+',
+        measures: [
+          'Mavjud jarayonlarni saqlab qolish',
+          'Operatorlar bilan muntazam feedback sessiyalari',
+          'Kundalik sifat ko\'rsatkichlarini qayd etish',
+        ],
+        rootCause: 'Mukammal assembly protocol va yaxshi texnik xizmat ko\'rsatish',
+        nextSteps: [
+          'Operatorlar bilan best practices taqlidi',
+          'Protokollari tasdiqlovchi sessiyalar',
+          'A+ ratingni saqlash',
+        ],
+      },
+      D: {
+        defects: 5,
+        rating: 'A+',
+        measures: [
+          'Samarali assembly stansiyasini saqlash',
+          'Kundalik operatorlar uchun control',
+          'Sifat ko\'rsatkichlarini qayd etish',
+        ],
+        rootCause: 'Yuqori saqualikli assembly jarayoni va yaxshi operatorlar',
+        nextSteps: [
+          'D smena amaliyotlarini standart etish',
+          'Saqualikni oshirish uchun training sessiyalari',
+          'A+ ratingni saqlash',
+        ],
+      },
+    },
+  },
+}
+
+// Sector Rankings by Shift (for interactive display)
+export const worstSectorsByShift = {
+  A: [
+    { sector: 'Trim', shift: 'A', defects: 12, rating: 'A' },
+    { sector: 'Final', shift: 'A', defects: 10, rating: 'A' },
+    { sector: 'Shosse', shift: 'A', defects: 8, rating: 'A+' },
+    { sector: 'Sub', shift: 'A', defects: 5, rating: 'A+' },
+  ],
+  B: [
+    { sector: 'Trim', shift: 'B', defects: 9, rating: 'A+' },
+    { sector: 'Final', shift: 'B', defects: 8, rating: 'A' },
+    { sector: 'Sub', shift: 'B', defects: 6, rating: 'A+' },
+    { sector: 'Shosse', shift: 'B', defects: 6, rating: 'A+' },
+  ],
+  D: [
+    { sector: 'Trim', shift: 'D', defects: 14, rating: 'A' },
+    { sector: 'Shosse', shift: 'D', defects: 10, rating: 'A' },
+    { sector: 'Final', shift: 'D', defects: 9, rating: 'A+' },
+    { sector: 'Sub', shift: 'D', defects: 5, rating: 'A+' },
+  ],
+}

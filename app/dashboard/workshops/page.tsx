@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import PageHeader from '@/components/dashboard/page-header'
+import { SectorDetailModal } from '@/components/dashboard/sector-detail-modal'
 import {
   productionWorkshops,
   productionWorkshopsShiftB,
@@ -12,6 +13,8 @@ import {
   productionAnalyticsChart,
   defectTrendData,
   shiftComparisonData,
+  sectorDetails,
+  worstSectorsByShift,
 } from '@/lib/mock-data'
 import {
   BarChart,
@@ -37,6 +40,7 @@ const COLORS = ['var(--color-chart-1)', 'var(--color-chart-2)', 'var(--color-cha
 export default function ProductionPage() {
   const [activeShift, setActiveShift] = useState('A')
   const [expandedGa, setExpandedGa] = useState(false)
+  const [selectedSector, setSelectedSector] = useState<string | null>(null)
 
   const workshopsData = activeShift === 'A' ? productionWorkshops : activeShift === 'B' ? productionWorkshopsShiftB : productionWorkshopsShiftD
   const gaData = gaSectors[activeShift as keyof typeof gaSectors]
@@ -359,36 +363,53 @@ export default function ProductionPage() {
               </div>
             </div>
 
-            {/* Top 10 Defects (show first 5) */}
+            {/* Top 10 Defects */}
             <div className="lg:col-span-2">
-              <h3 className="font-bold text-foreground mb-4 text-sm">Top 10 nuqson (ilk 5ta)</h3>
+              <h3 className="font-bold text-foreground mb-4 text-sm">Top 10 nuqson</h3>
               <div className="space-y-2">
-                {topDefectsList.slice(0, 5).map((defect, idx) => (
-                  <div key={idx} className="p-3 bg-muted/30 rounded-lg border border-border">
-                    <p className="font-semibold text-sm text-foreground">{defect.name}</p>
-                    <div className="flex items-center justify-between mt-2 text-xs text-muted-foreground">
-                      <span>{defect.workshop}</span>
-                      <span className="font-bold text-foreground">{defect.count} ta</span>
+                {topDefectsList.map((defect, idx) => (
+                  <div key={idx} className="p-3 bg-muted/30 rounded-lg border border-border hover:border-primary transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <p className="font-semibold text-sm text-foreground">
+                          {defect.code} - {defect.name}
+                        </p>
+                        <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                          <span className="inline-flex items-center px-2 py-1 rounded bg-muted text-foreground text-xs font-medium">
+                            {defect.workshop}
+                          </span>
+                          <span>{defect.shift} smena</span>
+                        </div>
+                      </div>
+                      <span className="font-bold text-foreground ml-2">{defect.count} ta</span>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Worst Sectors (GA) */}
+            {/* Worst Sectors with Shift Info - Interactive */}
             <div>
-              <h3 className="font-bold text-foreground mb-4 text-sm">Eng yomon sektorlar (GA)</h3>
+              <h3 className="font-bold text-foreground mb-4 text-sm">Eng yomon sektorlar reytingi</h3>
               <div className="space-y-2">
-                {gaData
+                {worstSectorsByShift[activeShift as keyof typeof worstSectorsByShift]
                   .sort((a, b) => b.defects - a.defects)
                   .map((sector) => (
-                    <div key={sector.name} className="p-3 bg-muted/30 rounded-lg border border-border">
-                      <p className="font-semibold text-sm text-foreground">{sector.name}</p>
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-xs text-muted-foreground">{sector.defects} nuqson</span>
-                        <Badge variant="outline" className="text-xs">{sector.rating}</Badge>
+                    <button
+                      key={sector.sector}
+                      onClick={() => setSelectedSector(sector.sector)}
+                      className="w-full p-3 bg-muted/30 rounded-lg border border-border hover:border-primary hover:bg-muted/50 transition-all text-left"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-sm text-foreground">{sector.sector} - {sector.shift} smena</p>
+                          <p className="text-xs text-muted-foreground mt-1">{sector.defects} nuqson</p>
+                        </div>
+                        <Badge variant={sector.rating === 'A+' || sector.rating === 'A' ? 'secondary' : 'default'} className="text-xs">
+                          {sector.rating}
+                        </Badge>
                       </div>
-                    </div>
+                    </button>
                   ))}
               </div>
             </div>
@@ -459,6 +480,16 @@ export default function ProductionPage() {
             </table>
           </div>
         </div>
+
+        {/* Sector Detail Modal */}
+        {selectedSector && (
+          <SectorDetailModal
+            sector={selectedSector}
+            shift={activeShift}
+            onClose={() => setSelectedSector(null)}
+            sectorData={sectorDetails[selectedSector as keyof typeof sectorDetails]}
+          />
+        )}
       </div>
     </div>
   )
