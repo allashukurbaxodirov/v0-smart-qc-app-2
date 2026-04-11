@@ -66,13 +66,13 @@ export const kpiData = {
   },
 }
 
-// Workshop Performance Data
+// Workshop Performance Data - Standardized Names
 export const workshopPerformance = [
-  { name: 'Umumiy Montaj', gca: 97.2, ftq: 89.5, drr: 93.1, rank: 1 },
-  { name: 'Elektr Tizimi', gca: 96.8, ftq: 88.2, drr: 91.9, rank: 2 },
-  { name: 'Mexanika', gca: 96.1, ftq: 87.9, drr: 91.4, rank: 3 },
-  { name: 'Boyama', gca: 95.4, ftq: 86.7, drr: 90.2, rank: 4 },
-  { name: 'Qaynash', gca: 94.8, ftq: 85.3, drr: 89.1, rank: 5 },
+  { name: 'GA', gca: 97.2, ftq: 89.5, drr: 93.1, defects: 35, rank: 1, status: 'good', trend: 'up' },
+  { name: 'WELDING 1', gca: 96.8, ftq: 88.2, drr: 91.9, defects: 31, rank: 2, status: 'good', trend: 'up' },
+  { name: 'PRESS SHOP', gca: 96.1, ftq: 87.9, drr: 91.4, defects: 24, rank: 3, status: 'good', trend: 'down' },
+  { name: 'WELDING 2', gca: 95.4, ftq: 86.7, drr: 90.2, defects: 28, rank: 4, status: 'warning', trend: 'up' },
+  { name: 'PAINT SHOP', gca: 94.8, ftq: 85.3, drr: 89.1, defects: 42, rank: 5, status: 'critical', trend: 'up' },
 ]
 
 // Shift Performance Data
