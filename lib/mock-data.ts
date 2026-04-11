@@ -153,3 +153,100 @@ export const users = [
   { id: 3, name: 'QC Inspector', email: 'qc@uzauto.uz', role: 'Inspector', status: 'active' },
   { id: 4, name: 'Shift Lead', email: 'shift@uzauto.uz', role: 'Lead', status: 'active' },
 ]
+
+// Production Defect Analytics by Workshop and Shift
+export const productionWorkshops = [
+  { id: 'press', name: 'PRESS SHOP', defects: 24, status: 'good', trend: 'up', prevDefects: 28, shift: 'A' },
+  { id: 'weld1', name: 'WELDING 1', defects: 31, status: 'warning', trend: 'down', prevDefects: 29, shift: 'A' },
+  { id: 'weld2', name: 'WELDING 2', defects: 28, status: 'warning', trend: 'up', prevDefects: 24, shift: 'A' },
+  { id: 'paint', name: 'PAINT SHOP', defects: 42, status: 'critical', trend: 'up', prevDefects: 38, shift: 'A' },
+  { id: 'ga', name: 'GA', defects: 35, status: 'warning', trend: 'down', prevDefects: 39, shift: 'A' },
+]
+
+export const productionWorkshopsShiftB = [
+  { id: 'press', name: 'PRESS SHOP', defects: 20, status: 'good', trend: 'down', prevDefects: 24, shift: 'B' },
+  { id: 'weld1', name: 'WELDING 1', defects: 26, status: 'good', trend: 'up', prevDefects: 23, shift: 'B' },
+  { id: 'weld2', name: 'WELDING 2', defects: 32, status: 'warning', trend: 'down', prevDefects: 35, shift: 'B' },
+  { id: 'paint', name: 'PAINT SHOP', defects: 38, status: 'warning', trend: 'down', prevDefects: 42, shift: 'B' },
+  { id: 'ga', name: 'GA', defects: 29, status: 'good', trend: 'up', prevDefects: 27, shift: 'B' },
+]
+
+export const productionWorkshopsShiftD = [
+  { id: 'press', name: 'PRESS SHOP', defects: 28, status: 'good', trend: 'down', prevDefects: 32, shift: 'D' },
+  { id: 'weld1', name: 'WELDING 1', defects: 35, status: 'warning', trend: 'up', prevDefects: 31, shift: 'D' },
+  { id: 'weld2', name: 'WELDING 2', defects: 29, status: 'warning', trend: 'down', prevDefects: 33, shift: 'D' },
+  { id: 'paint', name: 'PAINT SHOP', defects: 45, status: 'critical', trend: 'up', prevDefects: 41, shift: 'D' },
+  { id: 'ga', name: 'GA', defects: 38, status: 'warning', trend: 'up', prevDefects: 35, shift: 'D' },
+]
+
+// GA Sectors
+export const gaSectors = {
+  A: [
+    { name: 'TRIM', defects: 12, rating: 'A', trend: 'up', status: 'good' },
+    { name: 'SHOSSE', defects: 8, rating: 'A+', trend: 'down', status: 'good' },
+    { name: 'FINAL', defects: 10, rating: 'A', trend: 'up', status: 'good' },
+    { name: 'SUB', defects: 5, rating: 'A+', trend: 'down', status: 'good' },
+  ],
+  B: [
+    { name: 'TRIM', defects: 9, rating: 'A+', trend: 'down', status: 'good' },
+    { name: 'SHOSSE', defects: 6, rating: 'A+', trend: 'down', status: 'good' },
+    { name: 'FINAL', defects: 8, rating: 'A', trend: 'up', status: 'good' },
+    { name: 'SUB', defects: 6, rating: 'A+', trend: 'up', status: 'good' },
+  ],
+  D: [
+    { name: 'TRIM', defects: 14, rating: 'A', trend: 'up', status: 'warning' },
+    { name: 'SHOSSE', defects: 10, rating: 'A', trend: 'up', status: 'warning' },
+    { name: 'FINAL', defects: 9, rating: 'A+', trend: 'down', status: 'good' },
+    { name: 'SUB', defects: 5, rating: 'A+', trend: 'down', status: 'good' },
+  ],
+}
+
+// Top 10 Defects
+export const topDefectsList = [
+  { name: 'Rang çatlagi', workshop: 'PAINT SHOP', shift: 'A', count: 28, severity: 'high' },
+  { name: 'Jingalak nuqsoni', workshop: 'WELDING 2', shift: 'D', count: 24, severity: 'high' },
+  { name: 'Misalignment', workshop: 'GA', shift: 'A', count: 22, severity: 'high' },
+  { name: 'Elektr uzilishi', workshop: 'WELDING 1', shift: 'D', count: 20, severity: 'high' },
+  { name: 'Qaynash nuqsoni', workshop: 'WELDING 1', shift: 'B', count: 18, severity: 'medium' },
+  { name: 'O\'lcham xatosi', workshop: 'PRESS SHOP', shift: 'A', count: 16, severity: 'medium' },
+  { name: 'Teshik xatosi', workshop: 'GA', shift: 'D', count: 14, severity: 'medium' },
+  { name: 'Ehtiraz profili', workshop: 'PAINT SHOP', shift: 'B', count: 12, severity: 'medium' },
+  { name: 'Teg xatosi', workshop: 'WELDING 2', shift: 'A', count: 11, severity: 'low' },
+  { name: 'Sirtni o\'chizish', workshop: 'PRESS SHOP', shift: 'D', count: 10, severity: 'low' },
+]
+
+// Shift Rankings
+export const shiftRankings = {
+  A: { defects: 160, rank: 2, status: 'good' },
+  B: { defects: 145, rank: 1, status: 'good' },
+  D: { defects: 175, rank: 3, status: 'warning' },
+}
+
+// Production Analytics Chart Data
+export const productionAnalyticsChart = [
+  { workshop: 'PRESS SHOP', defects: 24, limit: 25 },
+  { workshop: 'WELDING 1', defects: 31, limit: 28 },
+  { workshop: 'WELDING 2', defects: 28, limit: 30 },
+  { workshop: 'PAINT SHOP', defects: 42, limit: 30 },
+  { workshop: 'GA', defects: 35, limit: 32 },
+]
+
+// Defect Trend Over Time
+export const defectTrendData = [
+  { date: 'Mon', press: 26, weld1: 29, weld2: 27, paint: 40, ga: 38 },
+  { date: 'Tue', press: 25, weld1: 30, weld2: 28, paint: 41, ga: 37 },
+  { date: 'Wed', press: 23, weld1: 32, weld2: 26, paint: 43, ga: 35 },
+  { date: 'Thu', press: 24, weld1: 31, weld2: 29, paint: 42, ga: 36 },
+  { date: 'Fri', press: 24, weld1: 31, weld2: 28, paint: 42, ga: 35 },
+  { date: 'Sat', press: 22, weld1: 30, weld2: 27, paint: 40, ga: 34 },
+  { date: 'Sun', press: 21, weld1: 29, weld2: 26, paint: 38, ga: 33 },
+]
+
+// Shift Comparison Data
+export const shiftComparisonData = [
+  { workshop: 'PRESS SHOP', A: 24, B: 20, D: 28 },
+  { workshop: 'WELDING 1', A: 31, B: 26, D: 35 },
+  { workshop: 'WELDING 2', A: 28, B: 32, D: 29 },
+  { workshop: 'PAINT SHOP', A: 42, B: 38, D: 45 },
+  { workshop: 'GA', A: 35, B: 29, D: 38 },
+]
