@@ -263,7 +263,7 @@ export const sectorDetails = {
         measures: [
           'Trimm mashinasining markazlashtirilgan tekshirilishi',
           'Operatorlar uchun qo\'shimcha o\'quv sessiyalari',
-          'Kunlik sifat nazoratlash taza'mirlash',
+          'Kunlik sifat nazoratlash ta\'mirlarni amalga oshirish',
         ],
         rootCause: 'Operatorning texnik mahorati va mashina tekshirlashining nomuvofiqliги',
         nextSteps: [
