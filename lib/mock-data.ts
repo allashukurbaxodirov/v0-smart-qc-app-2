@@ -610,6 +610,132 @@ export const weldingSectors = {
   },
 }
 
+// GA Sectors Data - Detailed drill-down for General Assembly
+export const gaSectorsDrilldown = {
+  'TRIM': {
+    A: [
+      { name: 'TRIM', defects: 12, percentage: 34.3, shift: 'A', status: 'warning', color: 'yellow' },
+    ],
+    B: [
+      { name: 'TRIM', defects: 9, percentage: 31.0, shift: 'B', status: 'good', color: 'green' },
+    ],
+    D: [
+      { name: 'TRIM', defects: 14, percentage: 36.8, shift: 'D', status: 'warning', color: 'yellow' },
+    ],
+  },
+  'SHOSSE': {
+    A: [
+      { name: 'SHOSSE', defects: 8, percentage: 22.9, shift: 'A', status: 'good', color: 'green' },
+    ],
+    B: [
+      { name: 'SHOSSE', defects: 6, percentage: 20.7, shift: 'B', status: 'good', color: 'green' },
+    ],
+    D: [
+      { name: 'SHOSSE', defects: 10, percentage: 26.3, shift: 'D', status: 'warning', color: 'yellow' },
+    ],
+  },
+  'FINAL': {
+    A: [
+      { name: 'FINAL', defects: 10, percentage: 28.6, shift: 'A', status: 'good', color: 'green' },
+    ],
+    B: [
+      { name: 'FINAL', defects: 8, percentage: 27.6, shift: 'B', status: 'good', color: 'green' },
+    ],
+    D: [
+      { name: 'FINAL', defects: 9, percentage: 23.7, shift: 'D', status: 'good', color: 'green' },
+    ],
+  },
+  'SUB': {
+    A: [
+      { name: 'SUB', defects: 5, percentage: 14.3, shift: 'A', status: 'good', color: 'green' },
+    ],
+    B: [
+      { name: 'SUB', defects: 6, percentage: 20.7, shift: 'B', status: 'good', color: 'green' },
+    ],
+    D: [
+      { name: 'SUB', defects: 5, percentage: 13.2, shift: 'D', status: 'good', color: 'green' },
+    ],
+  },
+}
+
+// GA Sector Details - Root causes and actions
+export const gaSectorDetailsDrilldown = {
+  'TRIM': {
+    topDefects: [
+      { code: '18', name: 'Detalda nuqson bor', workshop: 'GA', count: 8 },
+      { code: '20', name: 'Sifatsiz o\'rnatilgan', workshop: 'GA', count: 5 },
+      { code: '24', name: 'Detalga shikast yetgan', workshop: 'GA', count: 3 },
+    ],
+    rootCauses: [
+      'Trim operatorning diqqat berish yetarli emas',
+      'Detallni o\'rnatish jarayonida xatolik',
+      'Trim stansiyasida sensorlar to\'g\'ri sozlanmagan',
+      'Detallning sifati past',
+    ],
+    actions: [
+      'Trim operatorlari uchun qo\'shimcha o\'qitish',
+      'Trim stansiyasini tekshirish va sozlash',
+      'Detallning sifatini oshirish uchun ta\'minchiga murojaat',
+      'Kundalik trim inspeksiya',
+      'Sensorlar kalibrirovkasi',
+    ],
+  },
+  'SHOSSE': {
+    topDefects: [
+      { code: '54', name: 'Shosse o\'rnatish xatosi', workshop: 'GA', count: 4 },
+      { code: '55', name: 'Shosse buzilgan', workshop: 'GA', count: 2 },
+      { code: '56', name: 'Shosse gap bor', workshop: 'GA', count: 1 },
+    ],
+    rootCauses: [
+      'Shosse detallining sifati',
+      'O\'rnatish stansiyasining sozlanishi',
+      'Operatorning mahorati yetarli emas',
+    ],
+    actions: [
+      'Shosse material sifatini tekshirish',
+      'O\'rnatish stansiyasini kalibrirovat qilish',
+      'Operatorlarni amaliy o\'qitish',
+      'Kundalik o\'rnatish tekshiruvi',
+    ],
+  },
+  'FINAL': {
+    topDefects: [
+      { code: '44', name: 'Butlovchi qism to\'liq qotirilmagan', workshop: 'GA', count: 5 },
+      { code: '32', name: 'Detal funksiyasini bajarmayapti', workshop: 'GA', count: 3 },
+      { code: '35', name: 'Regulirovka qilinmagan', workshop: 'GA', count: 2 },
+    ],
+    rootCauses: [
+      'Final inspeksiyada xatolik',
+      'Detal sifati past',
+      'Regulirovka jarayoni to\'liq emas',
+    ],
+    actions: [
+      'Final inspeksiya stansiyasini kalibrirovat qilish',
+      'QC operatorlarini qayta amaliy o\'qitish',
+      'Regulirovka stansiyasini tekshirish',
+      'Kundalik final inspeksiya auditini o\'tkazish',
+    ],
+  },
+  'SUB': {
+    topDefects: [
+      { code: '60', name: 'Sub detalning o\'rnatilishi yetarli emas', workshop: 'GA', count: 2 },
+      { code: '61', name: 'Sub detal buzilgan', workshop: 'GA', count: 1 },
+      { code: '62', name: 'Sub detal xatosi', workshop: 'GA', count: 1 },
+    ],
+    rootCauses: [
+      'Sub detal sifati',
+      'O\'rnatish jarayonining soddaligi',
+      'Operatorning ehtiyotkorlik',
+    ],
+    actions: [
+      'Sub detal ta\'minchisi bilan uchrashuv',
+      'Sub detal o\'rnatish jarayonini optimallashtirish',
+      'Operatorlarga e\'tibor jamoasi',
+      'Kundalik sub detal tekshiruvi',
+    ],
+  },
+}
+
 // Welding Sector Details - Drill-down information
 export const weldingSectorDetails = {
   'Sidebody': {

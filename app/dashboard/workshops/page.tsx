@@ -40,11 +40,9 @@ const COLORS = ['var(--color-chart-1)', 'var(--color-chart-2)', 'var(--color-cha
 
 export default function ProductionPage() {
   const [activeShift, setActiveShift] = useState('A')
-  const [expandedGa, setExpandedGa] = useState(false)
   const [selectedSector, setSelectedSector] = useState<string | null>(null)
 
   const workshopsData = activeShift === 'A' ? productionWorkshops : activeShift === 'B' ? productionWorkshopsShiftB : productionWorkshopsShiftD
-  const gaData = gaSectors[activeShift as keyof typeof gaSectors]
   const shiftRank = shiftRankings[activeShift as keyof typeof shiftRankings]
 
   return (
@@ -69,7 +67,6 @@ export default function ProductionPage() {
                 key={shift}
                 onClick={() => {
                   setActiveShift(shift)
-                  setExpandedGa(false)
                 }}
                 className={`px-4 py-2 rounded-md font-semibold transition-all ${
                   activeShift === shift
@@ -95,21 +92,18 @@ export default function ProductionPage() {
                     ? 'border-warning bg-warning/5'
                     : 'border-critical bg-critical/5'
 
-              // Check if this is a welding shop for drill-down
+              // Check if this is a welding shop or GA for drill-down
               const isWeldingShop = workshop.id === 'weld1' || workshop.id === 'weld2'
+              const isGa = workshop.id === 'ga'
               const weldingLink = workshop.id === 'weld1' ? '/dashboard/workshops/welding/welding-1' : '/dashboard/workshops/welding/welding-2'
+              const gaLink = '/dashboard/workshops/ga'
 
               const cardContent = (
-                <div className={`bg-card border rounded-lg p-4 cursor-pointer transition-all hover:shadow-lg ${
-                  expandedGa && workshop.id === 'ga' ? 'ring-2 ring-primary' : statusColor
-                }`}
-                >
+                <div className={`bg-card border rounded-lg p-4 cursor-pointer transition-all hover:shadow-lg ${statusColor}`}>
+                
                   <div className="flex items-start justify-between mb-3">
                     <h3 className="font-bold text-foreground text-sm">{workshop.name}</h3>
-                    {workshop.id === 'ga' && expandedGa && (
-                      <ChevronRight className="w-4 h-4 text-primary transform rotate-90" />
-                    )}
-                    {isWeldingShop && (
+                    {(isWeldingShop || isGa) && (
                       <ChevronRight className="w-4 h-4 text-primary" />
                     )}
                   </div>
@@ -145,16 +139,13 @@ export default function ProductionPage() {
               )
 
               return (
-                <div
-                  key={workshop.id}
-                  onClick={() => {
-                    if (workshop.id === 'ga') {
-                      setExpandedGa(!expandedGa)
-                    }
-                  }}
-                >
+                <div key={workshop.id}>
                   {isWeldingShop ? (
                     <Link href={weldingLink}>
+                      {cardContent}
+                    </Link>
+                  ) : isGa ? (
+                    <Link href={gaLink}>
                       {cardContent}
                     </Link>
                   ) : (
@@ -166,54 +157,7 @@ export default function ProductionPage() {
           </div>
         </div>
 
-        {/* GA Drill-down */}
-        {expandedGa && (
-          <div className="bg-card border border-border rounded-xl p-6">
-            <div className="flex items-center gap-2 mb-6">
-              <h2 className="text-xl font-bold text-foreground">GA - Sektorlar</h2>
-              <span className="text-sm text-muted-foreground">({activeShift} smena)</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {gaData.map((sector) => {
-                const statusColor =
-                  sector.status === 'good' ? 'border-success bg-success/5' : 'border-warning bg-warning/5'
 
-                return (
-                  <div key={sector.name} className={`border rounded-lg p-4 ${statusColor}`}>
-                    <div className="space-y-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Sektor nomi</p>
-                        <p className="font-bold text-foreground text-sm">{sector.name}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground mb-1">Jami nuqsonlar</p>
-                        <p className="text-2xl font-bold text-foreground">{sector.defects}</p>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-1">Reyting</p>
-                          <Badge variant="outline" className="text-xs font-bold">
-                            {sector.rating}
-                          </Badge>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground mb-1">Trend</p>
-                          <div className="flex items-center justify-end">
-                            {sector.trend === 'up' ? (
-                              <TrendingUp className="w-4 h-4 text-critical" />
-                            ) : (
-                              <TrendingDown className="w-4 h-4 text-success" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Production Analytics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
