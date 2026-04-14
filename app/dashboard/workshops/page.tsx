@@ -34,6 +34,7 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ChevronRight, TrendingUp, TrendingDown } from 'lucide-react'
+import Link from 'next/link'
 
 const COLORS = ['var(--color-chart-1)', 'var(--color-chart-2)', 'var(--color-chart-3)', 'var(--color-chart-4)', 'var(--color-chart-5)']
 
@@ -94,22 +95,22 @@ export default function ProductionPage() {
                     ? 'border-warning bg-warning/5'
                     : 'border-critical bg-critical/5'
 
-              return (
-                <div
-                  key={workshop.id}
-                  onClick={() => {
-                    if (workshop.id === 'ga') {
-                      setExpandedGa(!expandedGa)
-                    }
-                  }}
-                  className={`bg-card border rounded-lg p-4 cursor-pointer transition-all hover:shadow-lg ${
-                    expandedGa && workshop.id === 'ga' ? 'ring-2 ring-primary' : statusColor
-                  }`}
+              // Check if this is a welding shop for drill-down
+              const isWeldingShop = workshop.id === 'weld1' || workshop.id === 'weld2'
+              const weldingLink = workshop.id === 'weld1' ? '/dashboard/workshops/welding/welding-1' : '/dashboard/workshops/welding/welding-2'
+
+              const cardContent = (
+                <div className={`bg-card border rounded-lg p-4 cursor-pointer transition-all hover:shadow-lg ${
+                  expandedGa && workshop.id === 'ga' ? 'ring-2 ring-primary' : statusColor
+                }`}
                 >
                   <div className="flex items-start justify-between mb-3">
                     <h3 className="font-bold text-foreground text-sm">{workshop.name}</h3>
                     {workshop.id === 'ga' && expandedGa && (
                       <ChevronRight className="w-4 h-4 text-primary transform rotate-90" />
+                    )}
+                    {isWeldingShop && (
+                      <ChevronRight className="w-4 h-4 text-primary" />
                     )}
                   </div>
                   <div className="space-y-3">
@@ -140,6 +141,25 @@ export default function ProductionPage() {
                       </span>
                     </div>
                   </div>
+                </div>
+              )
+
+              return (
+                <div
+                  key={workshop.id}
+                  onClick={() => {
+                    if (workshop.id === 'ga') {
+                      setExpandedGa(!expandedGa)
+                    }
+                  }}
+                >
+                  {isWeldingShop ? (
+                    <Link href={weldingLink}>
+                      {cardContent}
+                    </Link>
+                  ) : (
+                    cardContent
+                  )}
                 </div>
               )
             })}

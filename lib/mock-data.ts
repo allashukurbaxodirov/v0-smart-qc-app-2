@@ -565,3 +565,118 @@ export const worstSectorsByShift = {
     { sector: 'Sub', shift: 'D', defects: 5, rating: 'A+' },
   ],
 }
+
+// Welding Sectors Data (for Welding 1 and Welding 2 drill-down)
+export const weldingSectors = {
+  'WELDING 1': {
+    A: [
+      { name: 'Sidebody', defects: 12, percentage: 38.7, shift: 'A', status: 'warning', color: 'yellow' },
+      { name: 'Mainbody', defects: 8, percentage: 25.8, shift: 'A', status: 'good', color: 'green' },
+      { name: 'Underbody', defects: 7, percentage: 22.6, shift: 'A', status: 'good', color: 'green' },
+      { name: 'BodyWhite', defects: 4, percentage: 12.9, shift: 'A', status: 'good', color: 'green' },
+    ],
+    B: [
+      { name: 'Sidebody', defects: 10, percentage: 38.5, shift: 'B', status: 'good', color: 'green' },
+      { name: 'Mainbody', defects: 7, percentage: 26.9, shift: 'B', status: 'good', color: 'green' },
+      { name: 'Underbody', defects: 5, percentage: 19.2, shift: 'B', status: 'good', color: 'green' },
+      { name: 'BodyWhite', defects: 4, percentage: 15.4, shift: 'B', status: 'good', color: 'green' },
+    ],
+    D: [
+      { name: 'Sidebody', defects: 15, percentage: 42.9, shift: 'D', status: 'critical', color: 'red' },
+      { name: 'Mainbody', defects: 11, percentage: 31.4, shift: 'D', status: 'warning', color: 'yellow' },
+      { name: 'Underbody', defects: 6, percentage: 17.1, shift: 'D', status: 'good', color: 'green' },
+      { name: 'BodyWhite', defects: 3, percentage: 8.6, shift: 'D', status: 'good', color: 'green' },
+    ],
+  },
+  'WELDING 2': {
+    A: [
+      { name: 'Sidebody', defects: 10, percentage: 35.7, shift: 'A', status: 'warning', color: 'yellow' },
+      { name: 'Mainbody', defects: 8, percentage: 28.6, shift: 'A', status: 'good', color: 'green' },
+      { name: 'Underbody', defects: 6, percentage: 21.4, shift: 'A', status: 'good', color: 'green' },
+      { name: 'BodyWhite', defects: 4, percentage: 14.3, shift: 'A', status: 'good', color: 'green' },
+    ],
+    B: [
+      { name: 'Sidebody', defects: 14, percentage: 43.8, shift: 'B', status: 'critical', color: 'red' },
+      { name: 'Mainbody', defects: 10, percentage: 31.3, shift: 'B', status: 'warning', color: 'yellow' },
+      { name: 'Underbody', defects: 5, percentage: 15.6, shift: 'B', status: 'good', color: 'green' },
+      { name: 'BodyWhite', defects: 3, percentage: 9.4, shift: 'B', status: 'good', color: 'green' },
+    ],
+    D: [
+      { name: 'Sidebody', defects: 13, percentage: 41.9, shift: 'D', status: 'warning', color: 'yellow' },
+      { name: 'Mainbody', defects: 10, percentage: 32.3, shift: 'D', status: 'warning', color: 'yellow' },
+      { name: 'Underbody', defects: 5, percentage: 16.1, shift: 'D', status: 'good', color: 'green' },
+      { name: 'BodyWhite', defects: 3, percentage: 9.7, shift: 'D', status: 'good', color: 'green' },
+    ],
+  },
+}
+
+// Welding Sector Details - Drill-down information
+export const weldingSectorDetails = {
+  'Sidebody': {
+    topDefects: [
+      { code: '45', name: 'Qaynash ekilmasa qolgan', workshop: 'WELDING 1', count: 8 },
+      { code: '46', name: 'Qaynash tugri emas', workshop: 'WELDING 2', count: 6 },
+      { code: '47', name: 'Qaynash joyi pozilgan', workshop: 'WELDING 1', count: 4 },
+    ],
+    rootCauses: [
+      'Qaynash stansiyasining sozlanishi noto\'g\'ri',
+      'Elektrod sifati past',
+      'Operatorning texnik mahorati',
+      'Mashinaning texnik xizmat ko\'rsatilishi yetarli emas',
+    ],
+    actions: [
+      'Qaynash stansiyasini tekshirish va sozlash',
+      'Elektrod havfsi va sifatini tekshirish',
+      'Operatorlar uchun qo\'shimcha o\'qitish',
+      'Kundalik texnik xizmat ko\'rsatish jadvalini bajarilshi',
+      'Qaynash parametrlarini SPC orqali nazorat qilish',
+    ],
+  },
+  'Mainbody': {
+    topDefects: [
+      { code: '48', name: 'Egilish nuqsoni bor', workshop: 'WELDING 1', count: 5 },
+      { code: '49', name: 'Metallining takorrarlayni yo\'q', workshop: 'WELDING 2', count: 4 },
+      { code: '50', name: 'Qaynash joyi sust', workshop: 'WELDING 1', count: 3 },
+    ],
+    rootCauses: [
+      'Detallning pozitsiyasi noto\'g\'ri',
+      'Qaynash parametrlari noto\'g\'ri',
+      'Material sifati pas',
+    ],
+    actions: [
+      'Detallni samalavchi jigni tekshirish',
+      'Qaynash parametrlarini qayta sozlash',
+      'Material ta\'minchisi bilan uchrashuv',
+      'SPC tahlilni kundalik o\'tkazish',
+    ],
+  },
+  'Underbody': {
+    topDefects: [
+      { code: '51', name: 'Qaynash sust', workshop: 'WELDING 2', count: 3 },
+      { code: '52', name: 'Qaynash porlak bor', workshop: 'WELDING 1', count: 2 },
+    ],
+    rootCauses: [
+      'Qaynash jarayonining sozlanishi',
+      'Teri beruvchi material sifati',
+    ],
+    actions: [
+      'Qaynash parametrlarini tekshirish',
+      'Material sifatini oshirish',
+      'Kundalik sifat tekshiruvi',
+    ],
+  },
+  'BodyWhite': {
+    topDefects: [
+      { code: '53', name: 'Sirtida egilish bor', workshop: 'WELDING 1', count: 2 },
+    ],
+    rootCauses: [
+      'To\'g\'ri o\'rnatish yetarli emas',
+      'Qaynash jarayonining ehtiyotkorlik',
+    ],
+    actions: [
+      'O\'rnatish stansiyasini tekshirish',
+      'Operatorlarni amaliy o\'qitish',
+      'Kundalik sifat auditini o\'tkazish',
+    ],
+  },
+}
