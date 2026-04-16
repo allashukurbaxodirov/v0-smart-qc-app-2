@@ -610,6 +610,107 @@ export const weldingSectors = {
   },
 }
 
+// Paint Shop Sectors Data (for Paint Shop drill-down)
+export const paintSectors = {
+  'PAINT SHOP': {
+    A: [
+      { name: 'QATLAM-1', defects: 14, percentage: 33.3, shift: 'A', status: 'warning', color: 'yellow' },
+      { name: 'QATLAM-2', defects: 12, percentage: 28.6, shift: 'A', status: 'warning', color: 'yellow' },
+      { name: 'QATLAM-3', defects: 10, percentage: 23.8, shift: 'A', status: 'good', color: 'green' },
+      { name: 'QATLAM-4', defects: 6, percentage: 14.3, shift: 'A', status: 'good', color: 'green' },
+    ],
+    B: [
+      { name: 'QATLAM-1', defects: 12, percentage: 31.6, shift: 'B', status: 'warning', color: 'yellow' },
+      { name: 'QATLAM-2', defects: 10, percentage: 26.3, shift: 'B', status: 'good', color: 'green' },
+      { name: 'QATLAM-3', defects: 9, percentage: 23.7, shift: 'B', status: 'good', color: 'green' },
+      { name: 'QATLAM-4', defects: 7, percentage: 18.4, shift: 'B', status: 'good', color: 'green' },
+    ],
+    D: [
+      { name: 'QATLAM-1', defects: 18, percentage: 40.0, shift: 'D', status: 'critical', color: 'red' },
+      { name: 'QATLAM-2', defects: 14, percentage: 31.1, shift: 'D', status: 'critical', color: 'red' },
+      { name: 'QATLAM-3', defects: 8, percentage: 17.8, shift: 'D', status: 'good', color: 'green' },
+      { name: 'QATLAM-4', defects: 5, percentage: 11.1, shift: 'D', status: 'good', color: 'green' },
+    ],
+  },
+}
+
+// Paint Shop Sector Details - Root causes and actions
+export const paintSectorDetails = {
+  'QATLAM-1': {
+    topDefects: [
+      { code: '86', name: 'Bo\'yoq oqishi', workshop: 'PAINT SHOP', count: 10 },
+      { code: '81', name: 'Bo\'yoq notekis sepilgan', workshop: 'PAINT SHOP', count: 7 },
+      { code: '77', name: 'Bo\'yoq yuzasida kir bor', workshop: 'PAINT SHOP', count: 4 },
+    ],
+    rootCauses: [
+      'Spray gun sozlanishi noto\'g\'ri',
+      'Bo\'yoq sifati past',
+      'Hava filtri bo\'shashgan',
+      'Ishchi texnik mahorati yetarli emas',
+    ],
+    actions: [
+      'Spray gun\'ni tekshirish va sozlash',
+      'Bo\'yoq sifatini ta\'minchidan so\'rash',
+      'Hava filtirni almashtirish',
+      'Ishchi uchun amaliy o\'qitish',
+      'Kundalik spray equipment tekshiruvi',
+    ],
+  },
+  'QATLAM-2': {
+    topDefects: [
+      { code: '75', name: 'Germetik nuqsoni bor', workshop: 'PAINT SHOP', count: 8 },
+      { code: '79', name: 'Bo\'yoq tez quritilgan', workshop: 'PAINT SHOP', count: 5 },
+      { code: '80', name: 'Bo\'yoq tez quritilmagan', workshop: 'PAINT SHOP', count: 3 },
+    ],
+    rootCauses: [
+      'Qurish temperaturi noto\'g\'ri',
+      'Shamol tizimi yetarli emas',
+      'Bo\'yoq fo\'rmulasi noto\'g\'ri',
+    ],
+    actions: [
+      'Qurish shuvolanini tekshirish',
+      'Shamol tizimini tozalash',
+      'Bo\'yoq spektifikatsiyasiga rioya qilish',
+      'Qurish vaqti parametrlarini sozlash',
+      'SPC orqali qurish jarayonini nazorat qilish',
+    ],
+  },
+  'QATLAM-3': {
+    topDefects: [
+      { code: '82', name: 'Bo\'yoq rang xatosi', workshop: 'PAINT SHOP', count: 6 },
+      { code: '83', name: 'Bo\'yoq kamligi bor', workshop: 'PAINT SHOP', count: 4 },
+    ],
+    rootCauses: [
+      'Rang aralashmasi noto\'g\'ri',
+      'Mixing machine kabrirkovka',
+      'Bo\'yoq omborida sifati pasaygan',
+    ],
+    actions: [
+      'Rang aralashmasini qayta tekshirish',
+      'Mixing machine\'ni tekshirish',
+      'Bo\'yoq sifatini ta\'minchiga yubori',
+      'Rang spektrometri bilan tekshirish',
+    ],
+  },
+  'QATLAM-4': {
+    topDefects: [
+      { code: '84', name: 'Tosh teshigi bor', workshop: 'PAINT SHOP', count: 3 },
+      { code: '85', name: 'Bo\'yoq sirtida bulg\'alar', workshop: 'PAINT SHOP', count: 2 },
+    ],
+    rootCauses: [
+      'Buyumni to\'g\'ri tuzatmadi',
+      'Havo sifati past',
+      'Bo\'yoq katikotasi noto\'g\'ri',
+    ],
+    actions: [
+      'Buyum tuzatish jarayonini ko\'rib chiqish',
+      'Havo filtirni almashtirish',
+      'Bo\'yoq katikotasini qayta sozlash',
+      'Final inspeksiyani kuchaytirish',
+    ],
+  },
+}
+
 // GA Sectors Data - Detailed drill-down for General Assembly
 export const gaSectorsDrilldown = {
   'TRIM': {
