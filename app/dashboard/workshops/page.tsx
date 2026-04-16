@@ -92,20 +92,22 @@ export default function ProductionPage() {
                     ? 'border-warning bg-warning/5'
                     : 'border-critical bg-critical/5'
 
-              // Check if this is a welding shop, GA, or PAINT SHOP for drill-down
+              // Check if this is a welding shop, GA, PAINT SHOP, or PRESS SHOP for drill-down
               const isWeldingShop = workshop.id === 'weld1' || workshop.id === 'weld2'
               const isGa = workshop.id === 'ga'
               const isPaint = workshop.id === 'paint'
+              const isPress = workshop.id === 'press'
               const weldingLink = workshop.id === 'weld1' ? '/dashboard/workshops/welding/welding-1' : '/dashboard/workshops/welding/welding-2'
               const gaLink = '/dashboard/workshops/ga'
               const paintLink = '/dashboard/workshops/paint'
+              const pressLink = '/dashboard/workshops/press'
 
               const cardContent = (
                 <div className={`bg-card border rounded-lg p-4 cursor-pointer transition-all hover:shadow-lg ${statusColor}`}>
                 
                   <div className="flex items-start justify-between mb-3">
                     <h3 className="font-bold text-foreground text-sm">{workshop.name}</h3>
-                    {(isWeldingShop || isGa || isPaint) && (
+                    {(isWeldingShop || isGa || isPaint || isPress) && (
                       <ChevronRight className="w-4 h-4 text-primary" />
                     )}
                   </div>
@@ -152,6 +154,10 @@ export default function ProductionPage() {
                     </Link>
                   ) : isPaint ? (
                     <Link href={paintLink}>
+                      {cardContent}
+                    </Link>
+                  ) : isPress ? (
+                    <Link href={pressLink}>
                       {cardContent}
                     </Link>
                   ) : (

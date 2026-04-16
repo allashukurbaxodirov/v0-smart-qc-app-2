@@ -610,6 +610,85 @@ export const weldingSectors = {
   },
 }
 
+// Press Shop Sectors Data (for Press Shop drill-down)
+export const pressSectors = {
+  'PRESS SHOP': {
+    A: [
+      { name: 'LINIYA-250T', defects: 8, percentage: 33.3, shift: 'A', status: 'good', color: 'green' },
+      { name: 'LINIYA-800T', defects: 10, percentage: 41.7, shift: 'A', status: 'warning', color: 'yellow' },
+      { name: 'LINIYA-1200T', defects: 6, percentage: 25.0, shift: 'A', status: 'good', color: 'green' },
+    ],
+    B: [
+      { name: 'LINIYA-250T', defects: 6, percentage: 30.0, shift: 'B', status: 'good', color: 'green' },
+      { name: 'LINIYA-800T', defects: 8, percentage: 40.0, shift: 'B', status: 'warning', color: 'yellow' },
+      { name: 'LINIYA-1200T', defects: 6, percentage: 30.0, shift: 'B', status: 'good', color: 'green' },
+    ],
+    D: [
+      { name: 'LINIYA-250T', defects: 10, percentage: 35.7, shift: 'D', status: 'warning', color: 'yellow' },
+      { name: 'LINIYA-800T', defects: 12, percentage: 42.9, shift: 'D', status: 'warning', color: 'yellow' },
+      { name: 'LINIYA-1200T', defects: 6, percentage: 21.4, shift: 'D', status: 'good', color: 'green' },
+    ],
+  },
+}
+
+// Press Shop Sector Details - Root causes and actions
+export const pressSectorDetails = {
+  'LINIYA-250T': {
+    topDefects: [
+      { code: '63', name: 'O\'lcham xatosi', workshop: 'PRESS SHOP', count: 5 },
+      { code: '64', name: 'Boshi egilgan', workshop: 'PRESS SHOP', count: 3 },
+      { code: '65', name: 'Sirtda egilish', workshop: 'PRESS SHOP', count: 2 },
+    ],
+    rootCauses: [
+      'Pressa sozlanishi noto\'g\'ri',
+      'Detallning sifati past',
+      'Mos detallning egilish masofa',
+    ],
+    actions: [
+      'Pressa parametrlarini tekshirish',
+      'Detallning sifatini ta\'minchiga yubori',
+      'Pressa kalibrirovkasi',
+      'Kundalik pressa tekshiruvi',
+      'Detallning sifat kontrol standartini oshirish',
+    ],
+  },
+  'LINIYA-800T': {
+    topDefects: [
+      { code: '66', name: 'Qavsiyasida xatosi', workshop: 'PRESS SHOP', count: 6 },
+      { code: '67', name: 'Matritsa buzilgan', workshop: 'PRESS SHOP', count: 4 },
+      { code: '68', name: 'Egilish burchagi xatosi', workshop: 'PRESS SHOP', count: 3 },
+    ],
+    rootCauses: [
+      'Matritsa ishini texnik xizmat ko\'rsatish yetarli emas',
+      'Pressa kuchlari noto\'g\'ri sozlangan',
+      'Detallning oziqlanishi noto\'g\'ri',
+    ],
+    actions: [
+      'Matritsa inspeksiyasi va ta\'mirni amalga oshirish',
+      'Pressa kuchini qayta sozlash',
+      'Detallni o\'tkazish tizimini tekshirish',
+      'Kundalik matritsa tekshiruvi',
+      'Pressa operatorlarini qayta o\'qitish',
+    ],
+  },
+  'LINIYA-1200T': {
+    topDefects: [
+      { code: '69', name: 'Mos bo\'lmasa qolgan', workshop: 'PRESS SHOP', count: 4 },
+      { code: '70', name: 'Detallda zaif egilish', workshop: 'PRESS SHOP', count: 2 },
+    ],
+    rootCauses: [
+      'Stansiya sozlanishi yetarli emas',
+      'Mos detallning o\'lcham xatosi',
+    ],
+    actions: [
+      'Stansiya sozlanishini tekshirish',
+      'Mos detallini almashtirish',
+      'Stansiya parametrlarini qayta sozlash',
+      'SPC orqali nazorat jarayonini o\'rnatish',
+    ],
+  },
+}
+
 // Paint Shop Sectors Data (for Paint Shop drill-down)
 export const paintSectors = {
   'PAINT SHOP': {
