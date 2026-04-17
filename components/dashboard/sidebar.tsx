@@ -112,9 +112,6 @@ export default function Sidebar() {
         {/* Analytics Section */}
         <SidebarSection title="Analitika" items={groupedItems.analytics} isActive={isActive} />
 
-        {/* KPI Section */}
-        <SidebarSection title="KPI Ko&apos;rsatkichlar" items={groupedItems.kpi} isActive={isActive} />
-
         {/* Operations Section */}
         <SidebarSection title="Ishlab chiqarish" items={groupedItems.operations} isActive={isActive} />
 
@@ -182,16 +179,22 @@ function SidebarSection({
   isActive,
 }: {
   title: string
-  items: SidebarItem[]
+  items?: SidebarItem[]
   isActive: (href: string) => boolean
 }) {
+  const safeItems = items ?? []
+
+  if (safeItems.length === 0) {
+    return null
+  }
+
   return (
     <div className="mb-8 px-3">
       <p className="text-xs uppercase font-semibold text-muted-foreground tracking-wider mb-4">
         {title}
       </p>
       <nav className="space-y-2">
-        {items.map((item) => (
+        {safeItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
