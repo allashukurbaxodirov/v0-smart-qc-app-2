@@ -12,7 +12,6 @@ import {
   LogOut,
   Menu,
   X,
-  Zap,
   Factory,
   ClipboardList,
 } from 'lucide-react'
@@ -52,12 +51,6 @@ const sidebarItems: SidebarItem[] = [
     section: 'analytics',
   },
   {
-    label: 'KPI Ko&apos;rsatkichlar',
-    href: '/dashboard/kpi',
-    icon: <Zap className="w-5 h-5" />,
-    section: 'kpi',
-  },
-  {
     label: 'Ishlab chiqarish',
     href: '/dashboard/workshops',
     icon: <Factory className="w-5 h-5" />,
@@ -90,7 +83,6 @@ export default function Sidebar() {
   const groupedItems = {
     main: sidebarItems.filter((item) => item.section === 'main'),
     analytics: sidebarItems.filter((item) => item.section === 'analytics'),
-    kpi: sidebarItems.filter((item) => item.section === 'kpi'),
     operations: sidebarItems.filter((item) => item.section === 'operations'),
     admin: sidebarItems.filter((item) => item.section === 'admin'),
   }
