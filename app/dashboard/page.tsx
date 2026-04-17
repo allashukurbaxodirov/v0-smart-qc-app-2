@@ -62,7 +62,7 @@ export default function DashboardHome() {
             change={1.3}
             trend="up"
             status="good"
-            href="/dashboard/kpi/gca"
+            href="/dashboard/gca"
           />
           <KPICard
             title={kpiData.drr.name}

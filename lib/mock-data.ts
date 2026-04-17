@@ -96,6 +96,65 @@ export const topDefects = [
   { id: 10, code: '35', name: 'Regulirovka qilinmagan', count: 7, percent: 3.1, workshop: 'GA', shift: 'D', status: 'warning', trend: 'up' },
 ]
 
+// GCA Defect Factor Mapping - Risk levels
+export const gcaDefectFactors = {
+  '18': { name: 'Detalda nuqson bor', factor: 20, risk: 'high' },
+  '20': { name: 'Sifatsiz o\'rnatilgan', factor: 18, risk: 'high' },
+  '24': { name: 'Detalga shikast yetgan', factor: 15, risk: 'medium' },
+  '32': { name: 'Detal funksiyasini bajarmayapti', factor: 22, risk: 'high' },
+  '35': { name: 'Regulirovka qilinmagan', factor: 12, risk: 'medium' },
+  '44': { name: 'Butlovchi qism to\'liq qotirilmagan', factor: 16, risk: 'medium' },
+  '75': { name: 'Germetik nuqsoni bor', factor: 19, risk: 'high' },
+  '77': { name: 'Bo\'yoq yuzasida kir bor', factor: 10, risk: 'low' },
+  '81': { name: 'Bo\'yoq notekis sepilgan', factor: 14, risk: 'medium' },
+  '86': { name: 'Bo\'yoq oqishi', factor: 25, risk: 'high' },
+  '45': { name: 'Qaynash ekilmasa qolgan', factor: 23, risk: 'high' },
+  '46': { name: 'Qaynash tugri emas', factor: 17, risk: 'medium' },
+  '47': { name: 'Qaynash joyi pozilgan', factor: 18, risk: 'high' },
+  '63': { name: 'O\'lcham xatosi', factor: 20, risk: 'high' },
+  '64': { name: 'Boshi egilgan', factor: 16, risk: 'medium' },
+  '65': { name: 'Sirtda egilish', factor: 12, risk: 'medium' },
+  '66': { name: 'Qavsiyasida xatosi', factor: 19, risk: 'high' },
+  '67': { name: 'Matritsa buzilgan', factor: 24, risk: 'high' },
+}
+
+// GCA Defects by Shop
+export const gcaDefectsByShop = {
+  'PRESS SHOP': [
+    { code: '63', name: 'O\'lcham xatosi', count: 8, factor: 20, risk: 'high' },
+    { code: '64', name: 'Boshi egilgan', factor: 16, risk: 'medium', count: 5 },
+    { code: '65', name: 'Sirtda egilish', factor: 12, risk: 'medium', count: 3 },
+    { code: '66', name: 'Qavsiyasida xatosi', factor: 19, risk: 'high', count: 4 },
+    { code: '67', name: 'Matritsa buzilgan', factor: 24, risk: 'high', count: 2 },
+  ],
+  'WELDING-1': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 12, factor: 23, risk: 'high' },
+    { code: '46', name: 'Qaynash tugri emas', count: 8, factor: 17, risk: 'medium' },
+    { code: '47', name: 'Qaynash joyi pozilgan', count: 4, factor: 18, risk: 'high' },
+    { code: '51', name: 'Qaynash sust', factor: 11, risk: 'low', count: 3 },
+  ],
+  'WELDING-2': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 10, factor: 23, risk: 'high' },
+    { code: '46', name: 'Qaynash tugri emas', count: 6, factor: 17, risk: 'medium' },
+    { code: '49', name: 'Metallining takorrarlayni yo\'q', count: 4, factor: 15, risk: 'medium' },
+    { code: '50', name: 'Qaynash joyi sust', count: 2, factor: 13, risk: 'medium' },
+  ],
+  'PAINT SHOP': [
+    { code: '86', name: 'Bo\'yoq oqishi', count: 34, factor: 25, risk: 'high' },
+    { code: '81', name: 'Bo\'yoq notekis sepilgan', count: 28, factor: 14, risk: 'medium' },
+    { code: '77', name: 'Bo\'yoq yuzasida kir bor', count: 18, factor: 10, risk: 'low' },
+    { code: '75', name: 'Germetik nuqsoni bor', count: 15, factor: 19, risk: 'high' },
+  ],
+  'GA': [
+    { code: '18', name: 'Detalda nuqson bor', count: 24, factor: 20, risk: 'high' },
+    { code: '20', name: 'Sifatsiz o\'rnatilgan', count: 21, factor: 18, risk: 'high' },
+    { code: '24', name: 'Detalga shikast yetgan', count: 13, factor: 15, risk: 'medium' },
+    { code: '32', name: 'Detal funksiyasini bajarmayapti', count: 9, factor: 22, risk: 'high' },
+    { code: '35', name: 'Regulirovka qilinmagan', count: 7, factor: 12, risk: 'medium' },
+    { code: '44', name: 'Butlovchi qism to\'liq qotirilmagan', count: 11, factor: 16, risk: 'medium' },
+  ],
+}
+
 // Smena Details - Defects by shift with recommendations
 export const smenaDetails = {
   'A smena': {
