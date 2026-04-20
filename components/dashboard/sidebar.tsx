@@ -14,9 +14,11 @@ import {
   X,
   Factory,
   ClipboardList,
+  Clipboard,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import { useRouter } from 'next/navigation'
 
 interface SidebarItem {
   label: string
@@ -25,7 +27,7 @@ interface SidebarItem {
   section: string
 }
 
-const sidebarItems: SidebarItem[] = [
+const adminSidebarItems: SidebarItem[] = [
   {
     label: 'Bosh sahifa',
     href: '/dashboard',
@@ -76,9 +78,42 @@ const sidebarItems: SidebarItem[] = [
   },
 ]
 
+const gcaAuditorSidebarItems: SidebarItem[] = [
+  {
+    label: 'GCA Dashboard',
+    href: '/dashboard/gca',
+    icon: <Home className="w-5 h-5" />,
+    section: 'main',
+  },
+  {
+    label: 'GCA Admin paneli',
+    href: '/dashboard/gca-admin',
+    icon: <Clipboard className="w-5 h-5" />,
+    section: 'main',
+  },
+]
+
 export default function Sidebar() {
   const pathname = usePathname()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [userRole, setUserRole] = useState<string>('admin')
+  const [userName, setUserName] = useState<string>('Admin User')
+  const [userEmail, setUserEmail] = useState<string>('admin@uzauto.uz')
+  const router = useRouter()
+
+  useEffect(() => {
+    // Get user info from session storage
+    const userStr = sessionStorage.getItem('user')
+    if (userStr) {
+      const user = JSON.parse(userStr)
+      setUserRole(user.role || 'admin')
+      setUserName(user.name || 'User')
+      setUserEmail(user.email || '')
+    }
+  }, [])
+
+  // Select sidebar items based on role
+  const sidebarItems = userRole === 'gca_auditor' ? gcaAuditorSidebarItems : adminSidebarItems
 
   const groupedItems = {
     main: sidebarItems.filter((item) => item.section === 'main'),
@@ -122,10 +157,21 @@ export default function Sidebar() {
       {/* User Profile & Logout */}
       <div className="border-t border-sidebar-border p-6 space-y-4">
         <div className="px-3 py-3 rounded-lg bg-sidebar-primary/10">
-          <p className="text-sm font-semibold text-sidebar-foreground">Admin User</p>
-          <p className="text-xs text-muted-foreground">admin@uzauto.uz</p>
+          <p className="text-sm font-semibold text-sidebar-foreground">{userName}</p>
+          <p className="text-xs text-muted-foreground">{userEmail}</p>
+          {userRole === 'gca_auditor' && (
+            <p className="text-xs text-primary font-medium mt-1">GCA Auditor</p>
+          )}
         </div>
-        <Button variant="outline" className="w-full justify-start" size="sm">
+        <Button
+          variant="outline"
+          className="w-full justify-start"
+          size="sm"
+          onClick={() => {
+            sessionStorage.removeItem('user')
+            router.push('/login')
+          }}
+        >
           <LogOut className="w-4 h-4 mr-2" />
           Chiqish
         </Button>

@@ -96,6 +96,54 @@ export const topDefects = [
   { id: 10, code: '35', name: 'Regulirovka qilinmagan', count: 7, percent: 3.1, workshop: 'GA', shift: 'D', status: 'warning', trend: 'up' },
 ]
 
+// GCA Defect Codes for Form Selection
+export const gcaDefectCodes = [
+  { code: '18', name: 'Detalda nuqson bor' },
+  { code: '20', name: 'Sifatsiz o\'rnatilgan' },
+  { code: '24', name: 'Detalga shikast yetgan' },
+  { code: '32', name: 'Detal funksiyasini bajarmayapti' },
+  { code: '35', name: 'Regulirovka qilinmagan' },
+  { code: '44', name: 'Butlovchi qism to\'liq qotirilmagan' },
+  { code: '45', name: 'Qaynash ekilmasa qolgan' },
+  { code: '46', name: 'Qaynash tugri emas' },
+  { code: '47', name: 'Qaynash joyi pozilgan' },
+  { code: '63', name: 'O\'lcham xatosi' },
+  { code: '64', name: 'Boshi egilgan' },
+  { code: '65', name: 'Sirtda egilish' },
+  { code: '66', name: 'Qavsiyasida xatosi' },
+  { code: '67', name: 'Matritsa buzilgan' },
+  { code: '75', name: 'Germetik nuqsoni bor' },
+  { code: '77', name: 'Bo\'yoq yuzasida kir bor' },
+  { code: '81', name: 'Bo\'yoq notekis sepilgan' },
+  { code: '86', name: 'Bo\'yoq oqishi' },
+]
+
+// GCA Shop Options
+export const gcaShopOptions = [
+  { value: 'PRESS SHOP', label: 'PRESS SHOP' },
+  { value: 'WELDING-1', label: 'WELDING-1' },
+  { value: 'WELDING-2', label: 'WELDING-2' },
+  { value: 'PAINT SHOP', label: 'PAINT SHOP' },
+  { value: 'GA', label: 'GA' },
+]
+
+// GCA Factor Options (Risk levels with numeric values)
+export const gcaFactorOptions = [
+  { value: 10, label: '10 - Past xavfli (Low Risk)' },
+  { value: 12, label: '12 - Past xavfli (Low Risk)' },
+  { value: 14, label: '14 - O\'rtacha xavfli (Medium Risk)' },
+  { value: 15, label: '15 - O\'rtacha xavfli (Medium Risk)' },
+  { value: 16, label: '16 - O\'rtacha xavfli (Medium Risk)' },
+  { value: 17, label: '17 - O\'rtacha xavfli (Medium Risk)' },
+  { value: 18, label: '18 - O\'rtacha xavfli (Medium Risk)' },
+  { value: 19, label: '19 - Yuqori xavfli (High Risk)' },
+  { value: 20, label: '20 - Yuqori xavfli (High Risk)' },
+  { value: 22, label: '22 - Yuqori xavfli (High Risk)' },
+  { value: 23, label: '23 - Yuqori xavfli (High Risk)' },
+  { value: 24, label: '24 - Yuqori xavfli (High Risk)' },
+  { value: 25, label: '25 - Yuqori xavfli (High Risk)' },
+]
+
 // GCA Defect Factor Mapping - Risk levels
 export const gcaDefectFactors = {
   '18': { name: 'Detalda nuqson bor', factor: 20, risk: 'high' },

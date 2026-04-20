@@ -7,19 +7,41 @@ import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
+// Mock user database with roles
+const MOCK_USERS = {
+  'demo@uzauto.uz': { password: 'demo123', role: 'admin', name: 'Demo Admin' },
+  'gca@uzauto.uz': { password: 'gca123', role: 'gca_auditor', name: 'GCA Auditor' },
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
   const router = useRouter()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+    setError('')
     
     // Simulate login delay
     setTimeout(() => {
-      router.push('/dashboard')
+      const user = MOCK_USERS[email as keyof typeof MOCK_USERS]
+      if (user && user.password === password) {
+        // Store user session in localStorage
+        sessionStorage.setItem('user', JSON.stringify({ email, role: user.role, name: user.name }))
+        
+        // Redirect based on role
+        if (user.role === 'gca_auditor') {
+          router.push('/dashboard/gca-admin')
+        } else {
+          router.push('/dashboard')
+        }
+      } else {
+        setError('Email yoki parol noto\'g\'ri. Iltimos, qayta urinib ko\'ring.')
+        setIsLoading(false)
+      }
     }, 800)
   }
 
@@ -56,6 +78,13 @@ export default function LoginPage() {
               </p>
             </div>
 
+            {/* Error Message */}
+            {error && (
+              <div className="bg-critical/10 border border-critical/30 rounded-lg p-4">
+                <p className="text-sm text-critical">{error}</p>
+              </div>
+            )}
+
             {/* Form */}
             <form onSubmit={handleLogin} className="space-y-5">
               {/* Email Field */}
@@ -67,7 +96,10 @@ export default function LoginPage() {
                   type="email"
                   placeholder="user@uzauto.uz"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    setError('')
+                  }}
                   required
                   className="bg-background border-border"
                 />
@@ -139,10 +171,17 @@ export default function LoginPage() {
           </div>
 
           {/* Info Box */}
-          <div className="mt-8 bg-primary/10 border border-primary/20 rounded-lg p-4 text-sm text-foreground">
-            <p className="font-semibold mb-2">Demo hisob ma&apos;lumotlari:</p>
-            <p className="text-muted-foreground">Email: demo@uzauto.uz</p>
-            <p className="text-muted-foreground">Parol: demo123</p>
+          <div className="mt-8 space-y-4">
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 text-sm text-foreground">
+              <p className="font-semibold mb-2">Demo hisob ma&apos;lumotlari (Admin):</p>
+              <p className="text-muted-foreground">Email: demo@uzauto.uz</p>
+              <p className="text-muted-foreground">Parol: demo123</p>
+            </div>
+            <div className="bg-warning/10 border border-warning/20 rounded-lg p-4 text-sm text-foreground">
+              <p className="font-semibold mb-2">GCA Auditor hisob ma&apos;lumotlari:</p>
+              <p className="text-muted-foreground">Email: gca@uzauto.uz</p>
+              <p className="text-muted-foreground">Parol: gca123</p>
+            </div>
           </div>
         </div>
       </main>

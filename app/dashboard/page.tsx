@@ -5,6 +5,7 @@ import PageHeader from '@/components/dashboard/page-header'
 import { SmenaDetailModal } from '@/components/dashboard/smena-detail-modal'
 import KPICard from '@/components/dashboard/kpi-card'
 import { kpiData, topDefects, shiftPerformance, smenaDetails } from '@/lib/mock-data'
+import { useGCA } from '@/lib/gca-context'
 import { Bell, AlertTriangle, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,6 +13,11 @@ import Link from 'next/link'
 
 export default function DashboardHome() {
   const [selectedSmena, setSelectedSmena] = useState<string | null>(null)
+  const { getTotalDefects, getDefectsByShop } = useGCA()
+
+  // Calculate dynamic GCA value based on records
+  const totalGCADefects = getTotalDefects()
+  const dynamicGCAValue = Math.max(85, 100 - (totalGCADefects / 500) * 15) // Dynamic calculation
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -57,10 +63,10 @@ export default function DashboardHome() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <KPICard
             title={kpiData.gca.name}
-            value={kpiData.gca.current}
+            value={parseFloat(dynamicGCAValue.toFixed(1))}
             unit="%"
-            change={1.3}
-            trend="up"
+            change={dynamicGCAValue > kpiData.gca.current ? dynamicGCAValue - kpiData.gca.current : -(kpiData.gca.current - dynamicGCAValue)}
+            trend={dynamicGCAValue > kpiData.gca.current ? 'up' : 'down'}
             status="good"
             href="/dashboard/gca"
           />
