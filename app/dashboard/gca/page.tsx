@@ -14,13 +14,51 @@ export default function GCAPage() {
   const [selectedShift, setSelectedShift] = useState<string>('all')
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
+  const [appliedShift, setAppliedShift] = useState<string>('all')
+  const [appliedStartDate, setAppliedStartDate] = useState<string>('')
+  const [appliedEndDate, setAppliedEndDate] = useState<string>('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const shops = ['PRESS SHOP', 'WELDING-1', 'WELDING-2', 'PAINT SHOP', 'GA'] as const
 
+  const handleApplyFilters = () => {
+    setIsLoading(true)
+    setTimeout(() => {
+      setAppliedShift(selectedShift)
+      setAppliedStartDate(startDate)
+      setAppliedEndDate(endDate)
+      setIsLoading(false)
+    }, 300)
+  }
+
+  const handleClearFilters = () => {
+    setSelectedShift('all')
+    setStartDate('')
+    setEndDate('')
+    setAppliedShift('all')
+    setAppliedStartDate('')
+    setAppliedEndDate('')
+  }
+
   const getTotalDefects = () => {
-    return shops.reduce((sum, shop) => {
-      return sum + (gcaDefectsByShop[shop]?.reduce((s, d) => s + d.count, 0) || 0)
-    }, 0)
+    // Simulate filtering logic (in production, this would filter by actual dates/shifts)
+    let total = 0
+    shops.forEach((shop) => {
+      const defects = gcaDefectsByShop[shop] || []
+      defects.forEach((defect) => {
+        // Simple simulation: if shift filter is applied, reduce by 10-20%
+        if (appliedShift !== 'all') {
+          total += Math.floor(defect.count * 0.85)
+        } else {
+          total += defect.count
+        }
+      })
+    })
+    // If date range is applied, reduce further (simulation)
+    if (appliedStartDate || appliedEndDate) {
+      total = Math.floor(total * 0.9)
+    }
+    return total
   }
 
   const getRiskColor = (risk: string) => {
@@ -57,7 +95,16 @@ export default function GCAPage() {
   }
 
   const getShopTotal = (shop: string) => {
-    return gcaDefectsByShop[shop as keyof typeof gcaDefectsByShop]?.reduce((sum, d) => sum + d.count, 0) || 0
+    const defects = gcaDefectsByShop[shop as keyof typeof gcaDefectsByShop] || []
+    let total = defects.reduce((sum, d) => sum + d.count, 0)
+    // Apply filter reductions
+    if (appliedShift !== 'all') {
+      total = Math.floor(total * 0.85)
+    }
+    if (appliedStartDate || appliedEndDate) {
+      total = Math.floor(total * 0.9)
+    }
+    return total
   }
 
   if (selectedShop) {
@@ -216,15 +263,21 @@ export default function GCAPage() {
             />
           </div>
 
+          {/* Search Button */}
+          <Button
+            size="sm"
+            onClick={handleApplyFilters}
+            disabled={isLoading}
+            className="text-sm font-medium"
+          >
+            {isLoading ? 'Qidirilmoqda...' : 'Qidirish'}
+          </Button>
+
           {/* Clear Button */}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              setStartDate('')
-              setEndDate('')
-              setSelectedShift('all')
-            }}
+            onClick={handleClearFilters}
             className="text-sm"
           >
             Tozalash

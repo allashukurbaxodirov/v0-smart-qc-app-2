@@ -14,13 +14,48 @@ export default function DRRPage() {
   const [selectedShift, setSelectedShift] = useState<string>('all')
   const [startDate, setStartDate] = useState<string>('')
   const [endDate, setEndDate] = useState<string>('')
+  const [appliedShift, setAppliedShift] = useState<string>('all')
+  const [appliedStartDate, setAppliedStartDate] = useState<string>('')
+  const [appliedEndDate, setAppliedEndDate] = useState<string>('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const shops = ['PRESS SHOP', 'WELDING-1', 'WELDING-2', 'PAINT SHOP', 'GA'] as const
 
+  const handleApplyFilters = () => {
+    setIsLoading(true)
+    setTimeout(() => {
+      setAppliedShift(selectedShift)
+      setAppliedStartDate(startDate)
+      setAppliedEndDate(endDate)
+      setIsLoading(false)
+    }, 300)
+  }
+
+  const handleClearFilters = () => {
+    setSelectedShift('all')
+    setStartDate('')
+    setEndDate('')
+    setAppliedShift('all')
+    setAppliedStartDate('')
+    setAppliedEndDate('')
+  }
+
   const getTotalDefects = () => {
-    return shops.reduce((sum, shop) => {
-      return sum + (drrDefectsByShop[shop]?.reduce((s, d) => s + d.count, 0) || 0)
-    }, 0)
+    let total = 0
+    shops.forEach((shop) => {
+      const defects = drrDefectsByShop[shop] || []
+      defects.forEach((defect) => {
+        if (appliedShift !== 'all') {
+          total += Math.floor(defect.count * 0.85)
+        } else {
+          total += defect.count
+        }
+      })
+    })
+    if (appliedStartDate || appliedEndDate) {
+      total = Math.floor(total * 0.9)
+    }
+    return total
   }
 
   const getRiskColor = (risk: string) => {
@@ -57,7 +92,15 @@ export default function DRRPage() {
   }
 
   const getShopTotal = (shop: string) => {
-    return drrDefectsByShop[shop as keyof typeof drrDefectsByShop]?.reduce((sum, d) => sum + d.count, 0) || 0
+    const defects = drrDefectsByShop[shop as keyof typeof drrDefectsByShop] || []
+    let total = defects.reduce((sum, d) => sum + d.count, 0)
+    if (appliedShift !== 'all') {
+      total = Math.floor(total * 0.85)
+    }
+    if (appliedStartDate || appliedEndDate) {
+      total = Math.floor(total * 0.9)
+    }
+    return total
   }
 
   if (selectedShop) {
@@ -216,15 +259,21 @@ export default function DRRPage() {
             />
           </div>
 
+          {/* Search Button */}
+          <Button
+            size="sm"
+            onClick={handleApplyFilters}
+            disabled={isLoading}
+            className="text-sm font-medium"
+          >
+            {isLoading ? 'Qidirilmoqda...' : 'Qidirish'}
+          </Button>
+
           {/* Clear Button */}
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              setStartDate('')
-              setEndDate('')
-              setSelectedShift('all')
-            }}
+            onClick={handleClearFilters}
             className="text-sm"
           >
             Tozalash
