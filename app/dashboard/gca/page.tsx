@@ -11,6 +11,9 @@ import Link from 'next/link'
 export default function GCAPage() {
   const [selectedShop, setSelectedShop] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'soni' | 'factor'>('factor')
+  const [selectedShift, setSelectedShift] = useState<string>('all')
+  const [startDate, setStartDate] = useState<string>('')
+  const [endDate, setEndDate] = useState<string>('')
 
   const shops = ['PRESS SHOP', 'WELDING-1', 'WELDING-2', 'PAINT SHOP', 'GA'] as const
 
@@ -174,6 +177,60 @@ export default function GCAPage() {
 
       {/* Main Content */}
       <div className="p-6 space-y-6">
+        {/* Filter Section */}
+        <div className="flex flex-col md:flex-row gap-4 md:justify-end md:items-end">
+          {/* Shift Filter */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-foreground">Smena bo'yicha</label>
+            <select
+              value={selectedShift}
+              onChange={(e) => setSelectedShift(e.target.value)}
+              className="px-4 py-2 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="all">Barchasi</option>
+              <option value="A">A smena</option>
+              <option value="B">B smena</option>
+              <option value="D">D smena</option>
+            </select>
+          </div>
+
+          {/* Start Date Filter */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-foreground">Boshlanish sanasi</label>
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="px-4 py-2 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          {/* End Date Filter */}
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-foreground">Tugash sanasi</label>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="px-4 py-2 bg-card border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+
+          {/* Clear Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setStartDate('')
+              setEndDate('')
+              setSelectedShift('all')
+            }}
+            className="text-sm"
+          >
+            Tozalash
+          </Button>
+        </div>
+
         {/* Total KPI */}
         <div className="bg-card border border-primary/30 rounded-xl p-8 bg-primary/5">
           <p className="text-sm text-muted-foreground mb-2">GCA aniqlangan muammolar umumiy soni</p>
