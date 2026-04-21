@@ -166,6 +166,74 @@ export const gcaDefectFactors = {
   '67': { name: 'Matritsa buzilgan', factor: 24, risk: 'high' },
 }
 
+// DRR Defects by Shop (Design Requirement Review)
+export const drrDefectsByShop = {
+  'PRESS SHOP': [
+    { code: '63', name: 'O\'lcham xatosi', count: 6, factor: 18, risk: 'high' },
+    { code: '64', name: 'Boshi egilgan', factor: 14, risk: 'medium', count: 4 },
+    { code: '65', name: 'Sirtda egilish', factor: 11, risk: 'low', count: 2 },
+    { code: '66', name: 'Qavsiyasida xatosi', factor: 17, risk: 'high', count: 3 },
+  ],
+  'WELDING-1': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 10, factor: 21, risk: 'high' },
+    { code: '46', name: 'Qaynash tugri emas', count: 6, factor: 15, risk: 'medium' },
+    { code: '47', name: 'Qaynash joyi pozilgan', count: 3, factor: 16, risk: 'medium' },
+  ],
+  'WELDING-2': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 8, factor: 21, risk: 'high' },
+    { code: '46', name: 'Qaynash tugri emas', count: 5, factor: 15, risk: 'medium' },
+    { code: '49', name: 'Metallining takorrarlayni yo\'q', count: 3, factor: 13, risk: 'medium' },
+  ],
+  'PAINT SHOP': [
+    { code: '86', name: 'Bo\'yoq oqishi', count: 28, factor: 23, risk: 'high' },
+    { code: '81', name: 'Bo\'yoq notekis sepilgan', count: 22, factor: 12, risk: 'medium' },
+    { code: '77', name: 'Bo\'yoq yuzasida kir bor', count: 14, factor: 9, risk: 'low' },
+  ],
+  'GA': [
+    { code: '18', name: 'Detalda nuqson bor', count: 20, factor: 19, risk: 'high' },
+    { code: '20', name: 'Sifatsiz o\'rnatilgan', count: 18, factor: 16, risk: 'high' },
+    { code: '24', name: 'Detalga shikast yetgan', count: 10, factor: 13, risk: 'medium' },
+    { code: '32', name: 'Detal funksiyasini bajarmayapti', count: 7, factor: 20, risk: 'high' },
+  ],
+}
+
+// DRL Defects by Shop (Detailed Review Level)
+export const drlDefectsByShop = {
+  'PRESS SHOP': [
+    { code: '63', name: 'O\'lcham xatosi', count: 12, factor: 20, risk: 'high' },
+    { code: '64', name: 'Boshi egilgan', factor: 16, risk: 'medium', count: 8 },
+    { code: '65', name: 'Sirtda egilish', factor: 13, risk: 'medium', count: 5 },
+    { code: '66', name: 'Qavsiyasida xatosi', factor: 19, risk: 'high', count: 6 },
+    { code: '67', name: 'Matritsa buzilgan', factor: 22, risk: 'high', count: 3 },
+  ],
+  'WELDING-1': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 15, factor: 24, risk: 'high' },
+    { code: '46', name: 'Qaynash tugri emas', count: 10, factor: 18, risk: 'high' },
+    { code: '47', name: 'Qaynash joyi pozilgan', count: 5, factor: 19, risk: 'high' },
+    { code: '51', name: 'Qaynash sust', factor: 12, risk: 'medium', count: 4 },
+  ],
+  'WELDING-2': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 13, factor: 24, risk: 'high' },
+    { code: '46', name: 'Qaynash tugri emas', count: 8, factor: 18, risk: 'high' },
+    { code: '49', name: 'Metallining takorrarlayni yo\'q', count: 6, factor: 16, risk: 'medium' },
+    { code: '50', name: 'Qaynash joyi sust', count: 3, factor: 14, risk: 'medium' },
+  ],
+  'PAINT SHOP': [
+    { code: '86', name: 'Bo\'yoq oqishi', count: 42, factor: 25, risk: 'high' },
+    { code: '81', name: 'Bo\'yoq notekis sepilgan', count: 35, factor: 15, risk: 'medium' },
+    { code: '77', name: 'Bo\'yoq yuzasida kir bor', count: 22, factor: 11, risk: 'low' },
+    { code: '75', name: 'Germetik nuqsoni bor', count: 18, factor: 20, risk: 'high' },
+  ],
+  'GA': [
+    { code: '18', name: 'Detalda nuqson bor', count: 30, factor: 21, risk: 'high' },
+    { code: '20', name: 'Sifatsiz o\'rnatilgan', count: 27, factor: 19, risk: 'high' },
+    { code: '24', name: 'Detalga shikast yetgan', count: 16, factor: 16, risk: 'medium' },
+    { code: '32', name: 'Detal funksiyasini bajarmayapti', count: 12, factor: 23, risk: 'high' },
+    { code: '35', name: 'Regulirovka qilinmagan', count: 10, factor: 14, risk: 'medium' },
+    { code: '44', name: 'Butlovchi qism to\'liq qotirilmagan', count: 14, factor: 17, risk: 'high' },
+  ],
+}
+
 // GCA Defects by Shop
 export const gcaDefectsByShop = {
   'PRESS SHOP': [

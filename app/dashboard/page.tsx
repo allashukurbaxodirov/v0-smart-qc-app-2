@@ -77,7 +77,7 @@ export default function DashboardHome() {
             change={1.2}
             trend="up"
             status="good"
-            href="/dashboard/kpi/drr"
+            href="/dashboard/drr"
           />
           <KPICard
             title={kpiData.drl.name}
@@ -86,7 +86,7 @@ export default function DashboardHome() {
             change={0.5}
             trend="down"
             status="warning"
-            href="/dashboard/kpi/drl"
+            href="/dashboard/drl"
           />
           <KPICard
             title={kpiData.ftq.name}
