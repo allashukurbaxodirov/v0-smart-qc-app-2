@@ -144,6 +144,42 @@ export const gcaFactorOptions = [
   { value: 25, label: '25 - Yuqori xavfli (High Risk)' },
 ]
 
+// D10 Defect Codes for Form Selection (same as GCA)
+export const d10DefectCodes = gcaDefectCodes
+
+// D10 Shop Options (restricted to 3 shops)
+export const d10ShopOptions = [
+  { value: 'PRESS SHOP', label: 'PRESS SHOP' },
+  { value: 'WELDING-1', label: 'WELDING-1' },
+  { value: 'WELDING-2', label: 'WELDING-2' },
+]
+
+// D10 Factor Options (restricted to 5, 10, 20, 50)
+export const d10FactorOptions = [
+  { value: 5, label: '5' },
+  { value: 10, label: '10' },
+  { value: 20, label: '20' },
+  { value: 50, label: '50' },
+]
+
+// D20 Defect Codes for Form Selection (same as GCA)
+export const d20DefectCodes = gcaDefectCodes
+
+// D20 Shop Options (restricted to 3 shops)
+export const d20ShopOptions = [
+  { value: 'PRESS SHOP', label: 'PRESS SHOP' },
+  { value: 'WELDING-1', label: 'WELDING-1' },
+  { value: 'WELDING-2', label: 'WELDING-2' },
+]
+
+// D20 Factor Options (restricted to 5, 10, 20, 50)
+export const d20FactorOptions = [
+  { value: 5, label: '5' },
+  { value: 10, label: '10' },
+  { value: 20, label: '20' },
+  { value: 50, label: '50' },
+]
+
 // GCA Defect Factor Mapping - Risk levels
 export const gcaDefectFactors = {
   '18': { name: 'Detalda nuqson bor', factor: 20, risk: 'high' },

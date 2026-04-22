@@ -19,7 +19,7 @@ export default function D20Page() {
   const [appliedEndDate, setAppliedEndDate] = useState<string>('')
   const [isLoading, setIsLoading] = useState(false)
 
-  const shops = ['PRESS SHOP', 'WELDING-1', 'WELDING-2', 'PAINT SHOP', 'GA'] as const
+  const shops = ['PRESS SHOP', 'WELDING-1', 'WELDING-2'] as const
 
   const handleApplyFilters = () => {
     setIsLoading(true)

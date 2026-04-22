@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import PageHeader from '@/components/dashboard/page-header'
 import { useGCA } from '@/lib/gca-context'
-import { gcaDefectCodes, gcaShopOptions, gcaFactorOptions } from '@/lib/mock-data'
+import { d10DefectCodes, d10ShopOptions, d10FactorOptions } from '@/lib/mock-data'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -20,7 +20,7 @@ export default function D10AdminPage() {
   const [formData, setFormData] = useState({
     shop: 'PRESS SHOP',
     code: '63',
-    factor: 20,
+    factor: 5,
     count: 1,
     notes: '',
     image: null as File | null,
@@ -43,7 +43,7 @@ export default function D10AdminPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const selectedDefect = gcaDefectCodes.find((d) => d.code === formData.code)
+    const selectedDefect = d10DefectCodes.find((d) => d.code === formData.code)
     if (selectedDefect) {
       addRecord({
         shop: formData.shop as any,
@@ -58,7 +58,7 @@ export default function D10AdminPage() {
       setFormData({
         shop: 'PRESS SHOP',
         code: '63',
-        factor: 20,
+        factor: 5,
         count: 1,
         notes: '',
         image: null,
@@ -66,9 +66,20 @@ export default function D10AdminPage() {
     }
   }
 
+  const handleClearForm = () => {
+    setFormData({
+      shop: 'PRESS SHOP',
+      code: '63',
+      factor: 5,
+      count: 1,
+      notes: '',
+      image: null,
+    })
+  }
+
   const getRiskLevel = (factor: number) => {
-    if (factor >= 22) return { label: 'Yuqori', color: 'bg-critical text-white' }
-    if (factor >= 17) return { label: 'O\'rtacha', color: 'bg-warning text-white' }
+    if (factor >= 50) return { label: 'Yuqori', color: 'bg-critical text-white' }
+    if (factor >= 20) return { label: 'O\'rtacha', color: 'bg-warning text-white' }
     return { label: 'Past', color: 'bg-success text-white' }
   }
 
@@ -84,11 +95,11 @@ export default function D10AdminPage() {
     <div className="min-h-screen bg-background">
       {/* Page Header */}
       <PageHeader
-        title="GCA Admin paneli"
-        description="GCA nuqsonlarini qayd etish va boshqarish"
+        title="D10 Admin paneli"
+        description="D10 nuqsonlarini qayd etish va boshqarish"
         breadcrumbs={[
           { label: 'Dashboard', href: '/dashboard' },
-          { label: 'GCA Admin paneli' },
+          { label: 'D10 Admin paneli' },
         ]}
       />
 
@@ -118,7 +129,7 @@ export default function D10AdminPage() {
               <h2 className="text-lg font-bold text-foreground mb-6">Yangi yozuv qo&apos;shish</h2>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Shop Select */}
+                {/* Shop Select - RESTRICTED to 3 shops */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Nuqson sexi *</label>
                   <select
@@ -127,7 +138,7 @@ export default function D10AdminPage() {
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
                   >
-                    {gcaShopOptions.map((opt) => (
+                    {d10ShopOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
                       </option>
@@ -137,14 +148,14 @@ export default function D10AdminPage() {
 
                 {/* Defect Code Select */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Nuqson kodi *</label>
+                  <label className="text-sm font-medium text-foreground">Nuqson (kod va nomi) *</label>
                   <select
                     name="code"
                     value={formData.code}
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
                   >
-                    {gcaDefectCodes.map((defect) => (
+                    {d10DefectCodes.map((defect) => (
                       <option key={defect.code} value={defect.code}>
                         {defect.code} - {defect.name}
                       </option>
@@ -152,7 +163,7 @@ export default function D10AdminPage() {
                   </select>
                 </div>
 
-                {/* Factor Select */}
+                {/* Factor Select - RESTRICTED to 5, 10, 20, 50 */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Faktor *</label>
                   <select
@@ -161,7 +172,7 @@ export default function D10AdminPage() {
                     onChange={handleInputChange}
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
                   >
-                    {gcaFactorOptions.map((opt) => (
+                    {d10FactorOptions.map((opt) => (
                       <option key={opt.value} value={opt.value}>
                         {opt.label}
                       </option>
@@ -208,9 +219,14 @@ export default function D10AdminPage() {
                 </div>
 
                 {/* Submit Button */}
-                <Button type="submit" className="w-full">
-                  Saqlash
-                </Button>
+                <div className="flex gap-2">
+                  <Button type="submit" className="flex-1">
+                    Saqlash
+                  </Button>
+                  <Button type="button" variant="outline" onClick={handleClearForm}>
+                    Tozalash
+                  </Button>
+                </div>
               </form>
             </div>
           </div>
@@ -225,7 +241,7 @@ export default function D10AdminPage() {
                 className="px-3 py-2 bg-card border border-border rounded-lg text-foreground text-sm"
               >
                 <option value="">Barcha sehlar</option>
-                {gcaShopOptions.map((opt) => (
+                {d10ShopOptions.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>
@@ -249,20 +265,21 @@ export default function D10AdminPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Rasm</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sana</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sexi</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nuqson kodi</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nuqson nomi</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Soni</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Faktor</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Xavflilik</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Izoh</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Harakat</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                        <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
                           Hali ma'lumot yo'q
                         </td>
                       </tr>
@@ -271,15 +288,14 @@ export default function D10AdminPage() {
                         const risk = getRiskLevel(record.factor)
                         return (
                           <tr key={record.id} className="border-b border-border hover:bg-muted/30 transition-colors">
+                            <td className="px-4 py-3 text-sm text-foreground">-</td>
                             <td className="px-4 py-3 text-sm text-foreground">{record.date}</td>
                             <td className="px-4 py-3 text-sm text-foreground">{record.shop}</td>
                             <td className="px-4 py-3 text-sm font-semibold text-foreground">{record.code}</td>
                             <td className="px-4 py-3 text-sm text-foreground">{record.codeName}</td>
                             <td className="px-4 py-3 text-sm text-foreground">{record.count}</td>
                             <td className="px-4 py-3 text-sm font-semibold text-foreground">{record.factor}</td>
-                            <td className="px-4 py-3 text-sm">
-                              <Badge className={risk.color}>{risk.label}</Badge>
-                            </td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{record.notes || '-'}</td>
                             <td className="px-4 py-3">
                               <button
                                 onClick={() => deleteRecord(record.id)}
