@@ -108,7 +108,7 @@ export default function DashboardHome() {
             change={0.4}
             trend="up"
             status="good"
-            href="/dashboard/kpi/cmm"
+            href="/dashboard/cmm"
           />
           <KPICard
             title={kpiData.d10.name}
@@ -117,7 +117,7 @@ export default function DashboardHome() {
             change={12.4}
             trend="down"
             status="warning"
-            href="/dashboard/kpi/d10"
+            href="/dashboard/d10"
             format="number"
           />
           <KPICard
@@ -127,7 +127,7 @@ export default function DashboardHome() {
             change={9.0}
             trend="down"
             status="warning"
-            href="/dashboard/kpi/d20"
+            href="/dashboard/d20"
             format="number"
           />
           <KPICard
@@ -137,7 +137,7 @@ export default function DashboardHome() {
             change={13.5}
             trend="down"
             status="warning"
-            href="/dashboard/kpi/incoming"
+            href="/dashboard/incoming"
             format="number"
           />
         </div>

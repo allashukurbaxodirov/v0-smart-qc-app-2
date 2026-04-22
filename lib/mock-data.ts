@@ -1161,3 +1161,116 @@ export const weldingSectorDetails = {
     ],
   },
 }
+
+// CMM Defects by Shop
+export const cmmDefectsByShop = {
+  'PRESS SHOP': [
+    { code: '63', name: 'O\'lcham xatosi', count: 5, factor: 20, risk: 'high' },
+    { code: '64', name: 'Boshi egilgan', count: 3, factor: 16, risk: 'medium' },
+    { code: '65', name: 'Sirtda egilish', count: 2, factor: 12, risk: 'medium' },
+  ],
+  'WELDING-1': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 7, factor: 23, risk: 'high' },
+    { code: '46', name: 'Qaynash tugri emas', count: 4, factor: 17, risk: 'medium' },
+  ],
+  'WELDING-2': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 6, factor: 23, risk: 'high' },
+    { code: '49', name: 'Metallining takorrarlayni yo\'q', count: 3, factor: 15, risk: 'medium' },
+  ],
+  'PAINT SHOP': [
+    { code: '86', name: 'Bo\'yoq oqishi', count: 18, factor: 25, risk: 'high' },
+    { code: '81', name: 'Bo\'yoq notekis sepilgan', count: 12, factor: 14, risk: 'medium' },
+    { code: '77', name: 'Bo\'yoq yuzasida kir bor', count: 8, factor: 10, risk: 'low' },
+  ],
+  'GA': [
+    { code: '18', name: 'Detalda nuqson bor', count: 10, factor: 20, risk: 'high' },
+    { code: '20', name: 'Sifatsiz o\'rnatilgan', count: 9, factor: 18, risk: 'high' },
+    { code: '32', name: 'Detal funksiyasini bajarmayapti', count: 5, factor: 22, risk: 'high' },
+  ],
+}
+
+// D10 Defects by Shop
+export const d10DefectsByShop = {
+  'PRESS SHOP': [
+    { code: '63', name: 'O\'lcham xatosi', count: 12, factor: 20, risk: 'high' },
+    { code: '66', name: 'Qavsiyasida xatosi', count: 7, factor: 19, risk: 'high' },
+    { code: '64', name: 'Boshi egilgan', count: 5, factor: 16, risk: 'medium' },
+    { code: '67', name: 'Matritsa buzilgan', count: 4, factor: 24, risk: 'high' },
+  ],
+  'WELDING-1': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 14, factor: 23, risk: 'high' },
+    { code: '46', name: 'Qaynash tugri emas', count: 9, factor: 17, risk: 'medium' },
+    { code: '47', name: 'Qaynash joyi pozilgan', count: 5, factor: 18, risk: 'high' },
+  ],
+  'WELDING-2': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 11, factor: 23, risk: 'high' },
+    { code: '46', name: 'Qaynash tugri emas', count: 7, factor: 17, risk: 'medium' },
+    { code: '49', name: 'Metallining takorrarlayni yo\'q', count: 5, factor: 15, risk: 'medium' },
+  ],
+  'PAINT SHOP': [
+    { code: '86', name: 'Bo\'yoq oqishi', count: 35, factor: 25, risk: 'high' },
+    { code: '81', name: 'Bo\'yoq notekis sepilgan', count: 28, factor: 14, risk: 'medium' },
+    { code: '75', name: 'Germetik nuqsoni bor', count: 16, factor: 20, risk: 'high' },
+  ],
+  'GA': [
+    { code: '18', name: 'Detalda nuqson bor', count: 22, factor: 20, risk: 'high' },
+    { code: '20', name: 'Sifatsiz o\'rnatilgan', count: 20, factor: 18, risk: 'high' },
+    { code: '24', name: 'Detalga shikast yetgan', count: 12, factor: 15, risk: 'medium' },
+    { code: '32', name: 'Detal funksiyasini bajarmayapti', count: 8, factor: 22, risk: 'high' },
+  ],
+}
+
+// D20 Defects by Shop
+export const d20DefectsByShop = {
+  'PRESS SHOP': [
+    { code: '63', name: 'O\'lcham xatosi', count: 15, factor: 20, risk: 'high' },
+    { code: '66', name: 'Qavsiyasida xatosi', count: 8, factor: 19, risk: 'high' },
+    { code: '67', name: 'Matritsa buzilgan', count: 6, factor: 24, risk: 'high' },
+    { code: '65', name: 'Sirtda egilish', count: 4, factor: 13, risk: 'medium' },
+  ],
+  'WELDING-1': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 18, factor: 24, risk: 'high' },
+    { code: '46', name: 'Qaynash tugri emas', count: 12, factor: 18, risk: 'high' },
+    { code: '47', name: 'Qaynash joyi pozilgan', count: 7, factor: 19, risk: 'high' },
+  ],
+  'WELDING-2': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 16, factor: 24, risk: 'high' },
+    { code: '46', name: 'Qaynash tugri emas', count: 10, factor: 18, risk: 'high' },
+    { code: '49', name: 'Metallining takorrarlayni yo\'q', count: 7, factor: 16, risk: 'medium' },
+  ],
+  'PAINT SHOP': [
+    { code: '86', name: 'Bo\'yoq oqishi', count: 45, factor: 25, risk: 'high' },
+    { code: '81', name: 'Bo\'yoq notekis sepilgan', count: 35, factor: 15, risk: 'medium' },
+    { code: '75', name: 'Germetik nuqsoni bor', count: 20, factor: 20, risk: 'high' },
+  ],
+  'GA': [
+    { code: '18', name: 'Detalda nuqson bor', count: 28, factor: 20, risk: 'high' },
+    { code: '20', name: 'Sifatsiz o\'rnatilgan', count: 26, factor: 18, risk: 'high' },
+    { code: '24', name: 'Detalga shikast yetgan', count: 15, factor: 15, risk: 'medium' },
+    { code: '44', name: 'Butlovchi qism to\'liq qotirilmagan', count: 12, factor: 16, risk: 'medium' },
+  ],
+}
+
+// Incoming Defects by Shop
+export const incomingDefectsByShop = {
+  'PRESS SHOP': [
+    { code: '63', name: 'O\'lcham xatosi', count: 9, factor: 20, risk: 'high' },
+    { code: '65', name: 'Sirtda egilish', count: 5, factor: 13, risk: 'medium' },
+  ],
+  'WELDING-1': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 11, factor: 23, risk: 'high' },
+    { code: '46', name: 'Qaynash tugri emas', count: 6, factor: 17, risk: 'medium' },
+  ],
+  'WELDING-2': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 9, factor: 23, risk: 'high' },
+    { code: '49', name: 'Metallining takorrarlayni yo\'q', count: 4, factor: 15, risk: 'medium' },
+  ],
+  'PAINT SHOP': [
+    { code: '86', name: 'Bo\'yoq oqishi', count: 26, factor: 25, risk: 'high' },
+    { code: '81', name: 'Bo\'yoq notekis sepilgan', count: 20, factor: 14, risk: 'medium' },
+  ],
+  'GA': [
+    { code: '18', name: 'Detalda nuqson bor', count: 16, factor: 20, risk: 'high' },
+    { code: '20', name: 'Sifatsiz o\'rnatilgan', count: 15, factor: 18, risk: 'high' },
+  ],
+}
