@@ -93,6 +93,51 @@ const gcaAuditorSidebarItems: SidebarItem[] = [
   },
 ]
 
+const cmmInspectorSidebarItems: SidebarItem[] = [
+  {
+    label: 'CMM Dashboard',
+    href: '/dashboard/cmm',
+    icon: <Home className="w-5 h-5" />,
+    section: 'main',
+  },
+  {
+    label: 'CMM Admin paneli',
+    href: '/dashboard/cmm-admin',
+    icon: <Clipboard className="w-5 h-5" />,
+    section: 'main',
+  },
+]
+
+const d10InspectorSidebarItems: SidebarItem[] = [
+  {
+    label: 'D10 Dashboard',
+    href: '/dashboard/d10',
+    icon: <Home className="w-5 h-5" />,
+    section: 'main',
+  },
+  {
+    label: 'D10 Admin paneli',
+    href: '/dashboard/d10-admin',
+    icon: <Clipboard className="w-5 h-5" />,
+    section: 'main',
+  },
+]
+
+const d20InspectorSidebarItems: SidebarItem[] = [
+  {
+    label: 'D20 Dashboard',
+    href: '/dashboard/d20',
+    icon: <Home className="w-5 h-5" />,
+    section: 'main',
+  },
+  {
+    label: 'D20 Admin paneli',
+    href: '/dashboard/d20-admin',
+    icon: <Clipboard className="w-5 h-5" />,
+    section: 'main',
+  },
+]
+
 export default function Sidebar() {
   const pathname = usePathname()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
@@ -113,7 +158,16 @@ export default function Sidebar() {
   }, [])
 
   // Select sidebar items based on role
-  const sidebarItems = userRole === 'gca_auditor' ? gcaAuditorSidebarItems : adminSidebarItems
+  let sidebarItems = adminSidebarItems
+  if (userRole === 'gca_auditor') {
+    sidebarItems = gcaAuditorSidebarItems
+  } else if (userRole === 'cmm_inspector') {
+    sidebarItems = cmmInspectorSidebarItems
+  } else if (userRole === 'd10_inspector') {
+    sidebarItems = d10InspectorSidebarItems
+  } else if (userRole === 'd20_inspector') {
+    sidebarItems = d20InspectorSidebarItems
+  }
 
   const groupedItems = {
     main: sidebarItems.filter((item) => item.section === 'main'),
@@ -161,6 +215,15 @@ export default function Sidebar() {
           <p className="text-xs text-muted-foreground">{userEmail}</p>
           {userRole === 'gca_auditor' && (
             <p className="text-xs text-primary font-medium mt-1">GCA Auditor</p>
+          )}
+          {userRole === 'cmm_inspector' && (
+            <p className="text-xs text-primary font-medium mt-1">CMM Inspector</p>
+          )}
+          {userRole === 'd10_inspector' && (
+            <p className="text-xs text-primary font-medium mt-1">D10 Inspector</p>
+          )}
+          {userRole === 'd20_inspector' && (
+            <p className="text-xs text-primary font-medium mt-1">D20 Inspector</p>
           )}
         </div>
         <Button

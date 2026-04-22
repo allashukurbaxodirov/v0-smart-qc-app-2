@@ -11,6 +11,9 @@ import { useRouter } from 'next/navigation'
 const MOCK_USERS = {
   'demo@uzauto.uz': { password: 'demo123', role: 'admin', name: 'Demo Admin' },
   'gca@uzauto.uz': { password: 'gca123', role: 'gca_auditor', name: 'GCA Auditor' },
+  'cmm@uzauto.uz': { password: 'cmm123', role: 'cmm_inspector', name: 'CMM Inspector' },
+  'd10@uzauto.uz': { password: 'd10123', role: 'd10_inspector', name: 'D10 Inspector' },
+  'd20@uzauto.uz': { password: 'd20123', role: 'd20_inspector', name: 'D20 Inspector' },
 }
 
 export default function LoginPage() {
@@ -33,10 +36,21 @@ export default function LoginPage() {
         sessionStorage.setItem('user', JSON.stringify({ email, role: user.role, name: user.name }))
         
         // Redirect based on role
-        if (user.role === 'gca_auditor') {
-          router.push('/dashboard/gca-admin')
-        } else {
-          router.push('/dashboard')
+        switch(user.role) {
+          case 'gca_auditor':
+            router.push('/dashboard/gca-admin')
+            break
+          case 'cmm_inspector':
+            router.push('/dashboard/cmm-admin')
+            break
+          case 'd10_inspector':
+            router.push('/dashboard/d10-admin')
+            break
+          case 'd20_inspector':
+            router.push('/dashboard/d20-admin')
+            break
+          default:
+            router.push('/dashboard')
         }
       } else {
         setError('Email yoki parol noto\'g\'ri. Iltimos, qayta urinib ko\'ring.')
@@ -171,16 +185,17 @@ export default function LoginPage() {
           </div>
 
           {/* Info Box */}
-          <div className="mt-8 space-y-4">
+          <div className="mt-8 space-y-3">
             <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 text-sm text-foreground">
               <p className="font-semibold mb-2">Demo hisob ma&apos;lumotlari (Admin):</p>
-              <p className="text-muted-foreground">Email: demo@uzauto.uz</p>
-              <p className="text-muted-foreground">Parol: demo123</p>
+              <p className="text-muted-foreground">Email: demo@uzauto.uz | Parol: demo123</p>
             </div>
             <div className="bg-warning/10 border border-warning/20 rounded-lg p-4 text-sm text-foreground">
-              <p className="font-semibold mb-2">GCA Auditor hisob ma&apos;lumotlari:</p>
-              <p className="text-muted-foreground">Email: gca@uzauto.uz</p>
-              <p className="text-muted-foreground">Parol: gca123</p>
+              <p className="font-semibold mb-2">QC Inspectors:</p>
+              <p className="text-muted-foreground">GCA: gca@uzauto.uz / gca123</p>
+              <p className="text-muted-foreground">CMM: cmm@uzauto.uz / cmm123</p>
+              <p className="text-muted-foreground">D10: d10@uzauto.uz / d10123</p>
+              <p className="text-muted-foreground">D20: d20@uzauto.uz / d20123</p>
             </div>
           </div>
         </div>
