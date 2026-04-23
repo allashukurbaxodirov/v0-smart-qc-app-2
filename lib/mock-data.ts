@@ -1316,11 +1316,21 @@ export const gaEngineerSectors = ['TRIM', 'SHOSSE', 'FINAL', 'SUB'] as const
 
 // GA Engineer Issue Status Options
 export const gaIssueStatuses = [
-  { value: 'ochiq', label: 'Ochiq' },
-  { value: 'jarayonda', label: 'Jarayonda' },
-  { value: 'uzatilgan', label: 'Uzatilgan' },
-  { value: 'yopilgan', label: 'Yopilgan' },
-  { value: 'kechikkan', label: 'Kechikkan' },
+  { value: 'ochiq', label: 'Ochiq', color: 'bg-critical' },
+  { value: 'jarayonda', label: 'Jarayonda', color: 'bg-warning' },
+  { value: 'uzatilgan', label: 'Uzatilgan', color: 'bg-info' },
+  { value: 'managerga_yuborildi', label: 'Managerga yuborildi', color: 'bg-primary' },
+  { value: 'qayta_ishlashda', label: 'Qayta ishlashda', color: 'bg-secondary' },
+  { value: 'yopilgan', label: 'Yopilgan', color: 'bg-success' },
+  { value: 'kechikkan', label: 'Kechikkan', color: 'bg-orange-500' },
+]
+
+// GA Engineer Factor Options (Strict values only - 5, 10, 20, 50)
+export const gaEngineerFactorOptions = [
+  { value: 5, label: '5' },
+  { value: 10, label: '10' },
+  { value: 20, label: '20' },
+  { value: 50, label: '50' },
 ]
 
 // GA Engineer Root Cause Options

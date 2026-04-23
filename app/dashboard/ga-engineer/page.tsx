@@ -2,11 +2,11 @@
 
 import { useState, useMemo } from 'react'
 import PageHeader from '@/components/dashboard/page-header'
-import { gaMockIssues, drrIssuesForGAEngineer, drlIssuesForGAEngineer, gaEngineerSectors, gaIssueStatuses, gaRootCauseOptions, gaActionOptions, gaTransferTargets, topDefects } from '@/lib/mock-data'
-import { ChevronLeft, ChevronRight, Trash2, Check, AlertTriangle, Clock, ArrowRight, TrendingUp, Send } from 'lucide-react'
+import { gaMockIssues, drrIssuesForGAEngineer, drlIssuesForGAEngineer, gaEngineerSectors, gaIssueStatuses, gaRootCauseOptions, gaActionOptions, gaTransferTargets, gaEngineerFactorOptions } from '@/lib/mock-data'
+import { ChevronLeft, ChevronRight, Trash2, Check, AlertTriangle, Clock, ArrowRight, TrendingUp, Send, X, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts'
+import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import Link from 'next/link'
 
 export default function GAEngineerPage() {
@@ -17,8 +17,27 @@ export default function GAEngineerPage() {
   const [filterStatus, setFilterStatus] = useState<string>('')
   const [filterModule, setFilterModule] = useState<string>('')
   const [sortBy, setSortBy] = useState<'date' | 'factor'>('date')
+  const [showResolutionModal, setShowResolutionModal] = useState(false)
   const [showTransferModal, setShowTransferModal] = useState(false)
-  const [transferNote, setTransferNote] = useState('')
+  const [successMessage, setSuccessMessage] = useState('')
+
+  // Resolution form state
+  const [resolutionForm, setResolutionForm] = useState({
+    problemDescription: '',
+    rootCause: '',
+    immediateAction: '',
+    mainAction: '',
+    imageFile: null as File | null,
+    decision: 'resolved' as 'resolved' | 'transfer',
+    transferTarget: '',
+    transferReason: '',
+    transferNotes: '',
+    priority: 'middle',
+    dueDate: '',
+  })
+
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [processHistory, setProcessHistory] = useState<Array<{ timestamp: string; action: string }>>([])
 
   // Combine all issues from GA, DRR, DRL
   const allIssues = useMemo(() => {
@@ -49,26 +68,24 @@ export default function GAEngineerPage() {
     })
   }, [filteredIssues, sortBy])
 
-  // Calculate KPIs across all modules
+  // Calculate KPIs
   const openIssues = allIssues.filter((i) => i.status === 'ochiq').length
   const drrIssues = allIssues.filter((i) => i.module === 'DRR' && i.gaRelated).length
   const drlIssues = allIssues.filter((i) => i.module === 'DRL' && i.gaRelated).length
   const inProgressIssues = allIssues.filter((i) => i.status === 'jarayonda').length
-  const sentToManagerIssues = allIssues.filter((i) => i.status === 'sent_to_manager').length
+  const sentToManagerIssues = allIssues.filter((i) => i.status === 'managerga_yuborildi').length
   const closedIssues = allIssues.filter((i) => i.status === 'yopilgan').length
   const maxFactorIssue = allIssues.reduce((max, i) => i.factor > (max.factor || 0) ? i : max, { factor: 0 })
 
-  // Sector distribution
+  // Charts data
   const sectorData = useMemo(() => {
     const sectors = ['TRIM', 'SHOSSE', 'FINAL', 'SUB']
     return sectors.map(sector => ({
       name: sector,
       soni: allIssues.filter(i => i.sector === sector).length,
-      faktor: allIssues.filter(i => i.sector === sector).reduce((sum, i) => sum + i.factor, 0)
     }))
   }, [])
 
-  // Shift distribution
   const shiftData = useMemo(() => {
     const shifts = ['A', 'B', 'D']
     return shifts.map(shift => ({
@@ -77,25 +94,21 @@ export default function GAEngineerPage() {
     }))
   }, [])
 
-  // Top 10 defects from combined data
   const top10Defects = useMemo(() => {
     const defectMap = new Map()
     allIssues.forEach(issue => {
       const key = `${issue.code}-${issue.name}`
       if (defectMap.has(key)) {
         defectMap.get(key).count += issue.count
-        defectMap.get(key).factor = Math.max(defectMap.get(key).factor, issue.factor)
       } else {
         defectMap.set(key, {
           code: issue.code,
           name: issue.name,
           count: issue.count,
           factor: issue.factor,
-          modules: [issue.module],
         })
       }
     })
-    
     return Array.from(defectMap.values())
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
@@ -109,12 +122,14 @@ export default function GAEngineerPage() {
         return { bg: 'bg-warning/10', badge: 'bg-warning text-white', label: 'Jarayonda' }
       case 'uzatilgan':
         return { bg: 'bg-info/10', badge: 'bg-info text-white', label: 'Uzatilgan' }
-      case 'sent_to_manager':
+      case 'managerga_yuborildi':
         return { bg: 'bg-primary/10', badge: 'bg-primary text-white', label: 'Managerga yuborildi' }
+      case 'qayta_ishlashda':
+        return { bg: 'bg-secondary/10', badge: 'bg-secondary text-white', label: 'Qayta ishlashda' }
       case 'yopilgan':
         return { bg: 'bg-success/10', badge: 'bg-success text-white', label: 'Yopilgan' }
       case 'kechikkan':
-        return { bg: 'bg-secondary/10', badge: 'bg-secondary text-white', label: 'Kechikkan' }
+        return { bg: 'bg-orange-500/10', badge: 'bg-orange-500 text-white', label: 'Kechikkan' }
       default:
         return { bg: 'bg-muted/10', badge: 'bg-muted text-white', label: 'Noma\'lum' }
     }
@@ -135,349 +150,192 @@ export default function GAEngineerPage() {
     }
   }
 
-  const handleTransferToManager = () => {
-    setShowTransferModal(false)
-    setTransferNote('')
-    setSelectedIssue(null)
+  const validateResolutionForm = (): boolean => {
+    const errors: Record<string, string> = {}
+
+    if (resolutionForm.decision === 'resolved') {
+      if (!resolutionForm.problemDescription.trim()) {
+        errors.problemDescription = 'Muammo izohi majburiy'
+      }
+      if (!resolutionForm.rootCause.trim()) {
+        errors.rootCause = 'Sabab majburiy'
+      }
+      if (!resolutionForm.immediateAction.trim()) {
+        errors.immediateAction = 'Tezkor chora majburiy'
+      }
+      if (!resolutionForm.mainAction.trim()) {
+        errors.mainAction = 'Chora-tadbir majburiy'
+      }
+      if (!resolutionForm.imageFile) {
+        errors.imageFile = 'Rasm yuklash majburiy'
+      }
+    } else if (resolutionForm.decision === 'transfer') {
+      if (!resolutionForm.transferTarget) {
+        errors.transferTarget = 'Target eng majburiy'
+      }
+      if (!resolutionForm.transferReason.trim()) {
+        errors.transferReason = 'Sabab majburiy'
+      }
+    }
+
+    setFormErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
-  const COLORS = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e']
+  const handleResolutionSubmit = () => {
+    if (!validateResolutionForm()) return
+
+    if (resolutionForm.decision === 'resolved') {
+      addToHistory('Muammoni hal qilish formasini yubordi')
+      setSuccessMessage('Muammo hal qilish formasini muvaffaqiyatli yuborildi')
+      setShowResolutionModal(false)
+    } else {
+      addToHistory(`${gaTransferTargets.find(t => t.value === resolutionForm.transferTarget)?.label || 'Biror sex'} ga uzatildi`)
+      setSuccessMessage('Muammo muvaffaqiyatli uzatildi')
+      setShowResolutionModal(false)
+    }
+
+    setTimeout(() => setSuccessMessage(''), 3000)
+    resetForm()
+  }
+
+  const addToHistory = (action: string) => {
+    const now = new Date()
+    setProcessHistory([
+      ...processHistory,
+      {
+        timestamp: now.toLocaleTimeString('uz-UZ'),
+        action,
+      },
+    ])
+  }
+
+  const resetForm = () => {
+    setResolutionForm({
+      problemDescription: '',
+      rootCause: '',
+      immediateAction: '',
+      mainAction: '',
+      imageFile: null,
+      decision: 'resolved',
+      transferTarget: '',
+      transferReason: '',
+      transferNotes: '',
+      priority: 'middle',
+      dueDate: '',
+    })
+    setFormErrors({})
+  }
+
+  const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#ef4444']
 
   return (
-    <div className="min-h-screen bg-background">
+    <div>
       <PageHeader
         title="GA Engineer paneli"
-        description="GA nuqsonlarini tahlil qilish, muammoni hal qilish va IRAS jarayonini boshqarish"
+        description="GA muammolarini tahlil qilish va hal qilish"
         breadcrumbs={[
           { label: 'Dashboard', href: '/dashboard' },
           { label: 'GA Engineer paneli' },
         ]}
       />
 
-      <main className="px-6 py-8 max-w-7xl mx-auto space-y-8">
-        {/* Engineer Work Desk KPI Cards */}
-        <div>
-          <h2 className="text-lg font-bold text-foreground mb-4">Engineer ish stoli</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-3">
-            <button
-              onClick={() => setActiveTab('open')}
-              className="bg-card border border-border rounded-xl p-4 hover:border-primary/50 transition-colors cursor-pointer text-left"
-            >
-              <p className="text-xs text-muted-foreground mb-1">Ochiq muammolar</p>
-              <p className="text-2xl font-bold text-critical">{openIssues}</p>
-              <p className="text-xs text-muted-foreground mt-2">Batafsil ko'rish</p>
-            </button>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <p className="text-xs text-muted-foreground mb-1">DRR dan kelgan</p>
-              <p className="text-2xl font-bold text-warning">{drrIssues}</p>
-              <p className="text-xs text-muted-foreground mt-2">GA bog'liq</p>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <p className="text-xs text-muted-foreground mb-1">DRL dan kelgan</p>
-              <p className="text-2xl font-bold text-info">{drlIssues}</p>
-              <p className="text-xs text-muted-foreground mt-2">GA bog'liq</p>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <p className="text-xs text-muted-foreground mb-1">Jarayonda</p>
-              <p className="text-2xl font-bold text-warning">{inProgressIssues}</p>
-              <p className="text-xs text-muted-foreground mt-2">Ishlayotgan</p>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <p className="text-xs text-muted-foreground mb-1">Managerga yuborilgan</p>
-              <p className="text-2xl font-bold text-primary">{sentToManagerIssues}</p>
-              <p className="text-xs text-muted-foreground mt-2">Tasdiqlashda</p>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <p className="text-xs text-muted-foreground mb-1">Yopilgan</p>
-              <p className="text-2xl font-bold text-success">{closedIssues}</p>
-              <p className="text-xs text-muted-foreground mt-2">Hal qilingan</p>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-4">
-              <p className="text-xs text-muted-foreground mb-1">Eng yuqori faktor</p>
-              <p className="text-2xl font-bold text-critical">{maxFactorIssue.factor}</p>
-              <p className="text-xs text-muted-foreground mt-2">Xavflilik</p>
-            </div>
+      {successMessage && (
+        <div className="mb-6 p-4 bg-success/10 border border-success/20 rounded-lg text-sm text-success">
+          {successMessage}
+        </div>
+      )}
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+        {[
+          { label: 'Ochiq muammolar', value: openIssues, color: 'bg-critical', action: () => setActiveTab('open') },
+          { label: 'DRR bog\'liq', value: drrIssues, color: 'bg-warning' },
+          { label: 'DRL bog\'liq', value: drlIssues, color: 'bg-info' },
+          { label: 'Jarayonda', value: inProgressIssues, color: 'bg-secondary' },
+          { label: 'Managerga yuborildi', value: sentToManagerIssues, color: 'bg-primary' },
+          { label: 'Eng yuqori faktor', value: maxFactorIssue.factor, color: 'bg-danger' },
+        ].map((kpi, idx) => (
+          <div
+            key={idx}
+            className={`${kpi.color}/10 border border-${kpi.color}/20 rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow`}
+            onClick={kpi.action}
+          >
+            <p className="text-xs text-muted-foreground mb-2">{kpi.label}</p>
+            <p className={`text-2xl font-bold ${kpi.color === 'bg-critical' ? 'text-critical' : kpi.color === 'bg-warning' ? 'text-warning' : kpi.color === 'bg-info' ? 'text-info' : kpi.color === 'bg-primary' ? 'text-primary' : kpi.color === 'bg-secondary' ? 'text-secondary' : 'text-danger'}`}>
+              {kpi.value}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Dashboard Tab */}
+      {activeTab === 'dashboard' && (
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Top 10 Defects Chart */}
+          <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6">
+            <h2 className="text-lg font-bold text-foreground mb-4">Top 10 nuqsonlar</h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={top10Defects.slice(0, 10)}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="code" stroke="var(--color-muted-foreground)" />
+                <YAxis stroke="var(--color-muted-foreground)" />
+                <Tooltip contentStyle={{ backgroundColor: 'var(--color-card)', border: '1px solid var(--color-border)' }} />
+                <Bar dataKey="count" fill="#3b82f6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Sector Distribution */}
+          <div className="bg-card border border-border rounded-xl p-6">
+            <h2 className="text-lg font-bold text-foreground mb-4">Sektorlar bo'yicha</h2>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie data={sectorData} cx="50%" cy="50%" labelLine={false} label={({ name, soni }) => `${name}: ${soni}`} outerRadius={80} fill="#8884d8" dataKey="soni">
+                  {sectorData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
           </div>
         </div>
+      )}
 
-        {/* Dashboard Tab View */}
-        {activeTab === 'dashboard' && (
-          <div className="space-y-8">
-            {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Top 10 Defects Bar Chart */}
-              <div className="lg:col-span-2 bg-card border border-border rounded-xl p-6">
-                <h3 className="text-base font-bold text-foreground mb-4">Top 10 nuqsonlar</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={top10Defects.slice(0, 10)}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                    <XAxis dataKey="code" stroke="var(--muted-foreground)" style={{ fontSize: '12px' }} />
-                    <YAxis stroke="var(--muted-foreground)" style={{ fontSize: '12px' }} />
-                    <Tooltip contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '8px' }} />
-                    <Bar dataKey="count" fill="#ef4444" radius={[8, 8, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Sector Distribution Pie Chart */}
-              <div className="bg-card border border-border rounded-xl p-6">
-                <h3 className="text-base font-bold text-foreground mb-4">Sektor bo'yicha</h3>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie data={sectorData} dataKey="soni" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
-                      {sectorData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)' }} />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Shift Performance */}
-            <div className="bg-card border border-border rounded-xl p-6">
-              <h3 className="text-base font-bold text-foreground mb-4">Smena bo'yicha muammolar</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={shiftData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis dataKey="name" stroke="var(--muted-foreground)" />
-                  <YAxis stroke="var(--muted-foreground)" />
-                  <Tooltip contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)' }} />
-                  <Bar dataKey="soni" fill="#0ea5e9" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        )}
-
-        {/* Open Issues Tab */}
-        {activeTab === 'open' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Issues Table */}
-            <div className="lg:col-span-2">
-              <div className="bg-card border border-border rounded-xl overflow-hidden">
-                <div className="p-6 border-b border-border space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-lg font-bold text-foreground">Ochiq muammolar</h2>
-                    <button
-                      onClick={() => setActiveTab('dashboard')}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* Filters */}
-                  <div className="flex gap-2 flex-wrap">
-                    <select
-                      value={filterModule}
-                      onChange={(e) => setFilterModule(e.target.value)}
-                      className="px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
-                    >
-                      <option value="">Barcha modullar</option>
-                      <option value="GA">GA</option>
-                      <option value="DRR">DRR</option>
-                      <option value="DRL">DRL</option>
-                    </select>
-                    <select
-                      value={filterShift}
-                      onChange={(e) => setFilterShift(e.target.value)}
-                      className="px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
-                    >
-                      <option value="">Barcha smenalar</option>
-                      <option value="A">A smena</option>
-                      <option value="B">B smena</option>
-                      <option value="D">D smena</option>
-                    </select>
-
-                    <select
-                      value={filterSector}
-                      onChange={(e) => setFilterSector(e.target.value)}
-                      className="px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
-                    >
-                      <option value="">Barcha sektorlar</option>
-                      {gaEngineerSectors.map((sector) => (
-                        <option key={sector} value={sector}>
-                          {sector}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      className="px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
-                    >
-                      <option value="">Barcha holatlar</option>
-                      <option value="ochiq">Ochiq</option>
-                      <option value="jarayonda">Jarayonda</option>
-                      <option value="uzatilgan">Uzatilgan</option>
-                      <option value="yopilgan">Yopilgan</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/30">
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Modul</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Kod</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nomi</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sektor</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Smena</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Soni</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Faktor</th>
-                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Holat</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredIssues.filter(i => i.status === 'ochiq').length === 0 ? (
-                        <tr>
-                          <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                            Ochiq muammo yo'q
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredIssues.filter(i => i.status === 'ochiq').map((issue) => {
-                          const statusColor = getStatusColor(issue.status)
-                          return (
-                            <tr
-                              key={issue.id}
-                              onClick={() => setSelectedIssue(issue)}
-                              className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer"
-                            >
-                              <td className="px-4 py-3 text-sm">
-                                <Badge className={getModuleColor(issue.module)}>{issue.module}</Badge>
-                              </td>
-                              <td className="px-4 py-3 text-sm font-semibold text-foreground">{issue.code}</td>
-                              <td className="px-4 py-3 text-sm text-foreground">{issue.name}</td>
-                              <td className="px-4 py-3 text-sm text-foreground">{issue.sector}</td>
-                              <td className="px-4 py-3 text-sm text-foreground">{issue.shift}</td>
-                              <td className="px-4 py-3 text-sm text-foreground">{issue.count}</td>
-                              <td className="px-4 py-3 text-sm">
-                                <Badge className={getRiskColor(issue.factor)}>{issue.factor}</Badge>
-                              </td>
-                              <td className="px-4 py-3 text-sm">
-                                <Badge className={statusColor.badge}>{statusColor.label}</Badge>
-                              </td>
-                            </tr>
-                          )
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            {/* Issue Detail Panel */}
-            <div className="lg:col-span-1">
-              {selectedIssue ? (
-                <div className="bg-card border border-border rounded-xl p-6 space-y-6 sticky top-20">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-foreground">Muammo tafsiloti</h3>
-                    <button
-                      onClick={() => setSelectedIssue(null)}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* Module Badge */}
-                  <div className="flex items-center gap-2">
-                    <Badge className={getModuleColor(selectedIssue.module)}>{selectedIssue.module}</Badge>
-                    {selectedIssue.gaRelated && <Badge className="bg-success text-white">GA bog'liq</Badge>}
-                  </div>
-
-                  {/* Issue Details */}
-                  <div className="space-y-3">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Nuqson kodi</p>
-                      <p className="text-sm font-semibold text-foreground">{selectedIssue.code}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Nuqson nomi</p>
-                      <p className="text-sm text-foreground">{selectedIssue.name}</p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Sektor</p>
-                        <p className="text-sm font-semibold text-foreground">{selectedIssue.sector}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Smena</p>
-                        <p className="text-sm font-semibold text-foreground">{selectedIssue.shift}</p>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Soni</p>
-                        <p className="text-sm font-semibold text-foreground">{selectedIssue.count}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-muted-foreground">Faktor</p>
-                        <Badge className={getRiskColor(selectedIssue.factor)}>{selectedIssue.factor}</Badge>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Root Cause */}
-                  {selectedIssue.rootCause && (
-                    <div className="pt-4 border-t border-border">
-                      <p className="text-xs text-muted-foreground mb-2">Muammo kelib chiqish sababi</p>
-                      <p className="text-sm text-foreground">{selectedIssue.rootCause}</p>
-                    </div>
-                  )}
-
-                  {/* Action */}
-                  {selectedIssue.action && (
-                    <div className="pt-4 border-t border-border">
-                      <p className="text-xs text-muted-foreground mb-2">Chora-tadbir</p>
-                      <p className="text-sm text-foreground">{selectedIssue.action}</p>
-                    </div>
-                  )}
-
-                  {/* Action Buttons */}
-                  <div className="pt-4 border-t border-border space-y-2">
-                    <Button
-                      onClick={() => setShowTransferModal(true)}
-                      className="w-full"
-                      variant="outline"
-                    >
-                      <Send className="w-4 h-4 mr-2" />
-                      Managerga yuborish
-                    </Button>
-                    <Button className="w-full" variant="outline">
-                      <Check className="w-4 h-4 mr-2" />
-                      Hal qilish
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-card border border-border rounded-xl p-6 text-center text-muted-foreground">
-                  Muammoni tanlang
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Top 10 Defects Tab */}
-        {activeTab === 'top10' && (
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
-            <div className="p-6 border-b border-border">
+      {/* Open Issues Tab */}
+      {activeTab === 'open' && (
+        <div className="grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 bg-card border border-border rounded-xl overflow-hidden">
+            <div className="p-6 border-b border-border space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-bold text-foreground">Top 10 nuqsonlar (batafsil)</h2>
-                <button
-                  onClick={() => setActiveTab('dashboard')}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
+                <h2 className="text-lg font-bold text-foreground">Ochiq muammolar</h2>
+                <button onClick={() => setActiveTab('dashboard')} className="text-muted-foreground hover:text-foreground">
                   <ChevronLeft className="w-5 h-5" />
                 </button>
+              </div>
+
+              {/* Filters */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <select value={filterModule} onChange={(e) => setFilterModule(e.target.value)} className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground">
+                  <option value="">Barcha modullar</option>
+                  <option value="GA">GA</option>
+                  <option value="DRR">DRR</option>
+                  <option value="DRL">DRL</option>
+                </select>
+                <select value={filterShift} onChange={(e) => setFilterShift(e.target.value)} className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground">
+                  <option value="">Barcha smenalar</option>
+                  <option value="A">A smena</option>
+                  <option value="B">B smena</option>
+                  <option value="D">D smena</option>
+                </select>
+                <select value={filterSector} onChange={(e) => setFilterSector(e.target.value)} className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground">
+                  <option value="">Barcha sektorlar</option>
+                  {gaEngineerSectors.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground">
+                  <option value="">Barcha statuslar</option>
+                  {gaIssueStatuses.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
               </div>
             </div>
 
@@ -486,81 +344,273 @@ export default function GAEngineerPage() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Modul</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Kod</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nuqson nomi</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nomi</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sektor</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Smena</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Soni</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Faktor</th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Xavflilik</th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {top10Defects.map((defect, index) => (
-                    <tr key={index} className="border-b border-border hover:bg-muted/30 transition-colors">
-                      <td className="px-4 py-3 text-sm font-semibold text-foreground">{defect.code}</td>
-                      <td className="px-4 py-3 text-sm text-foreground">{defect.name}</td>
-                      <td className="px-4 py-3 text-sm font-semibold text-foreground">{defect.count}</td>
-                      <td className="px-4 py-3 text-sm">
-                        <Badge className={getRiskColor(defect.factor)}>{defect.factor}</Badge>
-                      </td>
-                      <td className="px-4 py-3 text-sm">
-                        {defect.factor >= 20 ? (
-                          <Badge className="bg-critical text-white">Yuqori</Badge>
-                        ) : defect.factor >= 15 ? (
-                          <Badge className="bg-warning text-white">O'rtacha</Badge>
-                        ) : (
-                          <Badge className="bg-success text-white">Past</Badge>
-                        )}
+                  {sortedIssues.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
+                        Muammo topilmadi
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    sortedIssues.map((issue) => {
+                      const statusColor = gaIssueStatuses.find(s => s.value === issue.status)
+                      return (
+                        <tr key={issue.id} className="border-b border-border hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => setSelectedIssue(issue)}>
+                          <td className="px-4 py-3 text-sm"><Badge className={getModuleColor(issue.module)}>{issue.module}</Badge></td>
+                          <td className="px-4 py-3 text-sm font-semibold text-foreground">{issue.code}</td>
+                          <td className="px-4 py-3 text-sm text-foreground">{issue.name}</td>
+                          <td className="px-4 py-3 text-sm text-foreground">{issue.sector}</td>
+                          <td className="px-4 py-3 text-sm text-foreground">{issue.shift} smena</td>
+                          <td className="px-4 py-3 text-sm text-foreground">{issue.count}</td>
+                          <td className="px-4 py-3 text-sm"><Badge className={getRiskColor(issue.factor)}>{issue.factor}</Badge></td>
+                          <td className="px-4 py-3 text-sm"><Badge className={statusColor?.color || 'bg-muted'}>{statusColor?.label}</Badge></td>
+                        </tr>
+                      )
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
-        )}
 
-        {/* Transfer Modal */}
-        {showTransferModal && selectedIssue && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full space-y-4">
-              <h3 className="text-lg font-bold text-foreground">Muammoni managerga yuborish</h3>
-              
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-foreground block mb-2">Managerga yuborilayotgan muammo</label>
-                  <div className="bg-background border border-border rounded-lg p-3 text-sm">
-                    <p className="font-semibold text-foreground">{selectedIssue.code} - {selectedIssue.name}</p>
+          {/* Issue Detail Panel */}
+          <div className="lg:col-span-1">
+            {selectedIssue ? (
+              <div className="bg-card border border-border rounded-xl p-6 space-y-4 sticky top-20">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-foreground">Muammo tafsiloti</h3>
+                  <button onClick={() => setSelectedIssue(null)} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Modul</p>
+                    <Badge className={getModuleColor(selectedIssue.module)}>{selectedIssue.module}</Badge>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Kod: {selectedIssue.code}</p>
+                    <p className="font-semibold text-foreground">{selectedIssue.name}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Sektor</p>
+                      <p className="font-semibold">{selectedIssue.sector}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Smena</p>
+                      <p className="font-semibold">{selectedIssue.shift}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Faktor</p>
+                    <Badge className={getRiskColor(selectedIssue.factor)}>{selectedIssue.factor}</Badge>
                   </div>
                 </div>
 
-                <div>
-                  <label className="text-sm font-medium text-foreground block mb-2">Izoh</label>
-                  <textarea
-                    value={transferNote}
-                    onChange={(e) => setTransferNote(e.target.value)}
-                    placeholder="Muammoning tavsifi va managerga berish sababi..."
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
-                    rows={4}
+                {selectedIssue.rootCause && (
+                  <div className="pt-3 border-t border-border">
+                    <p className="text-xs text-muted-foreground mb-1">Sabab</p>
+                    <p className="text-sm text-foreground">{selectedIssue.rootCause}</p>
+                  </div>
+                )}
+
+                <div className="pt-3 border-t border-border space-y-2">
+                  <Button onClick={() => setShowResolutionModal(true)} className="w-full">
+                    <Check className="w-4 h-4 mr-2" />
+                    Muammoni hal qilish
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-card border border-border rounded-xl p-6 text-center text-muted-foreground">
+                Muammoni tanlang
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Resolution Modal */}
+      {showResolutionModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card border border-border rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-border flex items-center justify-between sticky top-0 bg-card">
+              <h2 className="text-lg font-bold text-foreground">Muammoni hal qilish</h2>
+              <button onClick={() => { setShowResolutionModal(false); resetForm() }} className="text-muted-foreground hover:text-foreground">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Muammo izohi */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Muammo izohi *</label>
+                <textarea
+                  value={resolutionForm.problemDescription}
+                  onChange={(e) => setResolutionForm({ ...resolutionForm, problemDescription: e.target.value })}
+                  className={`w-full px-3 py-2 bg-background border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary ${formErrors.problemDescription ? 'border-critical' : 'border-border'}`}
+                  rows={3}
+                  placeholder="Muammoning to'liq izohi"
+                />
+                {formErrors.problemDescription && <p className="text-xs text-critical mt-1">{formErrors.problemDescription}</p>}
+              </div>
+
+              {/* Muammo kelib chiqish sababi */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Muammo kelib chiqish sababi *</label>
+                <textarea
+                  value={resolutionForm.rootCause}
+                  onChange={(e) => setResolutionForm({ ...resolutionForm, rootCause: e.target.value })}
+                  className={`w-full px-3 py-2 bg-background border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary ${formErrors.rootCause ? 'border-critical' : 'border-border'}`}
+                  rows={3}
+                  placeholder="Ildiz sababni tafsil qiling"
+                />
+                {formErrors.rootCause && <p className="text-xs text-critical mt-1">{formErrors.rootCause}</p>}
+              </div>
+
+              {/* Tezkor chora-tadbir */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Tezkor chora-tadbir *</label>
+                <textarea
+                  value={resolutionForm.immediateAction}
+                  onChange={(e) => setResolutionForm({ ...resolutionForm, immediateAction: e.target.value })}
+                  className={`w-full px-3 py-2 bg-background border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary ${formErrors.immediateAction ? 'border-critical' : 'border-border'}`}
+                  rows={2}
+                  placeholder="Darhol bajarilgan choralar"
+                />
+                {formErrors.immediateAction && <p className="text-xs text-critical mt-1">{formErrors.immediateAction}</p>}
+              </div>
+
+              {/* Asosiy chora-tadbir */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Chora-tadbir (asosiy rejalar) *</label>
+                <textarea
+                  value={resolutionForm.mainAction}
+                  onChange={(e) => setResolutionForm({ ...resolutionForm, mainAction: e.target.value })}
+                  className={`w-full px-3 py-2 bg-background border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary ${formErrors.mainAction ? 'border-critical' : 'border-border'}`}
+                  rows={3}
+                  placeholder="To'liq bartaraf qilish rejasi"
+                />
+                {formErrors.mainAction && <p className="text-xs text-critical mt-1">{formErrors.mainAction}</p>}
+              </div>
+
+              {/* Rasm yuklash */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Hal qilinganligi rasmi (rasm) *</label>
+                <div className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${formErrors.imageFile ? 'border-critical' : 'border-border hover:border-primary'}`}>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) setResolutionForm({ ...resolutionForm, imageFile: file })
+                    }}
+                    className="hidden"
+                    id="image-upload"
                   />
+                  <label htmlFor="image-upload" className="flex flex-col items-center gap-2 cursor-pointer">
+                    <Upload className="w-6 h-6 text-muted-foreground" />
+                    <p className="text-sm text-muted-foreground">Rasm tanlang yoki su'rting</p>
+                    {resolutionForm.imageFile && <p className="text-xs text-primary font-medium">{resolutionForm.imageFile.name}</p>}
+                  </label>
+                </div>
+                {formErrors.imageFile && <p className="text-xs text-critical mt-1">{formErrors.imageFile}</p>}
+              </div>
+
+              {/* Qaror */}
+              <div>
+                <label className="block text-sm font-medium text-foreground mb-2">Qaror *</label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="decision"
+                      value="resolved"
+                      checked={resolutionForm.decision === 'resolved'}
+                      onChange={(e) => setResolutionForm({ ...resolutionForm, decision: 'resolved' })}
+                    />
+                    <span className="text-sm text-foreground">Muammo hal qilindi</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="decision"
+                      value="transfer"
+                      checked={resolutionForm.decision === 'transfer'}
+                      onChange={(e) => setResolutionForm({ ...resolutionForm, decision: 'transfer' })}
+                    />
+                    <span className="text-sm text-foreground">Boshqa sexga tegishli</span>
+                  </label>
                 </div>
               </div>
 
-              <div className="flex gap-2">
-                <Button onClick={handleTransferToManager} className="flex-1">
-                  Yuborish
+              {/* Transfer fields */}
+              {resolutionForm.decision === 'transfer' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">Qaysi sexga yuborilsin *</label>
+                    <select
+                      value={resolutionForm.transferTarget}
+                      onChange={(e) => setResolutionForm({ ...resolutionForm, transferTarget: e.target.value })}
+                      className={`w-full px-3 py-2 bg-background border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary ${formErrors.transferTarget ? 'border-critical' : 'border-border'}`}
+                    >
+                      <option value="">Tanlang...</option>
+                      {gaTransferTargets.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+                    {formErrors.transferTarget && <p className="text-xs text-critical mt-1">{formErrors.transferTarget}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">Sabab *</label>
+                    <textarea
+                      value={resolutionForm.transferReason}
+                      onChange={(e) => setResolutionForm({ ...resolutionForm, transferReason: e.target.value })}
+                      className={`w-full px-3 py-2 bg-background border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary ${formErrors.transferReason ? 'border-critical' : 'border-border'}`}
+                      rows={2}
+                      placeholder="Nega bu sexga uzatilmoqda?"
+                    />
+                    {formErrors.transferReason && <p className="text-xs text-critical mt-1">{formErrors.transferReason}</p>}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-2">Izoh</label>
+                    <textarea
+                      value={resolutionForm.transferNotes}
+                      onChange={(e) => setResolutionForm({ ...resolutionForm, transferNotes: e.target.value })}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      rows={2}
+                      placeholder="Qo'shimcha izoh"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Buttons */}
+              <div className="flex gap-2 pt-4 border-t border-border">
+                <Button onClick={handleResolutionSubmit} className="flex-1">
+                  <Send className="w-4 h-4 mr-2" />
+                  {resolutionForm.decision === 'resolved' ? 'Managerga tasdiqlash uchun yuborish' : 'Engineerga yuborish'}
                 </Button>
-                <Button
-                  onClick={() => setShowTransferModal(false)}
-                  variant="outline"
-                  className="flex-1"
-                >
+                <Button onClick={() => { setShowResolutionModal(false); resetForm() }} variant="outline" className="flex-1">
                   Bekor qilish
                 </Button>
               </div>
             </div>
           </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   )
 }
