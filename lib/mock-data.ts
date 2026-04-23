@@ -1310,3 +1310,122 @@ export const incomingDefectsByShop = {
     { code: '20', name: 'Sifatsiz o\'rnatilgan', count: 15, factor: 18, risk: 'high' },
   ],
 }
+
+// GA Engineer Sectors
+export const gaEngineerSectors = ['TRIM', 'SHOSSE', 'FINAL', 'SUB'] as const
+
+// GA Engineer Issue Status Options
+export const gaIssueStatuses = [
+  { value: 'ochiq', label: 'Ochiq' },
+  { value: 'jarayonda', label: 'Jarayonda' },
+  { value: 'uzatilgan', label: 'Uzatilgan' },
+  { value: 'yopilgan', label: 'Yopilgan' },
+  { value: 'kechikkan', label: 'Kechikkan' },
+]
+
+// GA Engineer Root Cause Options
+export const gaRootCauseOptions = [
+  'Noto\'g\'ri o\'rnatish',
+  'Yetarli nazorat bo\'lmagan',
+  'Detal sifatsiz',
+  'Oldingi sexdan kelgan nuqson',
+  'Regulirovka qilinmagan',
+  'Texnologik xato',
+]
+
+// GA Engineer Action Options
+export const gaActionOptions = [
+  'Qayta tekshirish',
+  'Detalni almashtirish',
+  'Standart bo\'yicha qayta yig\'ish',
+  'Master nazoratini oshirish',
+  'Oldingi sex bilan birgalikda tekshirish',
+  'Qayta o\'qitish',
+]
+
+// GA Engineer Transfer Targets
+export const gaTransferTargets = [
+  { value: 'press_engineer', label: 'PRESS SHOP ENGINEER' },
+  { value: 'welding1_engineer', label: 'WELDING-1 ENGINEER' },
+  { value: 'welding2_engineer', label: 'WELDING-2 ENGINEER' },
+  { value: 'paint_engineer', label: 'PAINT SHOP ENGINEER' },
+]
+
+// GA Engineer Mock Issues
+export const gaMockIssues = [
+  {
+    id: 1,
+    date: '2026-04-23',
+    shift: 'A',
+    sector: 'TRIM',
+    code: '18',
+    name: 'Detalda nuqson bor',
+    count: 3,
+    factor: 20,
+    submittedBy: 'Sardor Yo\'ldashev',
+    status: 'ochiq',
+    engineerNote: '',
+    rootCause: '',
+    action: '',
+  },
+  {
+    id: 2,
+    date: '2026-04-23',
+    shift: 'B',
+    sector: 'SHOSSE',
+    code: '20',
+    name: 'Sifatsiz o\'rnatilgan',
+    count: 2,
+    factor: 18,
+    submittedBy: 'Anvar Hasanov',
+    status: 'jarayonda',
+    engineerNote: 'Master bilan koordinatsiya olindi',
+    rootCause: 'Noto\'g\'ri o\'rnatish',
+    action: 'Standart bo\'yicha qayta yig\'ish',
+  },
+  {
+    id: 3,
+    date: '2026-04-22',
+    shift: 'A',
+    sector: 'FINAL',
+    code: '24',
+    name: 'Detalga shikast yetgan',
+    count: 1,
+    factor: 15,
+    submittedBy: 'Olim Karim',
+    status: 'uzatilgan',
+    engineerNote: 'Qaynash bo\'limiga uzatildi',
+    rootCause: 'Oldingi sexdan kelgan nuqson',
+    action: 'Oldingi sex bilan birgalikda tekshirish',
+  },
+  {
+    id: 4,
+    date: '2026-04-21',
+    shift: 'D',
+    sector: 'SUB',
+    code: '32',
+    name: 'Detal funksiyasini bajarmayapti',
+    count: 1,
+    factor: 20,
+    submittedBy: 'Sardor Yo\'ldashev',
+    status: 'yopilgan',
+    engineerNote: 'Qayta o\'qitish o\'tkazildi, muammo hal qilindi',
+    rootCause: 'Texnologik xato',
+    action: 'Qayta o\'qitish',
+  },
+  {
+    id: 5,
+    date: '2026-04-20',
+    shift: 'B',
+    sector: 'TRIM',
+    code: '35',
+    name: 'Regulirovka qilinmagan',
+    count: 2,
+    factor: 12,
+    submittedBy: 'Anvar Hasanov',
+    status: 'kechikkan',
+    engineerNote: 'Muddati uzaygan, tezda hal qilish kerak',
+    rootCause: 'Yetarli nazorat bo\'lmagan',
+    action: 'Master nazoratini oshirish',
+  },
+]

@@ -138,6 +138,15 @@ const d20InspectorSidebarItems: SidebarItem[] = [
   },
 ]
 
+const gaEngineerSidebarItems: SidebarItem[] = [
+  {
+    label: 'GA Engineer paneli',
+    href: '/dashboard/ga-engineer',
+    icon: <Clipboard className="w-5 h-5" />,
+    section: 'main',
+  },
+]
+
 export default function Sidebar() {
   const pathname = usePathname()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
@@ -167,6 +176,8 @@ export default function Sidebar() {
     sidebarItems = d10InspectorSidebarItems
   } else if (userRole === 'd20_inspector') {
     sidebarItems = d20InspectorSidebarItems
+  } else if (userRole === 'ga_engineer') {
+    sidebarItems = gaEngineerSidebarItems
   }
 
   const groupedItems = {
@@ -224,6 +235,9 @@ export default function Sidebar() {
           )}
           {userRole === 'd20_inspector' && (
             <p className="text-xs text-primary font-medium mt-1">D20 Inspector</p>
+          )}
+          {userRole === 'ga_engineer' && (
+            <p className="text-xs text-primary font-medium mt-1">GA Engineer</p>
           )}
         </div>
         <Button

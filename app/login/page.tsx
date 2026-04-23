@@ -14,6 +14,7 @@ const MOCK_USERS = {
   'cmm@uzauto.uz': { password: 'cmm123', role: 'cmm_inspector', name: 'CMM Inspector' },
   'd10@uzauto.uz': { password: 'd10123', role: 'd10_inspector', name: 'D10 Inspector' },
   'd20@uzauto.uz': { password: 'd20123', role: 'd20_inspector', name: 'D20 Inspector' },
+  'engineer@uzauto.uz': { password: 'engineer123', role: 'ga_engineer', name: 'GA Engineer' },
 }
 
 export default function LoginPage() {
@@ -48,6 +49,9 @@ export default function LoginPage() {
             break
           case 'd20_inspector':
             router.push('/dashboard/d20-admin')
+            break
+          case 'ga_engineer':
+            router.push('/dashboard/ga-engineer')
             break
           default:
             router.push('/dashboard')
@@ -196,6 +200,10 @@ export default function LoginPage() {
               <p className="text-muted-foreground">CMM: cmm@uzauto.uz / cmm123</p>
               <p className="text-muted-foreground">D10: d10@uzauto.uz / d10123</p>
               <p className="text-muted-foreground">D20: d20@uzauto.uz / d20123</p>
+            </div>
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 text-sm text-foreground">
+              <p className="font-semibold mb-2">GA Engineer:</p>
+              <p className="text-muted-foreground">Email: engineer@uzauto.uz | Parol: engineer123</p>
             </div>
           </div>
         </div>
