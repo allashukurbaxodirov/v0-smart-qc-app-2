@@ -1,7 +1,7 @@
 // KPI Data
 export const kpiData = {
   gca: {
-    name: 'GCA (Umumiy Konstruksiya Sifati)',
+    name: 'GCA',
     current: 96.5,
     target: 98.0,
     previous: 95.2,

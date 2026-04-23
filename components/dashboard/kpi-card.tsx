@@ -12,6 +12,7 @@ interface KPICardProps {
   trend?: 'up' | 'down'
   href?: string
   format?: 'percent' | 'number' | 'decimal'
+  helperText?: string
 }
 
 export default function KPICard({
@@ -23,6 +24,7 @@ export default function KPICard({
   trend,
   href,
   format = 'percent',
+  helperText,
 }: KPICardProps) {
   const statusColors = {
     good: 'bg-success/10 border-success/30 text-success',
@@ -73,6 +75,11 @@ export default function KPICard({
             {trendIcon}
             <span>{Math.abs(change)}% {trend === 'up' ? 'oshdi' : 'kamaydi'}</span>
           </div>
+        )}
+
+        {/* Helper Text */}
+        {helperText && (
+          <p className="text-xs text-muted-foreground">{helperText}</p>
         )}
       </div>
     </div>
