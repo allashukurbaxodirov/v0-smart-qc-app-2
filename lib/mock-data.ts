@@ -448,6 +448,60 @@ export const defectHeatmapData = {
   ],
 }
 
+// PDI Shop Options
+export const pdiShopOptions = [
+  { value: 'PRESS SHOP', label: 'PRESS SHOP' },
+  { value: 'WELDING 1', label: 'WELDING 1' },
+  { value: 'WELDING 2', label: 'WELDING 2' },
+  { value: 'PAINT SHOP', label: 'PAINT SHOP' },
+  { value: 'GA', label: 'GA' },
+]
+
+// PDI Factor Options
+export const pdiFactorOptions = [
+  { value: 5, label: '5' },
+  { value: 10, label: '10' },
+  { value: 20, label: '20' },
+  { value: 50, label: '50' },
+]
+
+// PDI Defects by Shop
+export const pdiDefectsByShop = {
+  'PRESS SHOP': [
+    { code: '63', name: 'O\'lcham xatosi', count: 14, factor: 20 },
+    { code: '64', name: 'Boshi egilgan', count: 9, factor: 10 },
+    { code: '65', name: 'Sirtda egilish', count: 6, factor: 5 },
+    { code: '66', name: 'Qavsiyasida xatosi', count: 11, factor: 20 },
+    { code: '67', name: 'Matritsa buzilgan', count: 4, factor: 50 },
+  ],
+  'WELDING 1': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 18, factor: 50 },
+    { code: '46', name: 'Qaynash tugri emas', count: 12, factor: 20 },
+    { code: '47', name: 'Qaynash joyi pozilgan', count: 7, factor: 10 },
+    { code: '51', name: 'Qaynash sust', count: 5, factor: 5 },
+  ],
+  'WELDING 2': [
+    { code: '45', name: 'Qaynash ekilmasa qolgan', count: 15, factor: 50 },
+    { code: '46', name: 'Qaynash tugri emas', count: 9, factor: 20 },
+    { code: '49', name: 'Metallining takorrarlayni yo\'q', count: 6, factor: 10 },
+    { code: '50', name: 'Qaynash joyi sust', count: 4, factor: 5 },
+  ],
+  'PAINT SHOP': [
+    { code: '86', name: 'Bo\'yoq oqishi', count: 45, factor: 50 },
+    { code: '81', name: 'Bo\'yoq notekis sepilgan', count: 38, factor: 20 },
+    { code: '77', name: 'Bo\'yoq yuzasida kir bor', count: 25, factor: 10 },
+    { code: '75', name: 'Germetik nuqsoni bor', count: 19, factor: 20 },
+  ],
+  'GA': [
+    { code: '18', name: 'Detalda nuqson bor', count: 32, factor: 20 },
+    { code: '20', name: 'Sifatsiz o\'rnatilgan', count: 28, factor: 20 },
+    { code: '24', name: 'Detalga shikast yetgan', count: 18, factor: 10 },
+    { code: '32', name: 'Detal funksiyasini bajarmayapti', count: 14, factor: 50 },
+    { code: '35', name: 'Regulirovka qilinmagan', count: 11, factor: 5 },
+    { code: '44', name: 'Butlovchi qism to\'liq qotirilmagan', count: 16, factor: 10 },
+  ],
+}
+
 // User List
 export const users = [
   { id: 1, name: 'Admin User', email: 'admin@uzauto.uz', role: 'Admin', status: 'active' },

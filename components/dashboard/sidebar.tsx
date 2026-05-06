@@ -15,6 +15,7 @@ import {
   Factory,
   ClipboardList,
   Clipboard,
+  ClipboardCheck,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
@@ -50,6 +51,12 @@ const adminSidebarItems: SidebarItem[] = [
     label: 'Yuqori Defektlar',
     href: '/dashboard/top-defects',
     icon: <AlertTriangle className="w-5 h-5" />,
+    section: 'analytics',
+  },
+  {
+    label: 'PDI',
+    href: '/dashboard/pdi',
+    icon: <ClipboardCheck className="w-5 h-5" />,
     section: 'analytics',
   },
   {

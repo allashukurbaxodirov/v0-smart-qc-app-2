@@ -232,7 +232,11 @@ export default function DashboardHome() {
         </div>
 
         {/* Quick Links */}
-        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="mt-8 grid grid-cols-2 md:grid-cols-5 gap-4">
+          <Link href="/dashboard/pdi" className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 transition-colors text-center">
+            <div className="text-2xl mb-2">📝</div>
+            <p className="font-semibold text-sm text-foreground">PDI</p>
+          </Link>
           <Link href="/dashboard/analytics" className="bg-card border border-border rounded-lg p-4 hover:border-primary/50 transition-colors text-center">
             <div className="text-2xl mb-2">📊</div>
             <p className="font-semibold text-sm text-foreground">Analitika</p>
