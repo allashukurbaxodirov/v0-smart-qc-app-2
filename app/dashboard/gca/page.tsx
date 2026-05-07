@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import PageHeader from '@/components/dashboard/page-header'
-import { gcaDefectsByShop } from '@/lib/mock-data'
-import { ChevronLeft, TrendingDown } from 'lucide-react'
+import { ChevronLeft, TrendingDown, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import Link from 'next/link'
+import { useDefects } from '@/lib/supabase/hooks'
+import { mapSupabaseDefectToUI, getRiskColorClass, getRiskLabelUzbek } from '@/lib/supabase/mappers'
+import { GCADefect } from '@/lib/supabase/queries'
 
 export default function GCAPage() {
   const [selectedShop, setSelectedShop] = useState<string | null>(null)
@@ -17,18 +18,21 @@ export default function GCAPage() {
   const [appliedShift, setAppliedShift] = useState<string>('all')
   const [appliedStartDate, setAppliedStartDate] = useState<string>('')
   const [appliedEndDate, setAppliedEndDate] = useState<string>('')
-  const [isLoading, setIsLoading] = useState(false)
 
   const shops = ['PRESS SHOP', 'WELDING-1', 'WELDING-2', 'PAINT SHOP', 'GA'] as const
 
+  // Fetch defects from Supabase with applied filters
+  const { defects, isLoading, error } = useDefects({
+    shop: selectedShop || undefined,
+    shift: appliedShift !== 'all' ? appliedShift : undefined,
+    startDate: appliedStartDate || undefined,
+    endDate: appliedEndDate || undefined,
+  })
+
   const handleApplyFilters = () => {
-    setIsLoading(true)
-    setTimeout(() => {
-      setAppliedShift(selectedShift)
-      setAppliedStartDate(startDate)
-      setAppliedEndDate(endDate)
-      setIsLoading(false)
-    }, 300)
+    setAppliedShift(selectedShift)
+    setAppliedStartDate(startDate)
+    setAppliedEndDate(endDate)
   }
 
   const handleClearFilters = () => {
@@ -41,70 +45,21 @@ export default function GCAPage() {
   }
 
   const getTotalDefects = () => {
-    // Simulate filtering logic (in production, this would filter by actual dates/shifts)
-    let total = 0
-    shops.forEach((shop) => {
-      const defects = gcaDefectsByShop[shop] || []
-      defects.forEach((defect) => {
-        // Simple simulation: if shift filter is applied, reduce by 10-20%
-        if (appliedShift !== 'all') {
-          total += Math.floor(defect.count * 0.85)
-        } else {
-          total += defect.count
-        }
-      })
-    })
-    // If date range is applied, reduce further (simulation)
-    if (appliedStartDate || appliedEndDate) {
-      total = Math.floor(total * 0.9)
-    }
-    return total
-  }
-
-  const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case 'high':
-        return 'bg-critical text-white'
-      case 'medium':
-        return 'bg-warning text-white'
-      case 'low':
-        return 'bg-success text-white'
-      default:
-        return 'bg-muted text-foreground'
-    }
-  }
-
-  const getRiskUzbek = (risk: string) => {
-    switch (risk) {
-      case 'high':
-        return 'Yuqori'
-      case 'medium':
-        return 'O\'rtacha'
-      case 'low':
-        return 'Past'
-      default:
-        return ''
-    }
+    return defects.reduce((sum, d) => sum + d.quantity, 0)
   }
 
   const getShopDefects = (shop: string) => {
-    const defects = gcaDefectsByShop[shop as keyof typeof gcaDefectsByShop] || []
+    const shopDefects = defects.filter((d) => d.shop === shop)
+    const mapped = shopDefects.map(mapSupabaseDefectToUI)
     return sortBy === 'factor'
-      ? [...defects].sort((a, b) => b.factor - a.factor)
-      : [...defects].sort((a, b) => b.count - a.count)
+      ? [...mapped].sort((a, b) => b.factor - a.factor)
+      : [...mapped].sort((a, b) => b.count - a.count)
   }
 
   const getShopTotal = (shop: string) => {
-    const defects = gcaDefectsByShop[shop as keyof typeof gcaDefectsByShop] || []
-    let total = defects.reduce((sum, d) => sum + d.count, 0)
-    // Apply filter reductions
-    if (appliedShift !== 'all') {
-      total = Math.floor(total * 0.85)
-    }
-    if (appliedStartDate || appliedEndDate) {
-      total = Math.floor(total * 0.9)
-    }
-    return total
+    return defects
+      .filter((d) => d.shop === shop)
+      .reduce((sum, d) => sum + d.quantity, 0)
   }
 
   if (selectedShop) {
@@ -176,32 +131,35 @@ export default function GCAPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {defects.map((defect) => (
-                  <tr
-                    key={defect.code}
-                    className={`hover:bg-muted/30 transition-colors ${
-                      defect.risk === 'high' ? 'bg-critical/5' : defect.risk === 'medium' ? 'bg-warning/5' : ''
-                    }`}
-                  >
-                    <td className="px-6 py-4">
-                      <span className="font-bold text-foreground">{defect.code}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="text-sm text-foreground">{defect.name}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="font-semibold text-foreground">{defect.count}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <span className="font-bold text-foreground text-lg">{defect.factor}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <Badge className={getRiskColor(defect.risk)}>
-                        {getRiskUzbek(defect.risk)}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
+                {defects.map((defect) => {
+                  const mapped = mapSupabaseDefectToUI(defect)
+                  return (
+                    <tr
+                      key={defect.id}
+                      className={`hover:bg-muted/30 transition-colors ${
+                        mapped.risk === 'high' ? 'bg-critical/5' : mapped.risk === 'medium' ? 'bg-warning/5' : ''
+                      }`}
+                    >
+                      <td className="px-6 py-4">
+                        <span className="font-bold text-foreground">{mapped.code}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="text-sm text-foreground">{mapped.name}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className="font-semibold text-foreground">{mapped.count}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className="font-bold text-foreground text-lg">{mapped.factor}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <Badge className={getRiskColorClass(mapped.risk)}>
+                          {getRiskLabelUzbek(mapped.risk)}
+                        </Badge>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -267,10 +225,9 @@ export default function GCAPage() {
           <Button
             size="sm"
             onClick={handleApplyFilters}
-            disabled={isLoading}
             className="text-sm font-medium"
           >
-            {isLoading ? 'Qidirilmoqda...' : 'Qidirish'}
+            Qidirish
           </Button>
 
           {/* Clear Button */}
@@ -287,8 +244,17 @@ export default function GCAPage() {
         {/* Total KPI */}
         <div className="bg-card border border-primary/30 rounded-xl p-8 bg-primary/5">
           <p className="text-sm text-muted-foreground mb-2">GCA aniqlangan muammolar umumiy soni</p>
-          <p className="text-5xl font-bold text-foreground">{getTotalDefects()}</p>
-          <p className="text-xs text-muted-foreground mt-2">ta nuqson</p>
+          {isLoading ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <p className="text-muted-foreground">Yuklanmoqda...</p>
+            </div>
+          ) : (
+            <>
+              <p className="text-5xl font-bold text-foreground">{getTotalDefects()}</p>
+              <p className="text-xs text-muted-foreground mt-2">ta nuqson</p>
+            </>
+          )}
         </div>
 
         {/* Shop Distribution */}
