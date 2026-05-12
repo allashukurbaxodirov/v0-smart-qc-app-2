@@ -156,13 +156,19 @@ export default function Sidebar() {
   const router = useRouter()
 
   useEffect(() => {
-    // Get user info from session storage
-    const userStr = sessionStorage.getItem('user')
-    if (userStr) {
-      const user = JSON.parse(userStr)
-      setUserRole(user.role || 'admin')
-      setUserName(user.name || 'User')
-      setUserEmail(user.email || '')
+    // Read user info from cookie (set by /api/auth)
+    const getCookie = (name: string) => {
+      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
+      return match ? decodeURIComponent(match[2]) : null
+    }
+    const raw = getCookie('qc_session')
+    if (raw) {
+      try {
+        const user = JSON.parse(raw)
+        setUserRole(user.role || 'admin')
+        setUserName(user.name || 'User')
+        setUserEmail(user.email || '')
+      } catch {}
     }
   }, [])
 
@@ -244,8 +250,8 @@ export default function Sidebar() {
           variant="outline"
           className="w-full justify-start"
           size="sm"
-          onClick={() => {
-            sessionStorage.removeItem('user')
+          onClick={async () => {
+            await fetch('/api/auth', { method: 'DELETE' })
             router.push('/login')
           }}
         >
