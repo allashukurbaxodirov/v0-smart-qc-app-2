@@ -20,7 +20,7 @@ export default function GCAAdminPage() {
   const [formData, setFormData] = useState({
     shop: 'PRESS SHOP',
     code: '63',
-    factor: 20,
+    factor: 5,
     count: 1,
     notes: '',
     image: null as File | null,
@@ -58,7 +58,7 @@ export default function GCAAdminPage() {
       setFormData({
         shop: 'PRESS SHOP',
         code: '63',
-        factor: 20,
+        factor: 5,
         count: 1,
         notes: '',
         image: null,
@@ -67,8 +67,8 @@ export default function GCAAdminPage() {
   }
 
   const getRiskLevel = (factor: number) => {
-    if (factor >= 22) return { label: 'Yuqori', color: 'bg-critical text-white' }
-    if (factor >= 17) return { label: 'O\'rtacha', color: 'bg-warning text-white' }
+    if (factor >= 50) return { label: 'Yuqori', color: 'bg-critical text-white' }
+    if (factor >= 20) return { label: 'O\'rtacha', color: 'bg-warning text-white' }
     return { label: 'Past', color: 'bg-success text-white' }
   }
 

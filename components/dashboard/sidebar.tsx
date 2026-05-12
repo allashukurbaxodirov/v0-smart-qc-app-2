@@ -156,20 +156,14 @@ export default function Sidebar() {
   const router = useRouter()
 
   useEffect(() => {
-    // Read user info from cookie (set by /api/auth)
-    const getCookie = (name: string) => {
-      const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'))
-      return match ? decodeURIComponent(match[2]) : null
-    }
-    const raw = getCookie('qc_session')
-    if (raw) {
-      try {
-        const user = JSON.parse(raw)
-        setUserRole(user.role || 'admin')
-        setUserName(user.name || 'User')
-        setUserEmail(user.email || '')
-      } catch {}
-    }
+    fetch('/api/me')
+      .then((r) => r.json())
+      .then((user) => {
+        if (user.role) setUserRole(user.role)
+        if (user.name) setUserName(user.name)
+        if (user.email) setUserEmail(user.email)
+      })
+      .catch(() => {})
   }, [])
 
   // Select sidebar items based on role
