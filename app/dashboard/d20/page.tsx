@@ -88,14 +88,14 @@ export default function D20Page() {
   }
 
   const getShopDefects = (shop: string) => {
-    const defects = gcaDefectsByShop[shop as keyof typeof gcaDefectsByShop] || []
+    const defects = d20DefectsByShop[shop as keyof typeof d20DefectsByShop] || []
     return sortBy === 'factor'
       ? [...defects].sort((a, b) => b.factor - a.factor)
       : [...defects].sort((a, b) => b.count - a.count)
   }
 
   const getShopTotal = (shop: string) => {
-    const defects = gcaDefectsByShop[shop as keyof typeof gcaDefectsByShop] || []
+    const defects = d20DefectsByShop[shop as keyof typeof d20DefectsByShop] || []
     let total = defects.reduce((sum, d) => sum + d.count, 0)
     // Apply filter reductions
     if (appliedShift !== 'all') {
@@ -114,10 +114,10 @@ export default function D20Page() {
       <div className="min-h-screen bg-background">
         <PageHeader
           title={selectedShop}
-          description="GCA nuqsonlari va xavflilik faktorlari"
+          description="D20 nuqsonlari va xavflilik faktorlari"
           breadcrumbs={[
             { label: 'Dashboard', href: '/dashboard' },
-            { label: 'GCA', href: '/dashboard/gca' },
+            { label: 'D20', href: '/dashboard/d20' },
             { label: selectedShop },
           ]}
         />
@@ -214,11 +214,11 @@ export default function D20Page() {
     <div className="min-h-screen bg-background">
       {/* Page Header */}
       <PageHeader
-        title="GCA aniqlangan muammolar"
-        description="General Control Analysis - Taqsimot bo'yicha nuqsonlar tahlili"
+        title="D20 aniqlangan muammolar"
+        description="Dastlabki 20 ta nuqson - Taqsimot bo'yicha nuqsonlar tahlili"
         breadcrumbs={[
           { label: 'Dashboard', href: '/dashboard' },
-          { label: 'GCA' },
+          { label: 'D20' },
         ]}
       />
 

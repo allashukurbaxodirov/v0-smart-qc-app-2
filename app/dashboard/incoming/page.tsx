@@ -88,14 +88,14 @@ export default function IncomingPage() {
   }
 
   const getShopDefects = (shop: string) => {
-    const defects = gcaDefectsByShop[shop as keyof typeof gcaDefectsByShop] || []
+    const defects = incomingDefectsByShop[shop as keyof typeof incomingDefectsByShop] || []
     return sortBy === 'factor'
       ? [...defects].sort((a, b) => b.factor - a.factor)
       : [...defects].sort((a, b) => b.count - a.count)
   }
 
   const getShopTotal = (shop: string) => {
-    const defects = gcaDefectsByShop[shop as keyof typeof gcaDefectsByShop] || []
+    const defects = incomingDefectsByShop[shop as keyof typeof incomingDefectsByShop] || []
     let total = defects.reduce((sum, d) => sum + d.count, 0)
     // Apply filter reductions
     if (appliedShift !== 'all') {
@@ -114,10 +114,10 @@ export default function IncomingPage() {
       <div className="min-h-screen bg-background">
         <PageHeader
           title={selectedShop}
-          description="GCA nuqsonlari va xavflilik faktorlari"
+          description="Kiruvchi nuqsonlar va xavflilik faktorlari"
           breadcrumbs={[
             { label: 'Dashboard', href: '/dashboard' },
-            { label: 'GCA', href: '/dashboard/gca' },
+            { label: 'Kiruvchi', href: '/dashboard/incoming' },
             { label: selectedShop },
           ]}
         />
@@ -214,11 +214,11 @@ export default function IncomingPage() {
     <div className="min-h-screen bg-background">
       {/* Page Header */}
       <PageHeader
-        title="GCA aniqlangan muammolar"
-        description="General Control Analysis - Taqsimot bo'yicha nuqsonlar tahlili"
+        title="Kiruvchi nuqsonlar"
+        description="Incoming Defects - Taqsimot bo'yicha kiruvchi nuqsonlar tahlili"
         breadcrumbs={[
           { label: 'Dashboard', href: '/dashboard' },
-          { label: 'GCA' },
+          { label: 'Kiruvchi' },
         ]}
       />
 

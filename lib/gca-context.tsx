@@ -17,6 +17,7 @@ export interface GCARecord {
 interface GCAContextType {
   records: GCARecord[]
   loading: boolean
+  error: string | null
   addRecord: (record: Omit<GCARecord, 'id' | 'date'>) => Promise<void>
   deleteRecord: (id: string) => Promise<void>
   getTotalDefects: () => number
@@ -28,10 +29,14 @@ const GCAContext = createContext<GCAContextType | undefined>(undefined)
 export function GCAProvider({ children }: { children: ReactNode }) {
   const [records, setRecords] = useState<GCARecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/gca')
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`Server xatosi: ${r.status}`)
+        return r.json()
+      })
       .then((data) => {
         if (Array.isArray(data)) {
           setRecords(data.map((r: any) => ({
@@ -47,7 +52,7 @@ export function GCAProvider({ children }: { children: ReactNode }) {
           })))
         }
       })
-      .catch(console.error)
+      .catch((err: Error) => setError(err.message))
       .finally(() => setLoading(false))
   }, [])
 
@@ -82,8 +87,12 @@ export function GCAProvider({ children }: { children: ReactNode }) {
   }
 
   const deleteRecord = async (id: string) => {
-    await fetch(`/api/gca?id=${id}`, { method: 'DELETE' })
-    setRecords((prev) => prev.filter((r) => r.id !== id))
+    const res = await fetch(`/api/gca?id=${id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setRecords((prev) => prev.filter((r) => r.id !== id))
+    } else {
+      setError("Yozuvni o'chirishda xato yuz berdi")
+    }
   }
 
   const getTotalDefects = () => records.reduce((sum, r) => sum + r.count, 0)
@@ -97,7 +106,7 @@ export function GCAProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <GCAContext.Provider value={{ records, loading, addRecord, deleteRecord, getTotalDefects, getDefectsByShop }}>
+    <GCAContext.Provider value={{ records, loading, error, addRecord, deleteRecord, getTotalDefects, getDefectsByShop }}>
       {children}
     </GCAContext.Provider>
   )

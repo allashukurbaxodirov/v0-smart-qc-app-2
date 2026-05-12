@@ -88,14 +88,14 @@ export default function CMMPage() {
   }
 
   const getShopDefects = (shop: string) => {
-    const defects = gcaDefectsByShop[shop as keyof typeof gcaDefectsByShop] || []
+    const defects = cmmDefectsByShop[shop as keyof typeof cmmDefectsByShop] || []
     return sortBy === 'factor'
       ? [...defects].sort((a, b) => b.factor - a.factor)
       : [...defects].sort((a, b) => b.count - a.count)
   }
 
   const getShopTotal = (shop: string) => {
-    const defects = gcaDefectsByShop[shop as keyof typeof gcaDefectsByShop] || []
+    const defects = cmmDefectsByShop[shop as keyof typeof cmmDefectsByShop] || []
     let total = defects.reduce((sum, d) => sum + d.count, 0)
     // Apply filter reductions
     if (appliedShift !== 'all') {
@@ -114,10 +114,10 @@ export default function CMMPage() {
       <div className="min-h-screen bg-background">
         <PageHeader
           title={selectedShop}
-          description="GCA nuqsonlari va xavflilik faktorlari"
+          description="CMM nuqsonlari va xavflilik faktorlari"
           breadcrumbs={[
             { label: 'Dashboard', href: '/dashboard' },
-            { label: 'GCA', href: '/dashboard/gca' },
+            { label: 'CMM', href: '/dashboard/cmm' },
             { label: selectedShop },
           ]}
         />
@@ -214,11 +214,11 @@ export default function CMMPage() {
     <div className="min-h-screen bg-background">
       {/* Page Header */}
       <PageHeader
-        title="GCA aniqlangan muammolar"
-        description="General Control Analysis - Taqsimot bo'yicha nuqsonlar tahlili"
+        title="CMM aniqlangan muammolar"
+        description="Coordinate Measuring Machine - Taqsimot bo'yicha nuqsonlar tahlili"
         breadcrumbs={[
           { label: 'Dashboard', href: '/dashboard' },
-          { label: 'GCA' },
+          { label: 'CMM' },
         ]}
       />
 

@@ -70,8 +70,8 @@ export default function GAEngineerPage() {
 
   // Calculate KPIs
   const openIssues = allIssues.filter((i) => i.status === 'ochiq').length
-  const drrIssues = allIssues.filter((i) => i.module === 'DRR' && i.gaRelated).length
-  const drlIssues = allIssues.filter((i) => i.module === 'DRL' && i.gaRelated).length
+  const drrIssues = allIssues.filter((i) => i.module === 'DRR').length
+  const drlIssues = allIssues.filter((i) => i.module === 'DRL').length
   const inProgressIssues = allIssues.filter((i) => i.status === 'jarayonda').length
   const sentToManagerIssues = allIssues.filter((i) => i.status === 'managerga_yuborildi').length
   const closedIssues = allIssues.filter((i) => i.status === 'yopilgan').length
