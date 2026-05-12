@@ -1,14 +1,5 @@
 import { NextResponse } from 'next/server'
-
-// In production: replace with real DB lookup + bcrypt
-const USERS: Record<string, { passwordHash: string; role: string; name: string }> = {
-  'demo@uzauto.uz':     { passwordHash: 'demo123',     role: 'admin',          name: 'Demo Admin' },
-  'gca@uzauto.uz':      { passwordHash: 'gca123',      role: 'gca_auditor',    name: 'GCA Auditor' },
-  'cmm@uzauto.uz':      { passwordHash: 'cmm123',      role: 'cmm_inspector',  name: 'CMM Inspector' },
-  'd10@uzauto.uz':      { passwordHash: 'd10123',      role: 'd10_inspector',  name: 'D10 Inspector' },
-  'd20@uzauto.uz':      { passwordHash: 'd20123',      role: 'd20_inspector',  name: 'D20 Inspector' },
-  'engineer@uzauto.uz': { passwordHash: 'engineer123', role: 'ga_engineer',    name: 'GA Engineer' },
-}
+import sql from '@/lib/db'
 
 const ROLE_REDIRECTS: Record<string, string> = {
   gca_auditor:   '/dashboard/gca-admin',
@@ -26,25 +17,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Email va parol kiritilishi shart' }, { status: 400 })
   }
 
-  const user = USERS[email as string]
-  if (!user || user.passwordHash !== password) {
-    return NextResponse.json({ error: 'Email yoki parol noto\'g\'ri' }, { status: 401 })
+  try {
+    const [user] = await sql`
+      SELECT id, email, name, role FROM users
+      WHERE email = ${email} AND password = ${password}
+      LIMIT 1
+    `
+
+    if (!user) {
+      return NextResponse.json({ error: "Email yoki parol noto'g'ri" }, { status: 401 })
+    }
+
+    const sessionPayload = JSON.stringify({ email: user.email, role: user.role, name: user.name })
+    const redirect = ROLE_REDIRECTS[user.role] ?? '/dashboard'
+
+    const response = NextResponse.json({ ok: true, redirect, name: user.name, role: user.role })
+
+    response.cookies.set('qc_session', sessionPayload, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 60 * 60 * 8,
+      secure: process.env.NODE_ENV === 'production',
+    })
+
+    return response
+  } catch (err) {
+    console.error('Auth error:', err)
+    return NextResponse.json({ error: 'Server xatosi' }, { status: 500 })
   }
-
-  const sessionPayload = JSON.stringify({ email, role: user.role, name: user.name })
-  const redirect = ROLE_REDIRECTS[user.role] ?? '/dashboard'
-
-  const response = NextResponse.json({ ok: true, redirect, name: user.name, role: user.role })
-
-  response.cookies.set('qc_session', sessionPayload, {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 8, // 8 soat
-    secure: process.env.NODE_ENV === 'production',
-  })
-
-  return response
 }
 
 export async function DELETE() {

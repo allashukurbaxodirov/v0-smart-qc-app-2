@@ -1,10 +1,10 @@
 'use client'
 
-import React, { createContext, useContext, useState, ReactNode } from 'react'
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
 export interface GCARecord {
   id: string
-  image?: string
+  image_url?: string
   shop: 'PRESS SHOP' | 'WELDING-1' | 'WELDING-2' | 'PAINT SHOP' | 'GA'
   code: string
   codeName: string
@@ -16,8 +16,9 @@ export interface GCARecord {
 
 interface GCAContextType {
   records: GCARecord[]
-  addRecord: (record: Omit<GCARecord, 'id' | 'date'>) => void
-  deleteRecord: (id: string) => void
+  loading: boolean
+  addRecord: (record: Omit<GCARecord, 'id' | 'date'>) => Promise<void>
+  deleteRecord: (id: string) => Promise<void>
   getTotalDefects: () => number
   getDefectsByShop: () => Record<string, number>
 }
@@ -25,80 +26,78 @@ interface GCAContextType {
 const GCAContext = createContext<GCAContextType | undefined>(undefined)
 
 export function GCAProvider({ children }: { children: ReactNode }) {
-  const [records, setRecords] = useState<GCARecord[]>([
-    {
-      id: '1',
-      shop: 'PRESS SHOP',
-      code: '63',
-      codeName: 'O\'lcham xatosi',
-      factor: 20,
-      count: 8,
-      date: '2026-04-18',
-    },
-    {
-      id: '2',
-      shop: 'WELDING-1',
-      code: '45',
-      codeName: 'Qaynash ekilmasa qolgan',
-      factor: 23,
-      count: 12,
-      date: '2026-04-17',
-    },
-    {
-      id: '3',
-      shop: 'PAINT SHOP',
-      code: '86',
-      codeName: 'Bo\'yoq oqishi',
-      factor: 25,
-      count: 34,
-      date: '2026-04-16',
-    },
-    {
-      id: '4',
-      shop: 'GA',
-      code: '18',
-      codeName: 'Detalda nuqson bor',
-      factor: 20,
-      count: 24,
-      date: '2026-04-15',
-    },
-  ])
+  const [records, setRecords] = useState<GCARecord[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const addRecord = (record: Omit<GCARecord, 'id' | 'date'>) => {
-    const newRecord: GCARecord = {
-      ...record,
-      id: Date.now().toString(),
-      date: new Date().toISOString().split('T')[0],
+  useEffect(() => {
+    fetch('/api/gca')
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setRecords(data.map((r: any) => ({
+            id: r.id,
+            shop: r.shop,
+            code: r.code,
+            codeName: r.code_name,
+            factor: r.factor,
+            count: r.count,
+            notes: r.notes,
+            image_url: r.image_url,
+            date: r.date,
+          })))
+        }
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  const addRecord = async (record: Omit<GCARecord, 'id' | 'date'>) => {
+    const res = await fetch('/api/gca', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        shop: record.shop,
+        code: record.code,
+        codeName: record.codeName,
+        factor: record.factor,
+        count: record.count,
+        notes: record.notes,
+        imageUrl: record.image_url,
+      }),
+    })
+    const newRecord = await res.json()
+    if (res.ok) {
+      setRecords((prev) => [{
+        id: newRecord.id,
+        shop: newRecord.shop,
+        code: newRecord.code,
+        codeName: newRecord.code_name,
+        factor: newRecord.factor,
+        count: newRecord.count,
+        notes: newRecord.notes,
+        image_url: newRecord.image_url,
+        date: newRecord.date,
+      }, ...prev])
     }
-    setRecords([newRecord, ...records])
   }
 
-  const deleteRecord = (id: string) => {
-    setRecords(records.filter((record) => record.id !== id))
+  const deleteRecord = async (id: string) => {
+    await fetch(`/api/gca?id=${id}`, { method: 'DELETE' })
+    setRecords((prev) => prev.filter((r) => r.id !== id))
   }
 
-  const getTotalDefects = () => {
-    return records.reduce((sum, record) => sum + record.count, 0)
-  }
+  const getTotalDefects = () => records.reduce((sum, r) => sum + r.count, 0)
 
   const getDefectsByShop = () => {
     const byShop: Record<string, number> = {}
-    records.forEach((record) => {
-      byShop[record.shop] = (byShop[record.shop] || 0) + record.count
+    records.forEach((r) => {
+      byShop[r.shop] = (byShop[r.shop] || 0) + r.count
     })
     return byShop
   }
 
   return (
-    <GCAContext.Provider
-      value={{
-        records,
-        addRecord,
-        deleteRecord,
-        getTotalDefects,
-        getDefectsByShop,
-      }}
-    >
+    <GCAContext.Provider value={{ records, loading, addRecord, deleteRecord, getTotalDefects, getDefectsByShop }}>
       {children}
     </GCAContext.Provider>
   )
@@ -106,8 +105,6 @@ export function GCAProvider({ children }: { children: ReactNode }) {
 
 export function useGCA() {
   const context = useContext(GCAContext)
-  if (!context) {
-    throw new Error('useGCA must be used within GCAProvider')
-  }
+  if (!context) throw new Error('useGCA must be used within GCAProvider')
   return context
 }
