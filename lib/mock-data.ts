@@ -129,19 +129,10 @@ export const gcaShopOptions = [
 
 // GCA Factor Options (Risk levels with numeric values)
 export const gcaFactorOptions = [
+  { value: 5,  label: '5 - Past xavfli (Low Risk)' },
   { value: 10, label: '10 - Past xavfli (Low Risk)' },
-  { value: 12, label: '12 - Past xavfli (Low Risk)' },
-  { value: 14, label: '14 - O\'rtacha xavfli (Medium Risk)' },
-  { value: 15, label: '15 - O\'rtacha xavfli (Medium Risk)' },
-  { value: 16, label: '16 - O\'rtacha xavfli (Medium Risk)' },
-  { value: 17, label: '17 - O\'rtacha xavfli (Medium Risk)' },
-  { value: 18, label: '18 - O\'rtacha xavfli (Medium Risk)' },
-  { value: 19, label: '19 - Yuqori xavfli (High Risk)' },
-  { value: 20, label: '20 - Yuqori xavfli (High Risk)' },
-  { value: 22, label: '22 - Yuqori xavfli (High Risk)' },
-  { value: 23, label: '23 - Yuqori xavfli (High Risk)' },
-  { value: 24, label: '24 - Yuqori xavfli (High Risk)' },
-  { value: 25, label: '25 - Yuqori xavfli (High Risk)' },
+  { value: 20, label: "20 - O'rtacha xavfli (Medium Risk)" },
+  { value: 50, label: '50 - Yuqori xavfli (High Risk)' },
 ]
 
 // D10 Defect Codes for Form Selection (same as GCA)
