@@ -57,32 +57,67 @@ export function GCAProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const addRecord = async (record: Omit<GCARecord, 'id' | 'date'>) => {
-    const res = await fetch('/api/gca', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+    try {
+      const res = await fetch('/api/gca', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shop: record.shop,
+          code: record.code,
+          codeName: record.codeName,
+          factor: record.factor,
+          count: record.count,
+          notes: record.notes,
+          imageUrl: record.image_url,
+        }),
+      })
+
+      // Javob bo'sh yoki JSON emasligini tekshiramiz
+      const text = await res.text()
+      const newRecord = text ? JSON.parse(text) : null
+
+      if (res.ok && newRecord) {
+        // Database dan qaytgan yozuvni qo'shamiz
+        setRecords((prev) => [{
+          id: newRecord.id,
+          shop: newRecord.shop,
+          code: newRecord.code,
+          codeName: newRecord.code_name,
+          factor: newRecord.factor,
+          count: newRecord.count,
+          notes: newRecord.notes,
+          image_url: newRecord.image_url,
+          date: newRecord.date,
+        }, ...prev])
+      } else {
+        // Database ishlamasa — local state ga qo'shamiz (fallback)
+        const localRecord: GCARecord = {
+          id: `local-${Date.now()}`,
+          shop: record.shop,
+          code: record.code,
+          codeName: record.codeName,
+          factor: record.factor,
+          count: record.count,
+          notes: record.notes,
+          image_url: record.image_url,
+          date: new Date().toISOString().split('T')[0],
+        }
+        setRecords((prev) => [localRecord, ...prev])
+      }
+    } catch (err) {
+      // Network xatosi — local state ga qo'shamiz
+      const localRecord: GCARecord = {
+        id: `local-${Date.now()}`,
         shop: record.shop,
         code: record.code,
         codeName: record.codeName,
         factor: record.factor,
         count: record.count,
         notes: record.notes,
-        imageUrl: record.image_url,
-      }),
-    })
-    const newRecord = await res.json()
-    if (res.ok) {
-      setRecords((prev) => [{
-        id: newRecord.id,
-        shop: newRecord.shop,
-        code: newRecord.code,
-        codeName: newRecord.code_name,
-        factor: newRecord.factor,
-        count: newRecord.count,
-        notes: newRecord.notes,
-        image_url: newRecord.image_url,
-        date: newRecord.date,
-      }, ...prev])
+        image_url: record.image_url,
+        date: new Date().toISOString().split('T')[0],
+      }
+      setRecords((prev) => [localRecord, ...prev])
     }
   }
 

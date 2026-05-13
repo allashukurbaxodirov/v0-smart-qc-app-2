@@ -37,14 +37,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Barcha maydonlar to'ldirilishi shart" }, { status: 400 })
   }
 
-  const [user] = await sql`SELECT id FROM users WHERE email = ${session.email} LIMIT 1`
+  try {
+    const [user] = await sql`SELECT id FROM users WHERE email = ${session.email} LIMIT 1`
 
-  const [record] = await sql`
-    INSERT INTO gca_records (shop, code, code_name, factor, count, notes, image_url, created_by)
-    VALUES (${shop}, ${code}, ${codeName}, ${factor}, ${count}, ${notes ?? null}, ${imageUrl ?? null}, ${user?.id ?? null})
-    RETURNING id, shop, code, code_name, factor, count, notes, image_url, created_at::date::text AS date
-  `
-  return NextResponse.json(record, { status: 201 })
+    const [record] = await sql`
+      INSERT INTO gca_records (shop, code, code_name, factor, count, notes, image_url, created_by)
+      VALUES (${shop}, ${code}, ${codeName}, ${factor}, ${count}, ${notes ?? null}, ${imageUrl ?? null}, ${user?.id ?? null})
+      RETURNING id, shop, code, code_name, factor, count, notes, image_url, created_at::date::text AS date
+    `
+    return NextResponse.json(record, { status: 201 })
+  } catch (err) {
+    console.error('GCA POST error:', err)
+    return NextResponse.json({ error: 'Database xatosi' }, { status: 500 })
+  }
 }
 
 export async function DELETE(request: Request) {
