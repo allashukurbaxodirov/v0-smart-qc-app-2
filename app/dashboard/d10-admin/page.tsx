@@ -30,7 +30,7 @@ export default function D10AdminPage() {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'factor' || name === 'count' ? parseInt(value) : value,
+      [name]: name === 'factor' || name === 'count' ? (value === '' ? '' : parseInt(value) || 0) : value,
     }))
   }
 
