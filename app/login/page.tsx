@@ -34,7 +34,8 @@ export default function LoginPage() {
         return
       }
 
-      router.push(data.redirect)
+      // Hard navigation — kontextlar yangi cookie bilan qayta yuklanadi
+      window.location.href = data.redirect
     } catch {
       setError("Tarmoq xatosi. Qayta urinib ko'ring.")
     } finally {

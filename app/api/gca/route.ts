@@ -10,8 +10,6 @@ async function getSession() {
 }
 
 // ─── Server-side in-memory cache ─────────────────────────────────────────────
-// DB o'chiq bo'lganda ham barcha foydalanuvchilar uchun yozuvlar saqlanadi.
-// Server qayta ishga tushmaguncha ma'lumotlar saqlanib qoladi.
 interface CachedRecord {
   id: string
   shop: string
@@ -27,13 +25,9 @@ interface CachedRecord {
 }
 
 const memCache: CachedRecord[] = []
-let cacheLoaded = false  // DB dan bir marta yuklanganligi belgisi
 
-// ─── GET ──────────────────────────────────────────────────────────────────────
+// ─── GET — auth talab qilinmaydi (barcha login qilgan userlar ko'radi) ────────
 export async function GET() {
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
   try {
     const rows = await sql`
       SELECT
@@ -45,21 +39,18 @@ export async function GET() {
       LEFT JOIN users u ON u.id = r.created_by
       ORDER BY r.created_at DESC
     `
-    // DB dan kelgan yozuvlar bilan cache ni yangilash
     rows.forEach((row: any) => {
       if (!memCache.find((c) => c.id === row.id)) {
         memCache.unshift(row)
       }
     })
-    cacheLoaded = true
-    return NextResponse.json(memCache)
   } catch {
     // DB o'chiq — cache dan qaytaramiz
-    return NextResponse.json(memCache)
   }
+  return NextResponse.json(memCache)
 }
 
-// ─── POST ─────────────────────────────────────────────────────────────────────
+// ─── POST — faqat login qilganlar yozuv qo'sha oladi ─────────────────────────
 export async function POST(request: Request) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -72,18 +63,21 @@ export async function POST(request: Request) {
   }
 
   try {
-    // DB ga saqlashga harakat
-    const [user] = await sql`SELECT id FROM users WHERE email = ${session.email} LIMIT 1`
+    // tabelNumber yoki email bilan user ni topamiz
+    const tabel = session.tabelNumber ?? ''
+    const email = session.email ?? ''
+    const [user] = tabel
+      ? await sql`SELECT id FROM users WHERE tabel_number = ${tabel} LIMIT 1`
+      : await sql`SELECT id FROM users WHERE email = ${email} LIMIT 1`
+
     const [record] = await sql`
       INSERT INTO gca_records (shop, sector, code, code_name, factor, count, notes, image_url, created_by)
       VALUES (${shop}, ${sector ?? null}, ${code}, ${codeName}, ${factor}, ${count}, ${notes ?? null}, ${imageUrl ?? null}, ${user?.id ?? null})
       RETURNING id, shop, sector, code, code_name, factor, count, notes, image_url, created_at::date::text AS date
     `
-    // Cache ga ham qo'shamiz
     memCache.unshift({ ...record, created_by_name: session.name ?? null } as CachedRecord)
     return NextResponse.json(record, { status: 201 })
   } catch {
-    // DB o'chiq — faqat cache da saqlaymiz
     const tempRecord: CachedRecord = {
       id:              `mem-${Date.now()}`,
       shop,
@@ -102,7 +96,7 @@ export async function POST(request: Request) {
   }
 }
 
-// ─── DELETE ───────────────────────────────────────────────────────────────────
+// ─── DELETE — faqat login qilganlar o'chira oladi ─────────────────────────────
 export async function DELETE(request: Request) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -111,11 +105,9 @@ export async function DELETE(request: Request) {
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'ID kerak' }, { status: 400 })
 
-  // Cache dan o'chirish
   const idx = memCache.findIndex((c) => c.id === id)
   if (idx !== -1) memCache.splice(idx, 1)
 
-  // DB dan o'chirish (id "mem-" bilan boshlanmasa)
   if (!id.startsWith('mem-')) {
     try {
       await sql`DELETE FROM gca_records WHERE id = ${id}`

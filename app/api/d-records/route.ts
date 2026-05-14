@@ -27,11 +27,8 @@ interface CachedRecord {
 
 const memCache: CachedRecord[] = []
 
-// ─── GET ──────────────────────────────────────────────────────────────────────
+// ─── GET — auth talab qilinmaydi ──────────────────────────────────────────────
 export async function GET() {
-  const session = await getSession()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
   try {
     const rows = await sql`
       SELECT
@@ -48,13 +45,13 @@ export async function GET() {
         memCache.unshift(row)
       }
     })
-    return NextResponse.json(memCache)
   } catch {
-    return NextResponse.json(memCache)
+    // DB o'chiq — cache dan qaytaramiz
   }
+  return NextResponse.json(memCache)
 }
 
-// ─── POST ─────────────────────────────────────────────────────────────────────
+// ─── POST — faqat login qilganlar ─────────────────────────────────────────────
 export async function POST(request: Request) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -67,14 +64,33 @@ export async function POST(request: Request) {
   }
 
   try {
-    const [user] = await sql`SELECT id FROM users WHERE email = ${session.email} LIMIT 1`
+    // tabelNumber yoki email bilan user ni topamiz
+    const tabel = session.tabelNumber ?? ''
+    const [user] = tabel
+      ? await sql`SELECT id FROM users WHERE tabel_number = ${tabel} LIMIT 1`
+      : await sql`SELECT id FROM users WHERE email = ${session.email ?? ''} LIMIT 1`
+
     const [record] = await sql`
       INSERT INTO d_records (type, shop, sector, code, code_name, factor, count, notes, image_url, created_by)
       VALUES (${type}, ${shop}, ${sector ?? null}, ${code}, ${codeName}, ${factor}, ${count}, ${notes ?? null}, ${imageUrl ?? null}, ${user?.id ?? null})
       RETURNING id, type, shop, sector, code, code_name, factor, count, notes, image_url, created_at::date::text AS date
     `
-    memCache.unshift({ ...record, created_by_name: session.name ?? null } as CachedRecord)
-    return NextResponse.json(record, { status: 201 })
+    const newRec: CachedRecord = {
+      id:              record.id,
+      type:            record.type,
+      shop:            record.shop,
+      sector:          record.sector ?? null,
+      code:            record.code,
+      code_name:       record.code_name,
+      factor:          Number(record.factor),
+      count:           Number(record.count),
+      notes:           record.notes ?? null,
+      image_url:       record.image_url ?? null,
+      date:            record.date,
+      created_by_name: session.name ?? null,
+    }
+    memCache.unshift(newRec)
+    return NextResponse.json(newRec, { status: 201 })
   } catch {
     const tempRecord: CachedRecord = {
       id:              `mem-${Date.now()}`,
@@ -107,9 +123,9 @@ export async function DELETE(request: Request) {
   const idx = memCache.findIndex((c) => c.id === id)
   if (idx !== -1) memCache.splice(idx, 1)
 
-  if (!id.startsWith('mem-')) {
+  if (!id.startsWith('mem-') && !id.startsWith('local-')) {
     try {
-      await sql`DELETE FROM d_records WHERE id = ${id}`
+      await sql`DELETE FROM d_records WHERE id = ${id}::uuid`
     } catch {}
   }
 
