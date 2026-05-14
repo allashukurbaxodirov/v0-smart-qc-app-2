@@ -2,6 +2,10 @@ import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { GCAProvider } from '@/lib/gca-context'
+import { DRecordsProvider } from '@/lib/d-records-context'
+import { ShiftProvider } from '@/lib/shift-context'
+import { QRecordsProvider } from '@/lib/qrecords-context'
+import { IncomingProvider } from '@/lib/incoming-context'
 import './globals.css'
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
@@ -36,8 +40,16 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>
         <GCAProvider>
-          {children}
-          {process.env.NODE_ENV === 'production' && <Analytics />}
+          <DRecordsProvider>
+            <ShiftProvider>
+              <QRecordsProvider>
+                <IncomingProvider>
+                  {children}
+                  {process.env.NODE_ENV === 'production' && <Analytics />}
+                </IncomingProvider>
+              </QRecordsProvider>
+            </ShiftProvider>
+          </DRecordsProvider>
         </GCAProvider>
       </body>
     </html>

@@ -2,24 +2,29 @@
 
 import { useState } from 'react'
 import PageHeader from '@/components/dashboard/page-header'
-import { useGCA } from '@/lib/gca-context'
+import { useDRecords } from '@/lib/d-records-context'
 import { d10DefectCodes, d10ShopOptions, d10FactorOptions } from '@/lib/mock-data'
+import { SHOP_LINES } from '@/lib/shift-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ChevronLeft, Upload, Trash2, Check } from 'lucide-react'
 import Link from 'next/link'
 
+type D10Shop = 'PRESS SHOP' | 'WELDING-1' | 'WELDING-2'
+
 export default function D10AdminPage() {
-  const { records, addRecord, deleteRecord } = useGCA()
+  const { records, addRecord, deleteRecord } = useDRecords()
+  const d10Records = records.filter((r) => r.type === 'd10')
+
   const [showSuccess, setShowSuccess] = useState(false)
   const [sortBy, setSortBy] = useState<'date' | 'shop' | 'factor'>('date')
   const [filterShop, setFilterShop] = useState<string>('')
 
-  // Form state
   const [formData, setFormData] = useState({
-    shop: 'PRESS SHOP',
-    code: '63',
+    shop: 'PRESS SHOP' as D10Shop,
+    sector: '',
+    code: '18',
     factor: 5,
     count: 1,
     notes: '',
@@ -28,17 +33,19 @@ export default function D10AdminPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === 'factor' || name === 'count' ? (value === '' ? '' : parseInt(value) || 0) : value,
-    }))
+    if (name === 'shop') {
+      setFormData((prev) => ({ ...prev, shop: value as D10Shop, sector: '' }))
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: name === 'factor' || name === 'count' ? (value === '' ? '' : parseInt(value) || 0) : value,
+      }))
+    }
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (file) {
-      setFormData((prev) => ({ ...prev, image: file }))
-    }
+    if (file) setFormData((prev) => ({ ...prev, image: file }))
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -46,44 +53,32 @@ export default function D10AdminPage() {
     const selectedDefect = d10DefectCodes.find((d) => d.code === formData.code)
     if (selectedDefect) {
       addRecord({
-        shop: formData.shop as any,
-        code: formData.code,
+        type:     'd10',
+        shop:     formData.shop,
+        sector:   formData.sector || null,
+        code:     formData.code,
         codeName: selectedDefect.name,
-        factor: formData.factor,
-        count: formData.count,
-        notes: formData.notes || undefined,
+        factor:   formData.factor,
+        count:    formData.count,
+        notes:    formData.notes || undefined,
       })
       setShowSuccess(true)
       setTimeout(() => setShowSuccess(false), 3000)
-      setFormData({
-        shop: 'PRESS SHOP',
-        code: '63',
-        factor: 5,
-        count: 1,
-        notes: '',
-        image: null,
-      })
+      setFormData({ shop: 'PRESS SHOP', sector: '', code: '18', factor: 5, count: 1, notes: '', image: null })
     }
   }
 
   const handleClearForm = () => {
-    setFormData({
-      shop: 'PRESS SHOP',
-      code: '63',
-      factor: 5,
-      count: 1,
-      notes: '',
-      image: null,
-    })
+    setFormData({ shop: 'PRESS SHOP', sector: '', code: '18', factor: 5, count: 1, notes: '', image: null })
   }
 
   const getRiskLevel = (factor: number) => {
     if (factor >= 50) return { label: 'Yuqori', color: 'bg-critical text-white' }
-    if (factor >= 20) return { label: 'O\'rtacha', color: 'bg-warning text-white' }
+    if (factor >= 20) return { label: "O'rtacha", color: 'bg-warning text-white' }
     return { label: 'Past', color: 'bg-success text-white' }
   }
 
-  const filteredRecords = records
+  const filteredRecords = d10Records
     .filter((r) => !filterShop || r.shop === filterShop)
     .sort((a, b) => {
       if (sortBy === 'date') return new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -91,9 +86,10 @@ export default function D10AdminPage() {
       return b.factor - a.factor
     })
 
+  const shopSectors = SHOP_LINES[formData.shop] ?? []
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Page Header */}
       <PageHeader
         title="D10 Admin paneli"
         description="D10 nuqsonlarini qayd etish va boshqarish"
@@ -103,9 +99,7 @@ export default function D10AdminPage() {
         ]}
       />
 
-      {/* Main Content */}
       <div className="p-6 space-y-6">
-        {/* Back Button */}
         <Link href="/dashboard">
           <Button variant="ghost" size="sm" className="gap-1">
             <ChevronLeft className="w-4 h-4" />
@@ -113,7 +107,6 @@ export default function D10AdminPage() {
           </Button>
         </Link>
 
-        {/* Success Message */}
         {showSuccess && (
           <div className="bg-success/10 border border-success/30 rounded-lg p-4 flex items-center gap-3">
             <Check className="w-5 h-5 text-success" />
@@ -121,17 +114,16 @@ export default function D10AdminPage() {
           </div>
         )}
 
-        {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Form Section */}
+          {/* Form */}
           <div className="lg:col-span-1">
             <div className="bg-card border border-border rounded-xl p-6 sticky top-20">
-              <h2 className="text-lg font-bold text-foreground mb-6">Yangi yozuv qo&apos;shish</h2>
+              <h2 className="text-lg font-bold text-foreground mb-6">Yangi D10 yozuv qo&apos;shish</h2>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Shop Select - RESTRICTED to 3 shops */}
+                {/* 1. Shop */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Nuqson sexi *</label>
+                  <label className="text-sm font-medium text-foreground">Sexi *</label>
                   <select
                     name="shop"
                     value={formData.shop}
@@ -139,16 +131,30 @@ export default function D10AdminPage() {
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
                   >
                     {d10ShopOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
                 </div>
 
-                {/* Defect Code Select */}
+                {/* 2. Sector */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Nuqson (kod va nomi) *</label>
+                  <label className="text-sm font-medium text-foreground">Sektor</label>
+                  <select
+                    name="sector"
+                    value={formData.sector}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
+                  >
+                    <option value="">— Sektorsiz —</option>
+                    {shopSectors.map((sec) => (
+                      <option key={sec} value={sec}>{sec}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 3. Defect Code */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Nuqson kodi *</label>
                   <select
                     name="code"
                     value={formData.code}
@@ -163,7 +169,7 @@ export default function D10AdminPage() {
                   </select>
                 </div>
 
-                {/* Factor Select - RESTRICTED to 5, 10, 20, 50 */}
+                {/* 4. Factor */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Faktor *</label>
                   <select
@@ -173,14 +179,12 @@ export default function D10AdminPage() {
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
                   >
                     {d10FactorOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
                     ))}
                   </select>
                 </div>
 
-                {/* Count Input */}
+                {/* 5. Count */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Nuqson soni *</label>
                   <Input
@@ -193,47 +197,42 @@ export default function D10AdminPage() {
                   />
                 </div>
 
-                {/* Image Upload */}
+                {/* 6. Image */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Nuqson rasmi</label>
                   <label className="border-2 border-dashed border-border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors flex flex-col items-center gap-2">
                     <Upload className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground text-center">
-                      Rasm yuklang yoki drag-drop qiling
-                    </span>
+                    <span className="text-xs text-muted-foreground text-center">Rasm yuklang yoki drag-drop qiling</span>
+                    {formData.image && (
+                      <span className="text-xs text-primary font-medium">{formData.image.name}</span>
+                    )}
                     <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                   </label>
                 </div>
 
-                {/* Notes */}
+                {/* 7. Notes */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Izoh</label>
                   <textarea
                     name="notes"
                     value={formData.notes}
                     onChange={handleInputChange}
-                    placeholder="Qo'shimcha malumot kiriting..."
+                    placeholder="Qo'shimcha malumot..."
                     rows={3}
                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm resize-none"
                   />
                 </div>
 
-                {/* Submit Button */}
                 <div className="flex gap-2">
-                  <Button type="submit" className="flex-1">
-                    Saqlash
-                  </Button>
-                  <Button type="button" variant="outline" onClick={handleClearForm}>
-                    Tozalash
-                  </Button>
+                  <Button type="submit" className="flex-1">Saqlash</Button>
+                  <Button type="button" variant="outline" onClick={handleClearForm}>Tozalash</Button>
                 </div>
               </form>
             </div>
           </div>
 
-          {/* Records Section */}
+          {/* Records Table */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Controls */}
             <div className="flex gap-3 flex-wrap">
               <select
                 value={filterShop}
@@ -242,9 +241,7 @@ export default function D10AdminPage() {
               >
                 <option value="">Barcha sehlar</option>
                 {d10ShopOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
 
@@ -253,34 +250,34 @@ export default function D10AdminPage() {
                 onChange={(e) => setSortBy(e.target.value as any)}
                 className="px-3 py-2 bg-card border border-border rounded-lg text-foreground text-sm"
               >
-                <option value="date">Sana bo'yicha</option>
-                <option value="shop">Sexi bo'yicha</option>
-                <option value="factor">Faktor bo'yicha</option>
+                <option value="date">Sana bo&apos;yicha</option>
+                <option value="shop">Sexi bo&apos;yicha</option>
+                <option value="factor">Faktor bo&apos;yicha</option>
               </select>
             </div>
 
-            {/* Table */}
             <div className="bg-card border border-border rounded-xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Rasm</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sana</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sexi</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nuqson kodi</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sektor</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Kod</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nuqson nomi</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Soni</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Faktor</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Xavf</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Izoh</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Harakat</th>
+                      <th className="px-4 py-3"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
-                          Hali ma'lumot yo'q
+                        <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
+                          Hali D10 ma&apos;lumot yo&apos;q
                         </td>
                       </tr>
                     ) : (
@@ -288,14 +285,25 @@ export default function D10AdminPage() {
                         const risk = getRiskLevel(record.factor)
                         return (
                           <tr key={record.id} className="border-b border-border hover:bg-muted/30 transition-colors">
-                            <td className="px-4 py-3 text-sm text-foreground">-</td>
                             <td className="px-4 py-3 text-sm text-foreground">{record.date}</td>
                             <td className="px-4 py-3 text-sm text-foreground">{record.shop}</td>
+                            <td className="px-4 py-3 text-sm text-foreground">
+                              {record.sector ? (
+                                <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs font-medium">
+                                  {record.sector}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-sm font-semibold text-foreground">{record.code}</td>
                             <td className="px-4 py-3 text-sm text-foreground">{record.codeName}</td>
                             <td className="px-4 py-3 text-sm text-foreground">{record.count}</td>
                             <td className="px-4 py-3 text-sm font-semibold text-foreground">{record.factor}</td>
-                            <td className="px-4 py-3 text-sm text-muted-foreground">{record.notes || '-'}</td>
+                            <td className="px-4 py-3">
+                              <Badge className={risk.color}>{risk.label}</Badge>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground max-w-[100px] truncate">{record.notes || '—'}</td>
                             <td className="px-4 py-3">
                               <button
                                 onClick={() => deleteRecord(record.id)}
@@ -313,10 +321,9 @@ export default function D10AdminPage() {
               </div>
             </div>
 
-            {/* Summary */}
             <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
               <p className="text-sm text-foreground">
-                <span className="font-semibold">Jami yozuvlar:</span> {filteredRecords.length}
+                <span className="font-semibold">Jami D10 yozuvlar:</span> {filteredRecords.length}
               </p>
             </div>
           </div>

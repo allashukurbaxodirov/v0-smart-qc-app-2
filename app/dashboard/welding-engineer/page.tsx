@@ -2,8 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react'
 import PageHeader from '@/components/dashboard/page-header'
-import { useGCA, GCARecord } from '@/lib/gca-context'
-import { gaTransferTargets } from '@/lib/mock-data'
+import { useDRecords, DRecord } from '@/lib/d-records-context'
 import {
   Check,
   X,
@@ -18,6 +17,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+
 
 // ─── Tip ──────────────────────────────────────────────────────────────────────
 type ResolutionStatus = 'ochiq' | 'jarayonda' | 'yopilgan' | 'uzatilgan'
@@ -34,7 +34,18 @@ interface Resolution {
   resolvedAt: string
 }
 
-const STORAGE_KEY = 'ga_engineer_resolutions'
+const STORAGE_KEY = 'welding_engineer_resolutions'
+
+const TRANSFER_TARGETS = [
+  { value: 'PRESS SHOP',  label: 'Press Shop'  },
+  { value: 'WELDING-1',   label: 'Welding-1'   },
+  { value: 'WELDING-2',   label: 'Welding-2'   },
+  { value: 'PAINT SHOP',  label: 'Paint Shop'  },
+  { value: 'QC',          label: 'QC bo\'limi' },
+  { value: 'ENGINEERING', label: 'Engineering' },
+]
+
+const SHOPS = ['PRESS SHOP', 'WELDING-1', 'WELDING-2'] as const
 
 // ─── Yordamchi funksiyalar ────────────────────────────────────────────────────
 function getFactorBadge(factor: number) {
@@ -47,19 +58,19 @@ function getFactorBadge(factor: number) {
 function getStatusInfo(status: ResolutionStatus) {
   switch (status) {
     case 'ochiq':
-      return { label: 'Ochiq', cls: 'bg-critical text-white', icon: AlertTriangle }
+      return { label: 'Ochiq',           cls: 'bg-critical text-white', icon: AlertTriangle  }
     case 'jarayonda':
-      return { label: 'Jarayonda', cls: 'bg-warning text-white', icon: Clock }
+      return { label: 'Jarayonda',       cls: 'bg-warning text-white',  icon: Clock          }
     case 'yopilgan':
-      return { label: 'Bartaraf etildi', cls: 'bg-success text-white', icon: CheckCircle2 }
+      return { label: 'Bartaraf etildi', cls: 'bg-success text-white',  icon: CheckCircle2   }
     case 'uzatilgan':
-      return { label: 'Uzatilgan', cls: 'bg-primary text-white', icon: ArrowRightLeft }
+      return { label: 'Uzatilgan',       cls: 'bg-primary text-white',  icon: ArrowRightLeft }
   }
 }
 
 // ─── Asosiy komponent ─────────────────────────────────────────────────────────
-export default function GAEngineerPage() {
-  const { records, loading, refresh } = useGCA()
+export default function WeldingEngineerPage() {
+  const { records, loading, refresh } = useDRecords()
   const [refreshing, setRefreshing] = useState(false)
 
   const handleRefresh = async () => {
@@ -83,38 +94,40 @@ export default function GAEngineerPage() {
   }
 
   // Filtirlar
-  const [filterShop, setFilterShop]     = useState('')
+  const [filterShop,   setFilterShop]   = useState('')
+  const [filterType,   setFilterType]   = useState('')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterFactor, setFilterFactor] = useState('')
-  const [sortBy, setSortBy]             = useState<'date' | 'factor'>('factor')
-  const [activeTab, setActiveTab]       = useState<'list' | 'stats'>('list')
+  const [sortBy,       setSortBy]       = useState<'date' | 'factor'>('factor')
+  const [activeTab,    setActiveTab]    = useState<'list' | 'stats'>('list')
 
-  // Tanlangan yozuv va modal
-  const [selectedRecord, setSelectedRecord] = useState<GCARecord | null>(null)
-  const [showModal, setShowModal]           = useState(false)
-  const [successMsg, setSuccessMsg]         = useState('')
+  // Modal
+  const [selectedRecord, setSelectedRecord] = useState<DRecord | null>(null)
+  const [showModal,      setShowModal]      = useState(false)
+  const [successMsg,     setSuccessMsg]     = useState('')
 
   // Forma holati
   const [form, setForm] = useState({
     problemDescription: '',
-    rootCause: '',
-    immediateAction: '',
-    mainAction: '',
-    imageFile: null as File | null,
-    decision: 'resolved' as 'resolved' | 'transfer',
-    transferTarget: '',
-    transferReason: '',
+    rootCause:          '',
+    immediateAction:    '',
+    mainAction:         '',
+    imageFile:          null as File | null,
+    decision:           'resolved' as 'resolved' | 'transfer',
+    transferTarget:     '',
+    transferReason:     '',
   })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
-  // Har bir yozuv uchun status
+  // Status
   const getStatus = (id: string): ResolutionStatus =>
     resolutions[id]?.status ?? 'ochiq'
 
-  // Filterlangan va tartiblangan yozuvlar
+  // Filterlangan yozuvlar
   const filtered = useMemo(() => {
     let list = [...records]
     if (filterShop)   list = list.filter((r) => r.shop === filterShop)
+    if (filterType)   list = list.filter((r) => r.type === filterType)
     if (filterFactor) list = list.filter((r) => r.factor === Number(filterFactor))
     if (filterStatus) list = list.filter((r) => getStatus(r.id) === filterStatus)
     list.sort((a, b) =>
@@ -124,15 +137,15 @@ export default function GAEngineerPage() {
     )
     return list
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [records, filterShop, filterStatus, filterFactor, sortBy, resolutions])
+  }, [records, filterShop, filterType, filterStatus, filterFactor, sortBy, resolutions])
 
   // KPI
-  const total      = records.length
-  const open       = records.filter((r) => getStatus(r.id) === 'ochiq').length
-  const closed     = records.filter((r) => getStatus(r.id) === 'yopilgan').length
-  const inProgress = records.filter((r) => getStatus(r.id) === 'jarayonda').length
-  const transferred= records.filter((r) => getStatus(r.id) === 'uzatilgan').length
-  const f50Count   = records.filter((r) => r.factor === 50).length
+  const total       = records.length
+  const open        = records.filter((r) => getStatus(r.id) === 'ochiq').length
+  const closed      = records.filter((r) => getStatus(r.id) === 'yopilgan').length
+  const inProgress  = records.filter((r) => getStatus(r.id) === 'jarayonda').length
+  const transferred = records.filter((r) => getStatus(r.id) === 'uzatilgan').length
+  const f50Count    = records.filter((r) => r.factor === 50).length
 
   // Forma validatsiya
   const validate = () => {
@@ -175,7 +188,7 @@ export default function GAEngineerPage() {
     setSuccessMsg(
       form.decision === 'resolved'
         ? 'Muammo bartaraf etildi va managerga yuborildi ✓'
-        : `Muammo ${gaTransferTargets.find((t) => t.value === form.transferTarget)?.label ?? 'sehga'} uzatildi ✓`
+        : `Muammo ${TRANSFER_TARGETS.find((t) => t.value === form.transferTarget)?.label ?? 'sehga'} uzatildi ✓`
     )
     setShowModal(false)
     setSelectedRecord(null)
@@ -186,18 +199,18 @@ export default function GAEngineerPage() {
   const resetForm = () => {
     setForm({
       problemDescription: '',
-      rootCause: '',
-      immediateAction: '',
-      mainAction: '',
-      imageFile: null,
-      decision: 'resolved',
-      transferTarget: '',
-      transferReason: '',
+      rootCause:          '',
+      immediateAction:    '',
+      mainAction:         '',
+      imageFile:          null,
+      decision:           'resolved',
+      transferTarget:     '',
+      transferReason:     '',
     })
     setFormErrors({})
   }
 
-  const openModal = (record: GCARecord) => {
+  const openModal = (record: DRecord) => {
     setSelectedRecord(record)
     resetForm()
     setShowModal(true)
@@ -207,11 +220,11 @@ export default function GAEngineerPage() {
   return (
     <div className="min-h-screen bg-background">
       <PageHeader
-        title="GA Engineer paneli"
-        description="GCA Auditor aniqlagan nuqsonlarni bartaraf etish"
+        title="Welding Engineer paneli"
+        description="D10 / D20 Operatorlar aniqlagan nuqsonlarni bartaraf etish"
         breadcrumbs={[
           { label: 'Dashboard', href: '/dashboard' },
-          { label: 'GA Engineer paneli' },
+          { label: 'Welding Engineer paneli' },
         ]}
       />
 
@@ -228,12 +241,12 @@ export default function GAEngineerPage() {
         {/* KPI kartochkalar */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {[
-            { label: 'Jami nuqsonlar',    value: total,       cls: 'text-foreground',  border: 'border-border'          },
-            { label: 'Ochiq',             value: open,        cls: 'text-critical',    border: 'border-critical/40'     },
-            { label: 'Jarayonda',         value: inProgress,  cls: 'text-warning',     border: 'border-warning/40'      },
-            { label: 'Bartaraf etildi',   value: closed,      cls: 'text-success',     border: 'border-success/40'      },
-            { label: 'Uzatilgan',         value: transferred, cls: 'text-primary',     border: 'border-primary/40'      },
-            { label: 'Faktor 50 (xavfli)',value: f50Count,    cls: 'text-critical',    border: 'border-critical/40'     },
+            { label: 'Jami nuqsonlar',     value: total,       cls: 'text-foreground', border: 'border-border'       },
+            { label: 'Ochiq',              value: open,        cls: 'text-critical',   border: 'border-critical/40'  },
+            { label: 'Jarayonda',          value: inProgress,  cls: 'text-warning',    border: 'border-warning/40'   },
+            { label: 'Bartaraf etildi',    value: closed,      cls: 'text-success',    border: 'border-success/40'   },
+            { label: 'Uzatilgan',          value: transferred, cls: 'text-primary',    border: 'border-primary/40'   },
+            { label: 'Faktor 50 (xavfli)', value: f50Count,    cls: 'text-critical',   border: 'border-critical/40'  },
           ].map((k) => (
             <div key={k.label} className={`bg-card border-2 ${k.border} rounded-xl p-4`}>
               <p className="text-xs text-muted-foreground mb-1">{k.label}</p>
@@ -274,9 +287,17 @@ export default function GAEngineerPage() {
                 className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground"
               >
                 <option value="">Barcha sehlar</option>
-                {['PRESS SHOP', 'WELDING-1', 'WELDING-2', 'PAINT SHOP', 'GA'].map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
+                {SHOPS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground"
+              >
+                <option value="">D10 + D20</option>
+                <option value="d10">D10</option>
+                <option value="d20">D20</option>
               </select>
 
               <select
@@ -331,11 +352,11 @@ export default function GAEngineerPage() {
             {/* Jadval */}
             {loading ? (
               <div className="bg-card border border-border rounded-xl p-12 text-center text-muted-foreground text-sm">
-                Ma'lumotlar yuklanmoqda...
+                Ma&apos;lumotlar yuklanmoqda...
               </div>
             ) : records.length === 0 ? (
               <div className="bg-card border border-border rounded-xl p-12 text-center">
-                <p className="text-muted-foreground text-sm">GCA Auditor hali nuqson kiritmagan.</p>
+                <p className="text-muted-foreground text-sm">D10 / D20 Operatorlar hali nuqson kiritmagan.</p>
               </div>
             ) : (
               <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -344,6 +365,7 @@ export default function GAEngineerPage() {
                     <thead>
                       <tr className="border-b border-border bg-muted/30">
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sana</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Tur</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sehi</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sektor</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Kod</th>
@@ -357,16 +379,16 @@ export default function GAEngineerPage() {
                     <tbody className="divide-y divide-border">
                       {filtered.length === 0 ? (
                         <tr>
-                          <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground text-sm">
-                            Filter bo'yicha natija topilmadi
+                          <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                            Filter bo&apos;yicha natija topilmadi
                           </td>
                         </tr>
                       ) : (
                         filtered.map((record) => {
-                          const status   = getStatus(record.id)
+                          const status     = getStatus(record.id)
                           const statusInfo = getStatusInfo(status)
-                          const res      = resolutions[record.id]
-                          const isDone   = status === 'yopilgan' || status === 'uzatilgan'
+                          const res        = resolutions[record.id]
+                          const isDone     = status === 'yopilgan' || status === 'uzatilgan'
 
                           return (
                             <tr
@@ -376,6 +398,14 @@ export default function GAEngineerPage() {
                               }`}
                             >
                               <td className="px-4 py-3 text-sm text-muted-foreground">{record.date}</td>
+                              <td className="px-4 py-3">
+                                <Badge className={record.type === 'd10'
+                                  ? 'bg-violet-500 text-white'
+                                  : 'bg-indigo-500 text-white'
+                                }>
+                                  {record.type.toUpperCase()}
+                                </Badge>
+                              </td>
                               <td className="px-4 py-3 text-sm font-medium text-foreground">{record.shop}</td>
                               <td className="px-4 py-3 text-sm text-foreground">
                                 {record.sector ? (
@@ -420,9 +450,8 @@ export default function GAEngineerPage() {
                   </table>
                 </div>
 
-                {/* Jadval pastki qismi */}
                 <div className="px-4 py-3 border-t border-border bg-muted/20 text-xs text-muted-foreground">
-                  Jami {filtered.length} ta yozuv ko'rsatilmoqda
+                  Jami {filtered.length} ta yozuv ko&apos;rsatilmoqda
                 </div>
               </div>
             )}
@@ -432,11 +461,38 @@ export default function GAEngineerPage() {
         {/* ── STATISTIKA TAB ────────────────────────────────────────────────── */}
         {activeTab === 'stats' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* D10 / D20 taqsimoti */}
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h3 className="text-base font-bold text-foreground mb-4">D10 / D20 taqsimoti</h3>
+              <div className="space-y-3">
+                {([
+                  { type: 'd10', label: 'D10 nuqsonlari', cls: 'bg-violet-500', text: 'text-violet-500' },
+                  { type: 'd20', label: 'D20 nuqsonlari', cls: 'bg-indigo-500', text: 'text-indigo-500' },
+                ] as const).map(({ type, label, cls, text }) => {
+                  const typeRecs  = records.filter((r) => r.type === type)
+                  const typeDone  = typeRecs.filter((r) => getStatus(r.id) === 'yopilgan').length
+                  const typeTotal = typeRecs.length
+                  const pct       = typeTotal > 0 ? Math.round((typeDone / typeTotal) * 100) : 0
+                  return (
+                    <div key={type}>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className={`font-semibold ${text}`}>{label}</span>
+                        <span className="text-muted-foreground">{typeTotal} ta ({pct}% bartaraf)</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-2">
+                        <div className={`h-2 rounded-full ${cls} transition-all`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
             {/* Sehlar bo'yicha */}
             <div className="bg-card border border-border rounded-xl p-6">
-              <h3 className="text-base font-bold text-foreground mb-4">Sehlar bo'yicha nuqsonlar</h3>
+              <h3 className="text-base font-bold text-foreground mb-4">Sehlar bo&apos;yicha nuqsonlar</h3>
               <div className="space-y-3">
-                {['PRESS SHOP', 'WELDING-1', 'WELDING-2', 'PAINT SHOP', 'GA'].map((shop) => {
+                {SHOPS.map((shop) => {
                   const shopRecs  = records.filter((r) => r.shop === shop)
                   const shopOpen  = shopRecs.filter((r) => getStatus(r.id) === 'ochiq').length
                   const shopDone  = shopRecs.filter((r) => getStatus(r.id) === 'yopilgan').length
@@ -468,7 +524,7 @@ export default function GAEngineerPage() {
 
             {/* Faktor bo'yicha */}
             <div className="bg-card border border-border rounded-xl p-6">
-              <h3 className="text-base font-bold text-foreground mb-4">Faktor bo'yicha holat</h3>
+              <h3 className="text-base font-bold text-foreground mb-4">Faktor bo&apos;yicha holat</h3>
               <div className="space-y-4">
                 {[
                   { factor: 50, label: 'Faktor 50', cls: 'bg-critical', text: 'text-critical' },
@@ -501,36 +557,38 @@ export default function GAEngineerPage() {
             </div>
 
             {/* Oxirgi bartaraf etilganlar */}
-            <div className="bg-card border border-border rounded-xl p-6 md:col-span-2">
+            <div className="bg-card border border-border rounded-xl p-6">
               <h3 className="text-base font-bold text-foreground mb-4">Oxirgi bartaraf etilgan nuqsonlar</h3>
               {Object.entries(resolutions).length === 0 ? (
-                <p className="text-sm text-muted-foreground">Hali bartaraf etilgan nuqson yo'q</p>
+                <p className="text-sm text-muted-foreground">Hali bartaraf etilgan nuqson yo&apos;q</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border">
-                        <th className="px-3 py-2 text-left text-xs text-muted-foreground">Sana</th>
-                        <th className="px-3 py-2 text-left text-xs text-muted-foreground">Sehi</th>
+                        <th className="px-3 py-2 text-left text-xs text-muted-foreground">Tur</th>
                         <th className="px-3 py-2 text-left text-xs text-muted-foreground">Nuqson</th>
                         <th className="px-3 py-2 text-left text-xs text-muted-foreground">Faktor</th>
                         <th className="px-3 py-2 text-left text-xs text-muted-foreground">Qaror</th>
-                        <th className="px-3 py-2 text-left text-xs text-muted-foreground">Bartaraf sanasi</th>
+                        <th className="px-3 py-2 text-left text-xs text-muted-foreground">Sana</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
                       {Object.entries(resolutions)
                         .filter(([, res]) => res.status === 'yopilgan' || res.status === 'uzatilgan')
                         .sort(([, a], [, b]) => new Date(b.resolvedAt).getTime() - new Date(a.resolvedAt).getTime())
-                        .slice(0, 10)
+                        .slice(0, 8)
                         .map(([id, res]) => {
                           const rec = records.find((r) => r.id === id)
                           if (!rec) return null
                           const si = getStatusInfo(res.status)
                           return (
                             <tr key={id} className="hover:bg-muted/30">
-                              <td className="px-3 py-2 text-muted-foreground">{rec.date}</td>
-                              <td className="px-3 py-2 font-medium text-foreground">{rec.shop}</td>
+                              <td className="px-3 py-2">
+                                <Badge className={rec.type === 'd10' ? 'bg-violet-500 text-white' : 'bg-indigo-500 text-white'}>
+                                  {rec.type.toUpperCase()}
+                                </Badge>
+                              </td>
                               <td className="px-3 py-2 text-foreground">{rec.codeName}</td>
                               <td className="px-3 py-2">
                                 <Badge className={getFactorBadge(rec.factor)}>{rec.factor}</Badge>
@@ -539,7 +597,7 @@ export default function GAEngineerPage() {
                                 <Badge className={si.cls}>{si.label}</Badge>
                               </td>
                               <td className="px-3 py-2 text-muted-foreground">
-                                {new Date(res.resolvedAt).toLocaleString('uz-UZ')}
+                                {new Date(res.resolvedAt).toLocaleDateString('uz-UZ')}
                               </td>
                             </tr>
                           )
@@ -565,7 +623,7 @@ export default function GAEngineerPage() {
               <div>
                 <h2 className="text-lg font-bold text-foreground">Nuqsonni bartaraf etish</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {selectedRecord.shop} — Kod {selectedRecord.code} — {selectedRecord.codeName}
+                  {selectedRecord.type.toUpperCase()} — {selectedRecord.shop} — Kod {selectedRecord.code} — {selectedRecord.codeName}
                 </p>
               </div>
               <button
@@ -699,7 +757,7 @@ export default function GAEngineerPage() {
                 <label className="block text-sm font-medium text-foreground mb-2">Qaror</label>
                 <div className="grid grid-cols-2 gap-3">
                   {([
-                    { val: 'resolved', label: 'Bartaraf etildi', icon: CheckCircle2, cls: 'border-success text-success bg-success/5' },
+                    { val: 'resolved', label: 'Bartaraf etildi',      icon: CheckCircle2,  cls: 'border-success text-success bg-success/5' },
                     { val: 'transfer', label: "Boshqa sehga o'tkazish", icon: ArrowRightLeft, cls: 'border-primary text-primary bg-primary/5' },
                   ] as const).map(({ val, label, icon: Icon, cls }) => (
                     <button
@@ -732,7 +790,7 @@ export default function GAEngineerPage() {
                       }`}
                     >
                       <option value="">Tanlang...</option>
-                      {gaTransferTargets.map((t) => (
+                      {TRANSFER_TARGETS.map((t) => (
                         <option key={t.value} value={t.value}>{t.label}</option>
                       ))}
                     </select>
@@ -743,7 +801,7 @@ export default function GAEngineerPage() {
 
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1">
-                      O'tkazish sababi <span className="text-critical">*</span>
+                      O&apos;tkazish sababi <span className="text-critical">*</span>
                     </label>
                     <textarea
                       value={form.transferReason}

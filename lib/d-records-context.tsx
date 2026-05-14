@@ -2,10 +2,11 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
-export interface GCARecord {
+export interface DRecord {
   id: string
+  type: 'd10' | 'd20'
   image_url?: string
-  shop: 'PRESS SHOP' | 'WELDING-1' | 'WELDING-2' | 'PAINT SHOP' | 'GA'
+  shop: 'PRESS SHOP' | 'WELDING-1' | 'WELDING-2'
   sector?: string | null
   code: string
   codeName: string
@@ -13,25 +14,25 @@ export interface GCARecord {
   count: number
   notes?: string
   date: string
+  created_by_name?: string | null
 }
 
-interface GCAContextType {
-  records: GCARecord[]
+interface DRecordsContextType {
+  records: DRecord[]
   loading: boolean
   error: string | null
-  addRecord: (record: Omit<GCARecord, 'id' | 'date'>) => Promise<void>
+  addRecord: (record: Omit<DRecord, 'id' | 'date'>) => Promise<void>
   deleteRecord: (id: string) => Promise<void>
   refresh: () => Promise<void>
   getTotalDefects: () => number
   getDefectsByShop: () => Record<string, number>
 }
 
-const GCAContext = createContext<GCAContextType | undefined>(undefined)
+const DRecordsContext = createContext<DRecordsContextType | undefined>(undefined)
 
-const LS_KEY = 'gca_records_local'
+const LS_KEY = 'd_records_local'
 
-// localStorage yordamchilari
-function lsLoad(): GCARecord[] {
+function lsLoad(): DRecord[] {
   try {
     const raw = localStorage.getItem(LS_KEY)
     return raw ? JSON.parse(raw) : []
@@ -40,15 +41,14 @@ function lsLoad(): GCARecord[] {
   }
 }
 
-function lsSave(records: GCARecord[]) {
+function lsSave(records: DRecord[]) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify(records))
   } catch {}
 }
 
-function lsAdd(record: GCARecord) {
+function lsAdd(record: DRecord) {
   const current = lsLoad()
-  // Bir xil id bo'lsa qo'shmaydi
   if (!current.find((r) => r.id === record.id)) {
     lsSave([record, ...current])
   }
@@ -58,22 +58,22 @@ function lsRemove(id: string) {
   lsSave(lsLoad().filter((r) => r.id !== id))
 }
 
-export function GCAProvider({ children }: { children: ReactNode }) {
-  const [records, setRecords] = useState<GCARecord[]>([])
+export function DRecordsProvider({ children }: { children: ReactNode }) {
+  const [records, setRecords] = useState<DRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Yuk funksiyasi — useEffect va refresh() ikkisi ham ishlatadi
   const loadRecords = async () => {
     setLoading(true)
     try {
-      const r = await fetch('/api/gca')
+      const r = await fetch('/api/d-records')
       if (!r.ok) throw new Error(`Server xatosi: ${r.status}`)
       const data = await r.json()
 
       if (Array.isArray(data)) {
-        const dbRecords: GCARecord[] = data.map((r: any) => ({
+        const dbRecords: DRecord[] = data.map((r: any) => ({
           id:        r.id,
+          type:      r.type,
           shop:      r.shop,
           sector:    r.sector ?? null,
           code:      r.code,
@@ -83,9 +83,9 @@ export function GCAProvider({ children }: { children: ReactNode }) {
           notes:     r.notes,
           image_url: r.image_url,
           date:      r.date,
+          created_by_name: r.created_by_name,
         }))
 
-        // Server cache (mem-) yoki local- yozuvlarni qo'shamiz
         const localOnly = lsLoad().filter(
           (ls) =>
             (ls.id.startsWith('local-') || ls.id.startsWith('mem-')) &&
@@ -99,7 +99,6 @@ export function GCAProvider({ children }: { children: ReactNode }) {
         lsSave(merged)
       }
     } catch {
-      // DB ishlamasa — localStorage dan yuklaymiz
       const cached = lsLoad()
       if (cached.length > 0) setRecords(cached)
     } finally {
@@ -111,12 +110,13 @@ export function GCAProvider({ children }: { children: ReactNode }) {
 
   const refresh = () => loadRecords()
 
-  const addRecord = async (record: Omit<GCARecord, 'id' | 'date'>) => {
+  const addRecord = async (record: Omit<DRecord, 'id' | 'date'>) => {
     try {
-      const res = await fetch('/api/gca', {
+      const res = await fetch('/api/d-records', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          type:     record.type,
           shop:     record.shop,
           sector:   record.sector ?? null,
           code:     record.code,
@@ -132,9 +132,9 @@ export function GCAProvider({ children }: { children: ReactNode }) {
       const newRecord = text ? JSON.parse(text) : null
 
       if (res.ok && newRecord) {
-        // DB dan qaytgan yozuv
-        const mapped: GCARecord = {
+        const mapped: DRecord = {
           id:       newRecord.id,
+          type:     newRecord.type,
           shop:     newRecord.shop,
           sector:   newRecord.sector ?? null,
           code:     newRecord.code,
@@ -151,9 +151,9 @@ export function GCAProvider({ children }: { children: ReactNode }) {
           return updated
         })
       } else {
-        // DB xatosi — localStorage ga saqlaymiz
-        const localRecord: GCARecord = {
+        const localRecord: DRecord = {
           id:       `local-${Date.now()}`,
+          type:     record.type,
           shop:     record.shop,
           sector:   record.sector ?? null,
           code:     record.code,
@@ -171,9 +171,9 @@ export function GCAProvider({ children }: { children: ReactNode }) {
         })
       }
     } catch {
-      // Network xatosi — localStorage ga saqlaymiz
-      const localRecord: GCARecord = {
+      const localRecord: DRecord = {
         id:       `local-${Date.now()}`,
+        type:     record.type,
         shop:     record.shop,
         code:     record.code,
         codeName: record.codeName,
@@ -192,21 +192,19 @@ export function GCAProvider({ children }: { children: ReactNode }) {
   }
 
   const deleteRecord = async (id: string) => {
-    // localStorage dan darhol olib tashlaymiz
     lsRemove(id)
     setRecords((prev) => prev.filter((r) => r.id !== id))
 
-    // DB dan ham o'chirishga harakat qilamiz (local-/mem- bo'lsa DB da yo'q)
     if (!id.startsWith('local-') && !id.startsWith('mem-')) {
       try {
-        await fetch(`/api/gca?id=${id}`, { method: 'DELETE' })
+        await fetch(`/api/d-records?id=${id}`, { method: 'DELETE' })
       } catch {}
     }
   }
 
-  const getTotalDefects   = () => records.reduce((sum, r) => sum + r.count, 0)
+  const getTotalDefects  = () => records.reduce((sum, r) => sum + r.count, 0)
 
-  const getDefectsByShop  = () => {
+  const getDefectsByShop = () => {
     const byShop: Record<string, number> = {}
     records.forEach((r) => {
       byShop[r.shop] = (byShop[r.shop] || 0) + r.count
@@ -215,14 +213,14 @@ export function GCAProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <GCAContext.Provider value={{ records, loading, error, addRecord, deleteRecord, refresh, getTotalDefects, getDefectsByShop }}>
+    <DRecordsContext.Provider value={{ records, loading, error, addRecord, deleteRecord, refresh, getTotalDefects, getDefectsByShop }}>
       {children}
-    </GCAContext.Provider>
+    </DRecordsContext.Provider>
   )
 }
 
-export function useGCA() {
-  const context = useContext(GCAContext)
-  if (!context) throw new Error('useGCA must be used within GCAProvider')
+export function useDRecords() {
+  const context = useContext(DRecordsContext)
+  if (!context) throw new Error('useDRecords must be used within DRecordsProvider')
   return context
 }

@@ -15,6 +15,12 @@ import {
   Factory,
   ClipboardList,
   Clipboard,
+  LayoutDashboard,
+  Activity,
+  Package,
+  Crown,
+  Database,
+  Target,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
@@ -26,6 +32,51 @@ interface SidebarItem {
   icon: React.ReactNode
   section: string
 }
+
+const superAdminSidebarItems: SidebarItem[] = [
+  {
+    label: 'SuperAdmin Panel',
+    href: '/dashboard/superadmin',
+    icon: <Crown className="w-5 h-5" />,
+    section: 'main',
+  },
+  {
+    label: 'Foydalanuvchilar',
+    href: '/dashboard/superadmin',
+    icon: <Users className="w-5 h-5" />,
+    section: 'admin',
+  },
+  {
+    label: 'WDPV Targetlar',
+    href: '/dashboard/superadmin',
+    icon: <Target className="w-5 h-5" />,
+    section: 'admin',
+  },
+  {
+    label: "Ma'lumotlar",
+    href: '/dashboard/superadmin',
+    icon: <Database className="w-5 h-5" />,
+    section: 'admin',
+  },
+  {
+    label: 'Umumiy dashboard',
+    href: '/dashboard/main',
+    icon: <BarChart3 className="w-5 h-5" />,
+    section: 'dashboards',
+  },
+  {
+    label: 'GCA Dashboard',
+    href: '/dashboard/gca',
+    icon: <BarChart3 className="w-5 h-5" />,
+    section: 'dashboards',
+  },
+  {
+    label: 'Rahbar paneli',
+    href: '/dashboard/manager',
+    icon: <LayoutDashboard className="w-5 h-5" />,
+    section: 'dashboards',
+  },
+]
 
 const adminSidebarItems: SidebarItem[] = [
   {
@@ -147,28 +198,108 @@ const gaEngineerSidebarItems: SidebarItem[] = [
   },
 ]
 
+const weldingEngineerSidebarItems: SidebarItem[] = [
+  {
+    label: 'Welding Engineer paneli',
+    href: '/dashboard/welding-engineer',
+    icon: <Clipboard className="w-5 h-5" />,
+    section: 'main',
+  },
+]
+
+const drrInspectorSidebarItems: SidebarItem[] = [
+  {
+    label: 'DRR Admin paneli',
+    href: '/dashboard/drr-admin',
+    icon: <Clipboard className="w-5 h-5" />,
+    section: 'main',
+  },
+]
+
+const drlInspectorSidebarItems: SidebarItem[] = [
+  {
+    label: 'DRL Admin paneli',
+    href: '/dashboard/drl-admin',
+    icon: <Clipboard className="w-5 h-5" />,
+    section: 'main',
+  },
+]
+
+const pdiInspectorSidebarItems: SidebarItem[] = [
+  {
+    label: 'PDI Admin paneli',
+    href: '/dashboard/pdi-admin',
+    icon: <Clipboard className="w-5 h-5" />,
+    section: 'main',
+  },
+]
+
+const incomingInspectorSidebarItems: SidebarItem[] = [
+  {
+    label: 'Incoming Control',
+    href: '/dashboard/incoming-admin',
+    icon: <Package className="w-5 h-5" />,
+    section: 'main',
+  },
+]
+
+const managerSidebarItems: SidebarItem[] = [
+  {
+    label: 'Umumiy Ko\'rinish',
+    href: '/dashboard/manager',
+    icon: <LayoutDashboard className="w-5 h-5" />,
+    section: 'main',
+  },
+  {
+    label: 'Muhandislar tahlili',
+    href: '/dashboard/engineer-analysis',
+    icon: <Activity className="w-5 h-5" />,
+    section: 'main',
+  },
+  {
+    label: 'GCA Dashboard',
+    href: '/dashboard/gca',
+    icon: <BarChart3 className="w-5 h-5" />,
+    section: 'dashboards',
+  },
+  {
+    label: 'D10 Dashboard',
+    href: '/dashboard/d10',
+    icon: <BarChart3 className="w-5 h-5" />,
+    section: 'dashboards',
+  },
+  {
+    label: 'D20 Dashboard',
+    href: '/dashboard/d20',
+    icon: <BarChart3 className="w-5 h-5" />,
+    section: 'dashboards',
+  },
+]
+
 export default function Sidebar() {
   const pathname = usePathname()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
-  const [userRole, setUserRole] = useState<string>('admin')
-  const [userName, setUserName] = useState<string>('Admin User')
-  const [userEmail, setUserEmail] = useState<string>('admin@uzauto.uz')
+  const [userRole, setUserRole]   = useState<string>('admin')
+  const [userName, setUserName]   = useState<string>('Admin User')
+  const [userTabel, setUserTabel] = useState<string>('')
   const router = useRouter()
 
   useEffect(() => {
     fetch('/api/me')
       .then((r) => r.json())
       .then((user) => {
-        if (user.role) setUserRole(user.role)
-        if (user.name) setUserName(user.name)
-        if (user.email) setUserEmail(user.email)
+        if (user.role)        setUserRole(user.role)
+        if (user.name)        setUserName(user.name)
+        if (user.tabelNumber) setUserTabel(user.tabelNumber)
       })
       .catch(() => {})
   }, [])
 
   // Select sidebar items based on role
   let sidebarItems = adminSidebarItems
-  if (userRole === 'gca_auditor') {
+  if (userRole === 'superadmin') {
+    sidebarItems = superAdminSidebarItems
+  } else if (userRole === 'gca_auditor') {
     sidebarItems = gcaAuditorSidebarItems
   } else if (userRole === 'cmm_inspector') {
     sidebarItems = cmmInspectorSidebarItems
@@ -178,10 +309,23 @@ export default function Sidebar() {
     sidebarItems = d20InspectorSidebarItems
   } else if (userRole === 'ga_engineer') {
     sidebarItems = gaEngineerSidebarItems
+  } else if (userRole === 'welding_engineer') {
+    sidebarItems = weldingEngineerSidebarItems
+  } else if (userRole === 'manager') {
+    sidebarItems = managerSidebarItems
+  } else if (userRole === 'drr_inspector') {
+    sidebarItems = drrInspectorSidebarItems
+  } else if (userRole === 'drl_inspector') {
+    sidebarItems = drlInspectorSidebarItems
+  } else if (userRole === 'pdi_inspector') {
+    sidebarItems = pdiInspectorSidebarItems
+  } else if (userRole === 'incoming_inspector') {
+    sidebarItems = incomingInspectorSidebarItems
   }
 
   const groupedItems = {
     main: sidebarItems.filter((item) => item.section === 'main'),
+    dashboards: sidebarItems.filter((item) => item.section === 'dashboards'),
     analytics: sidebarItems.filter((item) => item.section === 'analytics'),
     operations: sidebarItems.filter((item) => item.section === 'operations'),
     admin: sidebarItems.filter((item) => item.section === 'admin'),
@@ -209,6 +353,9 @@ export default function Sidebar() {
         {/* Main Section */}
         <SidebarSection title="Asosiy" items={groupedItems.main} isActive={isActive} />
 
+        {/* Dashboards Section */}
+        <SidebarSection title="Dashboardlar" items={groupedItems.dashboards} isActive={isActive} />
+
         {/* Analytics Section */}
         <SidebarSection title="Analitika" items={groupedItems.analytics} isActive={isActive} />
 
@@ -223,7 +370,14 @@ export default function Sidebar() {
       <div className="border-t border-sidebar-border p-6 space-y-4">
         <div className="px-3 py-3 rounded-lg bg-sidebar-primary/10">
           <p className="text-sm font-semibold text-sidebar-foreground">{userName}</p>
-          <p className="text-xs text-muted-foreground">{userEmail}</p>
+          {userTabel && (
+            <p className="text-xs text-muted-foreground font-mono">Tabel: {userTabel}</p>
+          )}
+          {userRole === 'superadmin' && (
+            <p className="text-xs text-yellow-500 font-bold mt-1 flex items-center gap-1">
+              <Crown className="w-3 h-3" />SUPERADMIN
+            </p>
+          )}
           {userRole === 'gca_auditor' && (
             <p className="text-xs text-primary font-medium mt-1">GCA Auditor</p>
           )}
@@ -238,6 +392,24 @@ export default function Sidebar() {
           )}
           {userRole === 'ga_engineer' && (
             <p className="text-xs text-primary font-medium mt-1">GA Engineer</p>
+          )}
+          {userRole === 'welding_engineer' && (
+            <p className="text-xs text-primary font-medium mt-1">Welding Engineer</p>
+          )}
+          {userRole === 'manager' && (
+            <p className="text-xs text-primary font-medium mt-1">Rahbar</p>
+          )}
+          {userRole === 'drr_inspector' && (
+            <p className="text-xs text-orange-400 font-medium mt-1">DRR Inspector</p>
+          )}
+          {userRole === 'drl_inspector' && (
+            <p className="text-xs text-yellow-400 font-medium mt-1">DRL Inspector</p>
+          )}
+          {userRole === 'pdi_inspector' && (
+            <p className="text-xs text-purple-400 font-medium mt-1">PDI Inspector</p>
+          )}
+          {userRole === 'incoming_inspector' && (
+            <p className="text-xs text-cyan-400 font-medium mt-1">Incoming Inspector</p>
           )}
         </div>
         <Button
@@ -319,7 +491,7 @@ function SidebarSection({
       <nav className="space-y-2">
         {safeItems.map((item) => (
           <Link
-            key={item.href}
+            key={`${item.href}__${item.label}`}
             href={item.href}
             className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
               isActive(item.href)

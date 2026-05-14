@@ -1,70 +1,106 @@
 import { NextResponse } from 'next/server'
 import sql from '@/lib/db'
+import { usersCache } from '@/lib/users-cache'
 
 const ROLE_REDIRECTS: Record<string, string> = {
-  gca_auditor:   '/dashboard/gca-admin',
-  cmm_inspector: '/dashboard/cmm-admin',
-  d10_inspector: '/dashboard/d10-admin',
-  d20_inspector: '/dashboard/d20-admin',
-  ga_engineer:   '/dashboard/ga-engineer',
-  admin:         '/dashboard',
-}
-
-// Fallback users (database ulanmasa ishlatiladi)
-const FALLBACK_USERS: Record<string, { password: string; name: string; role: string }> = {
-  'demo@uzauto.uz':     { password: 'demo123',     name: 'Demo Admin',    role: 'admin' },
-  'gca@uzauto.uz':      { password: 'gca123',      name: 'GCA Auditor',   role: 'gca_auditor' },
-  'cmm@uzauto.uz':      { password: 'cmm123',      name: 'CMM Inspector', role: 'cmm_inspector' },
-  'd10@uzauto.uz':      { password: 'd10123',       name: 'D10 Inspector', role: 'd10_inspector' },
-  'd20@uzauto.uz':      { password: 'd20123',       name: 'D20 Inspector', role: 'd20_inspector' },
-  'engineer@uzauto.uz': { password: 'engineer123',  name: 'GA Engineer',   role: 'ga_engineer' },
+  superadmin:         '/dashboard/superadmin',
+  admin:              '/dashboard',
+  gca_auditor:        '/dashboard/gca-admin',
+  cmm_inspector:      '/dashboard/cmm-admin',
+  d10_inspector:      '/dashboard/d10-admin',
+  d20_inspector:      '/dashboard/d20-admin',
+  drr_inspector:      '/dashboard/drr-admin',
+  drl_inspector:      '/dashboard/drl-admin',
+  pdi_inspector:      '/dashboard/pdi-admin',
+  ga_engineer:        '/dashboard/ga-engineer',
+  welding_engineer:   '/dashboard/welding-engineer',
+  manager:            '/dashboard/manager',
+  incoming_inspector: '/dashboard/incoming-admin',
 }
 
 export async function POST(request: Request) {
-  const { email, password } = await request.json()
+  const body     = await request.json()
+  const tabelRaw: string | undefined = body.tabelNumber
+  const email:    string | undefined = body.email
+  const password: string | undefined = body.password
 
-  if (!email || !password) {
-    return NextResponse.json({ error: 'Email va parol kiritilishi shart' }, { status: 400 })
+  if ((!tabelRaw && !email) || !password) {
+    return NextResponse.json({ error: 'Tabel raqami va parol kiritilishi shart' }, { status: 400 })
   }
 
-  let user: { email: string; name: string; role: string } | null = null
+  const tabelNumber = tabelRaw?.toUpperCase().trim()
 
-  // Avval database dan tekshiramiz
+  // ── 1. DB dan qidiramiz ───────────────────────────────────────────────────
   try {
-    const [dbUser] = await sql`
-      SELECT id, email, name, role FROM users
-      WHERE email = ${email} AND password = ${password}
-      LIMIT 1
-    `
+    let dbUser: any
+
+    if (tabelNumber) {
+      ;[dbUser] = await sql`
+        SELECT id, tabel_number, email, name, role
+        FROM users
+        WHERE tabel_number = ${tabelNumber} AND password = ${password}
+        LIMIT 1
+      `
+    } else if (email) {
+      ;[dbUser] = await sql`
+        SELECT id, tabel_number, email, name, role
+        FROM users
+        WHERE email = ${email} AND password = ${password}
+        LIMIT 1
+      `
+    }
+
     if (dbUser) {
-      user = { email: dbUser.email, name: dbUser.name, role: dbUser.role }
+      return buildResponse({
+        tabelNumber: dbUser.tabel_number ?? tabelNumber ?? '',
+        email:       dbUser.email ?? null,
+        name:        dbUser.name,
+        role:        dbUser.role,
+      })
     }
+    // DB ulandi lekin foydalanuvchi topilmadi — cache ni ham tekshiramiz
   } catch (err) {
-    // Database ulanmadi — fallback ga o'tamiz
-    console.warn('Database ulanmadi, fallback ishlatilmoqda:', (err as Error).message)
-    const fallback = FALLBACK_USERS[email]
-    if (fallback && fallback.password === password) {
-      user = { email, name: fallback.name, role: fallback.role }
-    }
+    // DB ulanmadi (ENOTFOUND yoki boshqa xato) — cache ga o'tamiz
+    console.warn('Auth DB xato:', (err as Error).message)
   }
 
-  if (!user) {
-    return NextResponse.json({ error: "Email yoki parol noto'g'ri" }, { status: 401 })
+  // ── 2. Global cache dan qidiramiz (DB yo'q yoki user topilmadi) ──────────
+  const cached = tabelNumber
+    ? usersCache.authenticate(tabelNumber, password)
+    : (() => {
+        const u = usersCache.findByEmail(email ?? '')
+        return u?.password === password ? u : undefined
+      })()
+
+  if (cached) {
+    return buildResponse({
+      tabelNumber: cached.tabelNumber,
+      email:       cached.email,
+      name:        cached.name,
+      role:        cached.role,
+    })
   }
 
-  const sessionPayload = JSON.stringify({ email: user.email, role: user.role, name: user.name })
+  // ── 3. Hech yerda topilmadi ───────────────────────────────────────────────
+  return NextResponse.json({ error: "Tabel raqami yoki parol noto'g'ri" }, { status: 401 })
+}
+
+function buildResponse(user: { tabelNumber: string; email: string | null; name: string; role: string }) {
+  const sessionPayload = JSON.stringify({
+    tabelNumber: user.tabelNumber,
+    email:       user.email ?? '',
+    name:        user.name,
+    role:        user.role,
+  })
   const redirect = ROLE_REDIRECTS[user.role] ?? '/dashboard'
-
   const response = NextResponse.json({ ok: true, redirect, name: user.name, role: user.role })
-
   response.cookies.set('qc_session', sessionPayload, {
     httpOnly: true,
     sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 8,
-    secure: process.env.NODE_ENV === 'production',
+    path:     '/',
+    maxAge:   60 * 60 * 8,
+    secure:   process.env.NODE_ENV === 'production',
   })
-
   return response
 }
 

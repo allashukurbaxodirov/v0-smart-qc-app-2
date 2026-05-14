@@ -4,11 +4,14 @@ import { useState } from 'react'
 import PageHeader from '@/components/dashboard/page-header'
 import { useGCA } from '@/lib/gca-context'
 import { gcaDefectCodes, gcaShopOptions, gcaFactorOptions } from '@/lib/mock-data'
+import { SHOP_LINES } from '@/lib/shift-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ChevronLeft, Upload, Trash2, Check } from 'lucide-react'
 import Link from 'next/link'
+
+type ShopType = 'PRESS SHOP' | 'WELDING-1' | 'WELDING-2' | 'PAINT SHOP' | 'GA'
 
 export default function GCAAdminPage() {
   const { records, addRecord, deleteRecord } = useGCA()
@@ -18,8 +21,9 @@ export default function GCAAdminPage() {
 
   // Form state
   const [formData, setFormData] = useState({
-    shop: 'PRESS SHOP',
-    code: '63',
+    shop: 'PRESS SHOP' as ShopType,
+    sector: '',
+    code: '18',
     factor: 5,
     count: 1,
     notes: '',
@@ -28,10 +32,19 @@ export default function GCAAdminPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === 'factor' || name === 'count' ? (value === '' ? '' : parseInt(value) || 0) : value,
-    }))
+    if (name === 'shop') {
+      // Reset sector when shop changes
+      setFormData((prev) => ({
+        ...prev,
+        shop: value as ShopType,
+        sector: '',
+      }))
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        [name]: name === 'factor' || name === 'count' ? (value === '' ? '' : parseInt(value) || 0) : value,
+      }))
+    }
   }
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -46,7 +59,8 @@ export default function GCAAdminPage() {
     const selectedDefect = gcaDefectCodes.find((d) => d.code === formData.code)
     if (selectedDefect) {
       addRecord({
-        shop: formData.shop as any,
+        shop: formData.shop,
+        sector: formData.sector || null,
         code: formData.code,
         codeName: selectedDefect.name,
         factor: formData.factor,
@@ -57,7 +71,8 @@ export default function GCAAdminPage() {
       setTimeout(() => setShowSuccess(false), 3000)
       setFormData({
         shop: 'PRESS SHOP',
-        code: '63',
+        sector: '',
+        code: '18',
         factor: 5,
         count: 1,
         notes: '',
@@ -68,7 +83,7 @@ export default function GCAAdminPage() {
 
   const getRiskLevel = (factor: number) => {
     if (factor >= 50) return { label: 'Yuqori', color: 'bg-critical text-white' }
-    if (factor >= 20) return { label: 'O\'rtacha', color: 'bg-warning text-white' }
+    if (factor >= 20) return { label: "O'rtacha", color: 'bg-warning text-white' }
     return { label: 'Past', color: 'bg-success text-white' }
   }
 
@@ -80,9 +95,10 @@ export default function GCAAdminPage() {
       return b.factor - a.factor
     })
 
+  const shopSectors = SHOP_LINES[formData.shop] ?? []
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Page Header */}
       <PageHeader
         title="GCA Admin paneli"
         description="GCA nuqsonlarini qayd etish va boshqarish"
@@ -92,9 +108,7 @@ export default function GCAAdminPage() {
         ]}
       />
 
-      {/* Main Content */}
       <div className="p-6 space-y-6">
-        {/* Back Button */}
         <Link href="/dashboard">
           <Button variant="ghost" size="sm" className="gap-1">
             <ChevronLeft className="w-4 h-4" />
@@ -102,7 +116,6 @@ export default function GCAAdminPage() {
           </Button>
         </Link>
 
-        {/* Success Message */}
         {showSuccess && (
           <div className="bg-success/10 border border-success/30 rounded-lg p-4 flex items-center gap-3">
             <Check className="w-5 h-5 text-success" />
@@ -110,7 +123,6 @@ export default function GCAAdminPage() {
           </div>
         )}
 
-        {/* Main Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Form Section */}
           <div className="lg:col-span-1">
@@ -118,7 +130,7 @@ export default function GCAAdminPage() {
               <h2 className="text-lg font-bold text-foreground mb-6">Yangi yozuv qo&apos;shish</h2>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Shop Select */}
+                {/* 1. Shop */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Nuqson sexi *</label>
                   <select
@@ -135,7 +147,23 @@ export default function GCAAdminPage() {
                   </select>
                 </div>
 
-                {/* Defect Code Select */}
+                {/* 2. Sector */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Sektor</label>
+                  <select
+                    name="sector"
+                    value={formData.sector}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
+                  >
+                    <option value="">— Sektorsiz —</option>
+                    {shopSectors.map((sec) => (
+                      <option key={sec} value={sec}>{sec}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 3. Defect Code */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Nuqson kodi *</label>
                   <select
@@ -152,7 +180,7 @@ export default function GCAAdminPage() {
                   </select>
                 </div>
 
-                {/* Factor Select */}
+                {/* 4. Factor */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Faktor *</label>
                   <select
@@ -169,7 +197,7 @@ export default function GCAAdminPage() {
                   </select>
                 </div>
 
-                {/* Count Input */}
+                {/* 5. Count */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Nuqson soni *</label>
                   <Input
@@ -182,7 +210,7 @@ export default function GCAAdminPage() {
                   />
                 </div>
 
-                {/* Image Upload */}
+                {/* 6. Image */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Nuqson rasmi</label>
                   <label className="border-2 border-dashed border-border rounded-lg p-4 cursor-pointer hover:border-primary transition-colors flex flex-col items-center gap-2">
@@ -190,11 +218,14 @@ export default function GCAAdminPage() {
                     <span className="text-xs text-muted-foreground text-center">
                       Rasm yuklang yoki drag-drop qiling
                     </span>
+                    {formData.image && (
+                      <span className="text-xs text-primary font-medium">{formData.image.name}</span>
+                    )}
                     <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                   </label>
                 </div>
 
-                {/* Notes */}
+                {/* 7. Notes */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Izoh</label>
                   <textarea
@@ -207,7 +238,6 @@ export default function GCAAdminPage() {
                   />
                 </div>
 
-                {/* Submit Button */}
                 <Button type="submit" className="w-full">
                   Saqlash
                 </Button>
@@ -217,7 +247,6 @@ export default function GCAAdminPage() {
 
           {/* Records Section */}
           <div className="lg:col-span-2 space-y-4">
-            {/* Controls */}
             <div className="flex gap-3 flex-wrap">
               <select
                 value={filterShop}
@@ -243,7 +272,6 @@ export default function GCAAdminPage() {
               </select>
             </div>
 
-            {/* Table */}
             <div className="bg-card border border-border rounded-xl overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -251,6 +279,7 @@ export default function GCAAdminPage() {
                     <tr className="border-b border-border bg-muted/30">
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sana</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sexi</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sektor</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nuqson kodi</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nuqson nomi</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Soni</th>
@@ -262,8 +291,8 @@ export default function GCAAdminPage() {
                   <tbody>
                     {filteredRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                          Hali ma'lumot yo'q
+                        <td colSpan={9} className="px-4 py-8 text-center text-muted-foreground">
+                          Hali ma&apos;lumot yo&apos;q
                         </td>
                       </tr>
                     ) : (
@@ -273,6 +302,15 @@ export default function GCAAdminPage() {
                           <tr key={record.id} className="border-b border-border hover:bg-muted/30 transition-colors">
                             <td className="px-4 py-3 text-sm text-foreground">{record.date}</td>
                             <td className="px-4 py-3 text-sm text-foreground">{record.shop}</td>
+                            <td className="px-4 py-3 text-sm text-foreground">
+                              {record.sector ? (
+                                <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs font-medium">
+                                  {record.sector}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
                             <td className="px-4 py-3 text-sm font-semibold text-foreground">{record.code}</td>
                             <td className="px-4 py-3 text-sm text-foreground">{record.codeName}</td>
                             <td className="px-4 py-3 text-sm text-foreground">{record.count}</td>
@@ -297,7 +335,6 @@ export default function GCAAdminPage() {
               </div>
             </div>
 
-            {/* Summary */}
             <div className="bg-primary/10 border border-primary/20 rounded-lg p-4">
               <p className="text-sm text-foreground">
                 <span className="font-semibold">Jami yozuvlar:</span> {filteredRecords.length}
