@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 401 })
   }
   try {
-    const { tabelNumber, password, name, role } = await req.json()
+    const { tabelNumber, password, name, role, shift, shop } = await req.json()
     if (!tabelNumber || !password || !name || !role) {
       return NextResponse.json({ error: "Barcha maydonlar to'ldirilishi shart" }, { status: 400 })
     }
@@ -59,6 +59,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Noto'g'ri rol tanlandi" }, { status: 400 })
     }
     const tNum = String(tabelNumber).toUpperCase().trim()
+    const shiftVal = shift || null
+    const shopVal  = shop  || null
 
     if (usersCache.tabelExists(tNum)) {
       return NextResponse.json({ error: 'Bu tabel raqami allaqachon mavjud' }, { status: 409 })
@@ -71,20 +73,24 @@ export async function POST(req: NextRequest) {
       password,
       name,
       role,
+      shift:       shiftVal,
+      shop:        shopVal,
       created_at:  new Date().toISOString(),
     }
 
     try {
       // DB ga saqlashga urinish
       const [row] = await sql`
-        INSERT INTO users (tabel_number, password, name, role)
-        VALUES (${tNum}, ${password}, ${name}, ${role})
-        RETURNING id, tabel_number, email, name, role, created_at::text
+        INSERT INTO users (tabel_number, password, name, role, shift, shop)
+        VALUES (${tNum}, ${password}, ${name}, ${role}, ${shiftVal}, ${shopVal})
+        RETURNING id, tabel_number, email, name, role, shift, shop, created_at::text
       `
       // DB dan kelgan haqiqiy id ni ishlatamiz
-      newUser.id         = row.id
+      newUser.id          = row.id
       newUser.tabelNumber = row.tabel_number
-      newUser.email      = row.email ?? null
+      newUser.email       = row.email ?? null
+      newUser.shift       = row.shift ?? null
+      newUser.shop        = row.shop  ?? null
     } catch (dbErr: any) {
       if (dbErr?.code === '23505' || dbErr?.message?.includes('unique')) {
         return NextResponse.json({ error: 'Bu tabel raqami allaqachon mavjud' }, { status: 409 })
@@ -110,24 +116,26 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 401 })
   }
   try {
-    const { id, name, role, password } = await req.json()
+    const { id, name, role, password, shift, shop } = await req.json()
     if (!id || !name || !role) {
       return NextResponse.json({ error: 'id, name va role kerak' }, { status: 400 })
     }
     if (!VALID_ROLES.includes(role)) {
       return NextResponse.json({ error: "Noto'g'ri rol" }, { status: 400 })
     }
+    const shiftVal = shift || null
+    const shopVal  = shop  || null
 
     // Shared cache ni yangilaymiz
-    const updates: Partial<CachedUser> = { name, role }
+    const updates: Partial<CachedUser> = { name, role, shift: shiftVal, shop: shopVal }
     if (password) updates.password = password
     usersCache.update(id, updates)
 
     try {
       if (password) {
-        await sql`UPDATE users SET name=${name}, role=${role}, password=${password} WHERE id=${id}::uuid`
+        await sql`UPDATE users SET name=${name}, role=${role}, password=${password}, shift=${shiftVal}, shop=${shopVal} WHERE id=${id}::uuid`
       } else {
-        await sql`UPDATE users SET name=${name}, role=${role} WHERE id=${id}::uuid`
+        await sql`UPDATE users SET name=${name}, role=${role}, shift=${shiftVal}, shop=${shopVal} WHERE id=${id}::uuid`
       }
     } catch (dbErr) {
       console.warn('users PATCH (DB unavailable), updated in cache only:', (dbErr as Error).message)

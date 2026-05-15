@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import PageHeader from '@/components/dashboard/page-header'
 import { useGCA } from '@/lib/gca-context'
 import { gcaDefectCodes, gcaShopOptions, gcaFactorOptions } from '@/lib/mock-data'
@@ -8,16 +8,26 @@ import { SHOP_LINES } from '@/lib/shift-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, Upload, Trash2, Check } from 'lucide-react'
+import { ChevronLeft, Upload, Trash2, Check, Lock } from 'lucide-react'
 import Link from 'next/link'
 
 type ShopType = 'PRESS SHOP' | 'WELDING-1' | 'WELDING-2' | 'PAINT SHOP' | 'GA'
+
+const LOCKED_ROLES = ['gca_auditor', 'cmm_inspector', 'ga_engineer', 'welding_engineer']
 
 export default function GCAAdminPage() {
   const { records, addRecord, deleteRecord } = useGCA()
   const [showSuccess, setShowSuccess] = useState(false)
   const [sortBy, setSortBy] = useState<'date' | 'shop' | 'factor'>('date')
   const [filterShop, setFilterShop] = useState<string>('')
+
+  // Session
+  const [session, setSession] = useState<{ role: string; shop: string | null } | null>(null)
+  useEffect(() => {
+    fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => { if (d) setSession(d) })
+  }, [])
+  const isLocked  = session ? LOCKED_ROLES.includes(session.role) : false
+  const lockedShop = (isLocked && session?.shop) ? session.shop as ShopType : null
 
   // Form state
   const [formData, setFormData] = useState({
@@ -29,6 +39,10 @@ export default function GCAAdminPage() {
     notes: '',
     image: null as File | null,
   })
+
+  useEffect(() => {
+    if (lockedShop) setFormData(prev => ({ ...prev, shop: lockedShop, sector: '' }))
+  }, [lockedShop])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -132,19 +146,29 @@ export default function GCAAdminPage() {
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* 1. Shop */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Nuqson sexi *</label>
-                  <select
-                    name="shop"
-                    value={formData.shop}
-                    onChange={handleInputChange}
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
-                  >
-                    {gcaShopOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                    Nuqson sexi *
+                    {isLocked && lockedShop && <Lock className="w-3 h-3 text-muted-foreground" />}
+                  </label>
+                  {isLocked && lockedShop ? (
+                    <div className="w-full px-3 py-2 bg-muted/40 border border-border rounded-lg text-sm font-bold text-foreground flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-primary" />
+                      {lockedShop}
+                    </div>
+                  ) : (
+                    <select
+                      name="shop"
+                      value={formData.shop}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
+                    >
+                      {gcaShopOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 {/* 2. Sector */}

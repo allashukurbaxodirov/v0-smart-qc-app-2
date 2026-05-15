@@ -36,14 +36,14 @@ export async function POST(request: Request) {
 
     if (tabelNumber) {
       ;[dbUser] = await sql`
-        SELECT id, tabel_number, email, name, role
+        SELECT id, tabel_number, email, name, role, shift, shop
         FROM users
         WHERE tabel_number = ${tabelNumber} AND password = ${password}
         LIMIT 1
       `
     } else if (email) {
       ;[dbUser] = await sql`
-        SELECT id, tabel_number, email, name, role
+        SELECT id, tabel_number, email, name, role, shift, shop
         FROM users
         WHERE email = ${email} AND password = ${password}
         LIMIT 1
@@ -56,6 +56,8 @@ export async function POST(request: Request) {
         email:       dbUser.email ?? null,
         name:        dbUser.name,
         role:        dbUser.role,
+        shift:       dbUser.shift ?? null,
+        shop:        dbUser.shop ?? null,
       })
     }
     // DB ulandi lekin foydalanuvchi topilmadi — cache ni ham tekshiramiz
@@ -78,6 +80,8 @@ export async function POST(request: Request) {
       email:       cached.email,
       name:        cached.name,
       role:        cached.role,
+      shift:       cached.shift ?? null,
+      shop:        cached.shop ?? null,
     })
   }
 
@@ -85,12 +89,14 @@ export async function POST(request: Request) {
   return NextResponse.json({ error: "Tabel raqami yoki parol noto'g'ri" }, { status: 401 })
 }
 
-function buildResponse(user: { tabelNumber: string; email: string | null; name: string; role: string }) {
+function buildResponse(user: { tabelNumber: string; email: string | null; name: string; role: string; shift: string | null; shop: string | null }) {
   const sessionPayload = JSON.stringify({
     tabelNumber: user.tabelNumber,
     email:       user.email ?? '',
     name:        user.name,
     role:        user.role,
+    shift:       user.shift ?? null,
+    shop:        user.shop ?? null,
   })
   const redirect = ROLE_REDIRECTS[user.role] ?? '/dashboard'
   const response = NextResponse.json({ ok: true, redirect, name: user.name, role: user.role })

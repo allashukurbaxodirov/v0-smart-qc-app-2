@@ -17,6 +17,8 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Mavjud jadvalga tabel_number ustunini qo'shish (upgrade uchun)
 ALTER TABLE users ADD COLUMN IF NOT EXISTS tabel_number TEXT UNIQUE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS shift TEXT CHECK (shift IN ('A','B','D'));
+ALTER TABLE users ADD COLUMN IF NOT EXISTS shop TEXT;
 
 CREATE TABLE IF NOT EXISTS gca_records (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),

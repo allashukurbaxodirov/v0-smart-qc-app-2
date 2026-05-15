@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '@/components/dashboard/page-header'
 import { useQRecords, QRecordType, QShift } from '@/lib/qrecords-context'
 import { gcaDefectCodes } from '@/lib/mock-data'
@@ -8,13 +8,20 @@ import { SHOP_LINES } from '@/lib/shift-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, Upload, Trash2, Check } from 'lucide-react'
+import { ChevronLeft, Upload, Trash2, Check, Lock } from 'lucide-react'
 import Link from 'next/link'
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 const SHOPS   = ['PRESS SHOP', 'WELDING-1', 'WELDING-2', 'PAINT SHOP', 'GA'] as const
 const FACTORS = [5, 10, 20, 50] as const
 const SHIFTS: QShift[] = ['A', 'B', 'D']
+
+// Inspektorlar va engineerlar — smena/seh o'zgartira olmaydi
+const LOCKED_ROLES = [
+  'gca_auditor', 'cmm_inspector', 'd10_inspector', 'd20_inspector',
+  'drr_inspector', 'drl_inspector', 'pdi_inspector', 'incoming_inspector',
+  'ga_engineer', 'welding_engineer',
+]
 
 function todayStr() { return new Date().toISOString().split('T')[0] }
 
@@ -36,6 +43,20 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
   const { records: all, addRecord, deleteRecord } = useQRecords()
   const records = useMemo(() => all.filter(r => r.type === type), [all, type])
 
+  // Session ma'lumotlari
+  const [session, setSession] = useState<{ role: string; shift: string | null; shop: string | null; name: string } | null>(null)
+
+  useEffect(() => {
+    fetch('/api/me').then(r => r.ok ? r.json() : null).then(data => {
+      if (data) setSession(data)
+    })
+  }, [])
+
+  // Bloklangan rol — smena/seh o'zgartirib bo'lmaydi
+  const isLocked = session ? LOCKED_ROLES.includes(session.role) : false
+  const lockedShift = (isLocked && session?.shift) ? session.shift as QShift : null
+  const lockedShop  = (isLocked && session?.shop)  ? session.shop  : null
+
   const [showSuccess, setShowSuccess] = useState(false)
   const [sortBy,      setSortBy]      = useState<'date' | 'shop' | 'factor'>('date')
   const [filterShop,  setFilterShop]  = useState('')
@@ -55,15 +76,19 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
     image:    null as File | null,
   })
 
+  // Bloklangan qiymatlar o'zgarganda formni yangilaymiz
+  useEffect(() => {
+    if (lockedShift) setFormData(prev => ({ ...prev, shift: lockedShift }))
+    if (lockedShop)  setFormData(prev => ({ ...prev, shop: lockedShop, sector: '' }))
+  }, [lockedShift, lockedShop])
+
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target
     if (name === 'shop') {
-      // Shop o'zgarganda sektor reset bo'ladi
       setFormData(prev => ({ ...prev, shop: value, sector: '' }))
     } else if (name === 'code') {
-      // Kod o'zgarganda nomi avtomatik to'ldiriladi
       const defect = gcaDefectCodes.find(d => d.code === value)
       setFormData(prev => ({ ...prev, code: value, codeName: defect?.name ?? '' }))
     } else {
@@ -77,7 +102,6 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
     }
   }
 
-  // Joriy sehning sektorlari
   const shopSectors = SHOP_LINES[formData.shop as keyof typeof SHOP_LINES] ?? []
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,6 +112,12 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.code || !formData.codeName || formData.count < 1) return
+
+    // Bloklangan foydalanuvchi uchun smena/seh tayinlanganligini tekshirish
+    if (isLocked && (!lockedShift || !lockedShop)) {
+      alert("Sizga smena va seh tayinlanmagan. Iltimos, admin bilan bog'laning.")
+      return
+    }
 
     let imageUrl: string | null = null
     if (formData.image) {
@@ -117,12 +147,12 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
     setTimeout(() => setShowSuccess(false), 3000)
     setFormData(prev => ({
       ...prev,
-      sector: '',
+      sector:   '',
       code:     gcaDefectCodes[0].code,
       codeName: gcaDefectCodes[0].name,
-      count: 1,
-      notes: '',
-      image: null,
+      count:    1,
+      notes:    '',
+      image:    null,
     }))
   }
 
@@ -156,6 +186,16 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
           </Button>
         </Link>
 
+        {/* Bloklangan foydalanuvchi uchun ogohlantirish */}
+        {isLocked && (!lockedShift || !lockedShop) && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 flex items-center gap-3">
+            <Lock className="w-5 h-5 text-amber-500 flex-shrink-0" />
+            <p className="text-sm font-medium text-amber-600">
+              Sizga smena va seh tayinlanmagan. Nuqson kiritish uchun administrator bilan bog&apos;laning.
+            </p>
+          </div>
+        )}
+
         {/* Success */}
         {showSuccess && (
           <div className="bg-success/10 border border-success/30 rounded-lg p-4 flex items-center gap-3">
@@ -181,17 +221,27 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
                 {/* Smena + Sana */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground">Smena *</label>
-                    <select
-                      name="shift"
-                      value={formData.shift}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
-                    >
-                      {SHIFTS.map(s => (
-                        <option key={s} value={s}>Smena {s}</option>
-                      ))}
-                    </select>
+                    <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                      Smena *
+                      {isLocked && lockedShift && <Lock className="w-3 h-3 text-muted-foreground" />}
+                    </label>
+                    {isLocked && lockedShift ? (
+                      <div className="w-full px-3 py-2 bg-muted/40 border border-border rounded-lg text-sm font-bold text-foreground flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-primary" />
+                        Smena {lockedShift}
+                      </div>
+                    ) : (
+                      <select
+                        name="shift"
+                        value={formData.shift}
+                        onChange={handleChange}
+                        className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
+                      >
+                        {SHIFTS.map(s => (
+                          <option key={s} value={s}>Smena {s}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-foreground">Sana *</label>
@@ -207,17 +257,27 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
 
                 {/* Shop */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Nuqson sexi *</label>
-                  <select
-                    name="shop"
-                    value={formData.shop}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
-                  >
-                    {SHOPS.map(s => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
+                  <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                    Nuqson sexi *
+                    {isLocked && lockedShop && <Lock className="w-3 h-3 text-muted-foreground" />}
+                  </label>
+                  {isLocked && lockedShop ? (
+                    <div className="w-full px-3 py-2 bg-muted/40 border border-border rounded-lg text-sm font-bold text-foreground flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-primary" />
+                      {lockedShop}
+                    </div>
+                  ) : (
+                    <select
+                      name="shop"
+                      value={formData.shop}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
+                    >
+                      {SHOPS.map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 {/* Sector */}
@@ -236,7 +296,7 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
                   </select>
                 </div>
 
-                {/* Defect Code — dropdown */}
+                {/* Defect Code */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Nuqson kodi *</label>
                   <select
@@ -253,7 +313,7 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
                   </select>
                 </div>
 
-                {/* CodeName — auto-filled, read-only display */}
+                {/* CodeName — auto-filled */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Nuqson nomi</label>
                   <div className="w-full px-3 py-2 bg-muted/40 border border-border rounded-lg text-foreground text-sm min-h-[38px]">
@@ -332,7 +392,11 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
                   />
                 </div>
 
-                <Button type="submit" className="w-full">
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isLocked && (!lockedShift || !lockedShop)}
+                >
                   Saqlash
                 </Button>
               </form>
@@ -386,12 +450,12 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sana</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Smena</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sexi</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sektor</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Kod</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nuqson nomi</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Soni</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Faktor</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Xavflilik</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sektor</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Harakat</th>
                     </tr>
                   </thead>
@@ -411,21 +475,8 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
                             className="border-b border-border hover:bg-muted/30 transition-colors"
                           >
                             <td className="px-4 py-3 text-sm text-foreground">{record.date}</td>
-                            <td className="px-4 py-3 text-sm font-semibold text-foreground">
-                              {record.shift}
-                            </td>
+                            <td className="px-4 py-3 text-sm font-semibold text-foreground">{record.shift}</td>
                             <td className="px-4 py-3 text-sm text-foreground">{record.shop}</td>
-                            <td className="px-4 py-3 text-sm font-semibold text-foreground">
-                              {record.code}
-                            </td>
-                            <td className="px-4 py-3 text-sm text-foreground">{record.codeName}</td>
-                            <td className="px-4 py-3 text-sm text-foreground">{record.count}</td>
-                            <td className="px-4 py-3 text-sm font-semibold text-foreground">
-                              {record.factor}
-                            </td>
-                            <td className="px-4 py-3 text-sm">
-                              <Badge className={risk.color}>{risk.label}</Badge>
-                            </td>
                             <td className="px-4 py-3 text-sm">
                               {record.sector ? (
                                 <Badge className="bg-primary/20 text-primary border border-primary/30">
@@ -434,6 +485,13 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
                               ) : (
                                 <span className="text-xs text-muted-foreground">—</span>
                               )}
+                            </td>
+                            <td className="px-4 py-3 text-sm font-semibold text-foreground">{record.code}</td>
+                            <td className="px-4 py-3 text-sm text-foreground">{record.codeName}</td>
+                            <td className="px-4 py-3 text-sm text-foreground">{record.count}</td>
+                            <td className="px-4 py-3 text-sm font-semibold text-foreground">{record.factor}</td>
+                            <td className="px-4 py-3 text-sm">
+                              <Badge className={risk.color}>{risk.label}</Badge>
                             </td>
                             <td className="px-4 py-3">
                               <button
@@ -455,8 +513,7 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
             {/* Summary */}
             <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 flex flex-wrap gap-6">
               <p className="text-sm text-foreground">
-                <span className="font-semibold">Jami yozuvlar:</span>{' '}
-                {filtered.length}
+                <span className="font-semibold">Jami yozuvlar:</span> {filtered.length}
               </p>
               <p className="text-sm text-foreground">
                 <span className="font-semibold">Jami soni:</span>{' '}

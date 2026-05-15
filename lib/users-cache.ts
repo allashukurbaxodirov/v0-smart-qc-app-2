@@ -14,6 +14,8 @@ export interface CachedUser {
   password: string
   name: string
   role: string
+  shift: string | null   // 'A' | 'B' | 'D' | null
+  shop: string | null    // 'PRESS SHOP' | 'WELDING-1' | ... | null
   created_at: string
 }
 
@@ -22,19 +24,19 @@ const DB_FILE = path.join(process.cwd(), '.users-local.json')
 
 // ─── Seed foydalanuvchilar ────────────────────────────────────────────────────
 const SEED: CachedUser[] = [
-  { id: 'seed-1',  tabelNumber: 'T001', email: 'superadmin@uzauto.uz', password: 'super123',    name: 'Super Admin',        role: 'superadmin',        created_at: new Date().toISOString() },
-  { id: 'seed-2',  tabelNumber: 'T002', email: 'demo@uzauto.uz',        password: 'demo123',     name: 'Demo Admin',         role: 'admin',             created_at: new Date().toISOString() },
-  { id: 'seed-3',  tabelNumber: 'T003', email: 'gca@uzauto.uz',         password: 'gca123',      name: 'GCA Auditor',        role: 'gca_auditor',       created_at: new Date().toISOString() },
-  { id: 'seed-4',  tabelNumber: 'T004', email: 'cmm@uzauto.uz',         password: 'cmm123',      name: 'CMM Inspector',      role: 'cmm_inspector',     created_at: new Date().toISOString() },
-  { id: 'seed-5',  tabelNumber: 'T005', email: 'd10@uzauto.uz',         password: 'd10123',      name: 'D10 Inspector',      role: 'd10_inspector',     created_at: new Date().toISOString() },
-  { id: 'seed-6',  tabelNumber: 'T006', email: 'd20@uzauto.uz',         password: 'd20123',      name: 'D20 Inspector',      role: 'd20_inspector',     created_at: new Date().toISOString() },
-  { id: 'seed-7',  tabelNumber: 'T007', email: 'engineer@uzauto.uz',    password: 'engineer123', name: 'GA Engineer',        role: 'ga_engineer',       created_at: new Date().toISOString() },
-  { id: 'seed-8',  tabelNumber: 'T008', email: 'welding@uzauto.uz',     password: 'welding123',  name: 'Welding Engineer',   role: 'welding_engineer',  created_at: new Date().toISOString() },
-  { id: 'seed-9',  tabelNumber: 'T009', email: 'manager@uzauto.uz',     password: 'manager123',  name: 'Rahbar',             role: 'manager',           created_at: new Date().toISOString() },
-  { id: 'seed-10', tabelNumber: 'T010', email: 'drr@uzauto.uz',         password: 'drr123',      name: 'DRR Inspector',      role: 'drr_inspector',     created_at: new Date().toISOString() },
-  { id: 'seed-11', tabelNumber: 'T011', email: 'drl@uzauto.uz',         password: 'drl123',      name: 'DRL Inspector',      role: 'drl_inspector',     created_at: new Date().toISOString() },
-  { id: 'seed-12', tabelNumber: 'T012', email: 'pdi@uzauto.uz',         password: 'pdi123',      name: 'PDI Inspector',      role: 'pdi_inspector',     created_at: new Date().toISOString() },
-  { id: 'seed-13', tabelNumber: 'T013', email: 'incoming@uzauto.uz',    password: 'incoming123', name: 'Incoming Inspector', role: 'incoming_inspector', created_at: new Date().toISOString() },
+  { id: 'seed-1',  tabelNumber: 'T001', email: 'superadmin@uzauto.uz', password: 'super123',    name: 'Super Admin',        role: 'superadmin',         shift: null, shop: null, created_at: new Date().toISOString() },
+  { id: 'seed-2',  tabelNumber: 'T002', email: 'demo@uzauto.uz',        password: 'demo123',     name: 'Demo Admin',         role: 'admin',              shift: null, shop: null, created_at: new Date().toISOString() },
+  { id: 'seed-3',  tabelNumber: 'T003', email: 'gca@uzauto.uz',         password: 'gca123',      name: 'GCA Auditor',        role: 'gca_auditor',        shift: null, shop: null, created_at: new Date().toISOString() },
+  { id: 'seed-4',  tabelNumber: 'T004', email: 'cmm@uzauto.uz',         password: 'cmm123',      name: 'CMM Inspector',      role: 'cmm_inspector',      shift: null, shop: null, created_at: new Date().toISOString() },
+  { id: 'seed-5',  tabelNumber: 'T005', email: 'd10@uzauto.uz',         password: 'd10123',      name: 'D10 Inspector',      role: 'd10_inspector',      shift: null, shop: null, created_at: new Date().toISOString() },
+  { id: 'seed-6',  tabelNumber: 'T006', email: 'd20@uzauto.uz',         password: 'd20123',      name: 'D20 Inspector',      role: 'd20_inspector',      shift: null, shop: null, created_at: new Date().toISOString() },
+  { id: 'seed-7',  tabelNumber: 'T007', email: 'engineer@uzauto.uz',    password: 'engineer123', name: 'GA Engineer',        role: 'ga_engineer',        shift: null, shop: null, created_at: new Date().toISOString() },
+  { id: 'seed-8',  tabelNumber: 'T008', email: 'welding@uzauto.uz',     password: 'welding123',  name: 'Welding Engineer',   role: 'welding_engineer',   shift: null, shop: null, created_at: new Date().toISOString() },
+  { id: 'seed-9',  tabelNumber: 'T009', email: 'manager@uzauto.uz',     password: 'manager123',  name: 'Rahbar',             role: 'manager',            shift: null, shop: null, created_at: new Date().toISOString() },
+  { id: 'seed-10', tabelNumber: 'T010', email: 'drr@uzauto.uz',         password: 'drr123',      name: 'DRR Inspector',      role: 'drr_inspector',      shift: null, shop: null, created_at: new Date().toISOString() },
+  { id: 'seed-11', tabelNumber: 'T011', email: 'drl@uzauto.uz',         password: 'drl123',      name: 'DRL Inspector',      role: 'drl_inspector',      shift: null, shop: null, created_at: new Date().toISOString() },
+  { id: 'seed-12', tabelNumber: 'T012', email: 'pdi@uzauto.uz',         password: 'pdi123',      name: 'PDI Inspector',      role: 'pdi_inspector',      shift: null, shop: null, created_at: new Date().toISOString() },
+  { id: 'seed-13', tabelNumber: 'T013', email: 'incoming@uzauto.uz',    password: 'incoming123', name: 'Incoming Inspector', role: 'incoming_inspector', shift: null, shop: null, created_at: new Date().toISOString() },
 ]
 
 // ─── JSON fayldan o'qish ──────────────────────────────────────────────────────
@@ -109,6 +111,8 @@ export const usersCache = {
       password:    r.password ?? '',
       name:        r.name,
       role:        r.role,
+      shift:       r.shift ?? null,
+      shop:        r.shop ?? null,
       created_at:  r.created_at ?? new Date().toISOString(),
     }))
     // DB va seed ni birlashtirish (seed foydalanuvchilar tabel_number bo'lmasa ham kiritilsin)
