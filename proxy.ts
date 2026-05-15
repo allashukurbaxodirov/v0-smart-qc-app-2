@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 // Dashboard sahifalari faqat login qilgan foydalanuvchilar uchun
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const session = request.cookies.get('qc_session')?.value
 
   // /dashboard/* ni himoya qilamiz
