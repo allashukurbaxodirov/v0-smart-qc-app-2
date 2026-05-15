@@ -13,4 +13,22 @@ next.user-config.*
 # Common ignores
 node_modules
 .next/
-.DS_Store.users-local.json
+.DS_Store
+tsconfig.tsbuildinfo
+
+# Runtime data files (server-side cache, not for repo)
+.users-local.json
+.audit-log.json
+.settings.json
+.resolutions-local.json
+.shift-entries.json
+
+# Claude session data
+.claude/
+
+# Bash command artifacts
+cd
+next
+npm
+taskkill
+my-project@0.1.0

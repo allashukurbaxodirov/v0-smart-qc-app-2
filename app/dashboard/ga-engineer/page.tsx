@@ -34,7 +34,7 @@ interface Resolution {
   resolvedAt: string
 }
 
-const STORAGE_KEY = 'ga_engineer_resolutions'
+const RESOLUTION_TYPE = 'ga' as const
 
 // ─── Yordamchi funksiyalar ────────────────────────────────────────────────────
 function getFactorBadge(factor: number) {
@@ -68,18 +68,43 @@ export default function GAEngineerPage() {
     setRefreshing(false)
   }
 
-  // localStorage dan resolutionlarni yuklash
+  // API dan resolutionlarni yuklash
   const [resolutions, setResolutions] = useState<Record<string, Resolution>>({})
   useEffect(() => {
+    // Avval localStorage ni ko'chir (birinchi yuklanish)
     try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      if (saved) setResolutions(JSON.parse(saved))
+      const old = localStorage.getItem('ga_engineer_resolutions')
+      if (old) {
+        const parsed = JSON.parse(old)
+        // Eski localStorage ma'lumotlarini API ga ko'chirish
+        Object.entries(parsed).forEach(([recordId, res]: [string, any]) => {
+          fetch('/api/resolutions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...res, recordId, type: RESOLUTION_TYPE }),
+          }).catch(() => {})
+        })
+        localStorage.removeItem('ga_engineer_resolutions')
+      }
     } catch {}
+    // API dan yuklash
+    fetch(`/api/resolutions?type=${RESOLUTION_TYPE}`)
+      .then(r => r.ok ? r.json() : {})
+      .then(data => setResolutions(data))
+      .catch(() => {})
   }, [])
 
-  const saveResolutions = (updated: Record<string, Resolution>) => {
+  const saveResolutions = async (updated: Record<string, Resolution>, newEntry?: { recordId: string; res: Resolution }) => {
     setResolutions(updated)
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(updated)) } catch {}
+    if (newEntry) {
+      try {
+        await fetch('/api/resolutions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...newEntry.res, recordId: newEntry.recordId, type: RESOLUTION_TYPE }),
+        })
+      } catch {}
+    }
   }
 
   // Filtirlar
@@ -156,21 +181,20 @@ export default function GAEngineerPage() {
     const status: ResolutionStatus =
       form.decision === 'resolved' ? 'yopilgan' : 'uzatilgan'
 
-    const updated = {
-      ...resolutions,
-      [selectedRecord.id]: {
-        status,
-        problemDescription: form.problemDescription,
-        rootCause:          form.rootCause,
-        immediateAction:    form.immediateAction,
-        mainAction:         form.mainAction,
-        decision:           form.decision,
-        transferTarget:     form.transferTarget,
-        transferReason:     form.transferReason,
-        resolvedAt:         new Date().toISOString(),
-      },
+    const newRes: Resolution = {
+      status,
+      problemDescription: form.problemDescription,
+      rootCause:          form.rootCause,
+      immediateAction:    form.immediateAction,
+      mainAction:         form.mainAction,
+      decision:           form.decision,
+      transferTarget:     form.transferTarget,
+      transferReason:     form.transferReason,
+      resolvedAt:         new Date().toISOString(),
     }
-    saveResolutions(updated)
+
+    const updated = { ...resolutions, [selectedRecord.id]: newRes }
+    saveResolutions(updated, { recordId: selectedRecord.id, res: newRes })
 
     setSuccessMsg(
       form.decision === 'resolved'

@@ -2,6 +2,7 @@ import { NextResponse, NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
 import sql from '@/lib/db'
 import { usersCache, CachedUser } from '@/lib/users-cache'
+import { auditLog } from '@/lib/audit-log'
 
 async function getSession() {
   const cookieStore = await cookies()
@@ -22,6 +23,20 @@ const VALID_ROLES = [
   'drr_inspector', 'drl_inspector', 'pdi_inspector', 'incoming_inspector',
 ]
 
+// ─── Helper: CachedUser → snake_case response ────────────────────────────────
+function toSnake(users: Omit<import('@/lib/users-cache').CachedUser, 'password'>[]) {
+  return users.map(u => ({
+    id:           u.id,
+    tabel_number: (u as any).tabelNumber ?? (u as any).tabel_number ?? '',
+    email:        u.email,
+    name:         u.name,
+    role:         u.role,
+    shift:        u.shift ?? null,
+    shop:         u.shop  ?? null,
+    created_at:   u.created_at,
+  }))
+}
+
 // ─── GET: barcha foydalanuvchilar ─────────────────────────────────────────────
 export async function GET() {
   const session = await getSession()
@@ -30,17 +45,17 @@ export async function GET() {
   }
   try {
     const rows = await sql`
-      SELECT id, tabel_number, email, name, role, password, created_at::text
+      SELECT id, tabel_number, email, name, role, password, shift, shop, created_at::text
       FROM users
       ORDER BY tabel_number ASC
     `
     // Shared cache ni yangilaymiz (auth route ham ko'ra olsin)
     usersCache.loadFromDb(rows as any[])
-    return NextResponse.json(usersCache.getAll())
+    return NextResponse.json(toSnake(usersCache.getAll()))
   } catch (e) {
     console.warn('users GET (DB unavailable):', (e as Error).message)
     // DB o'chiq — shared cache dan qaytaramiz (seed + qo'shilganlar)
-    return NextResponse.json(usersCache.getAll())
+    return NextResponse.json(toSnake(usersCache.getAll()))
   }
 }
 
@@ -101,9 +116,18 @@ export async function POST(req: NextRequest) {
 
     // Ikkala holatda ham shared cache ga qo'shamiz
     usersCache.add(newUser)
+    auditLog.add({ actor: session.tabelNumber ?? '?', actorName: session.name, actorRole: session.role, action: 'CREATE_USER', target: tNum, details: `Rol: ${role}, Smena: ${shiftVal ?? '—'}, Sexi: ${shopVal ?? '—'}`, ok: true })
 
-    const { password: _p, ...safeUser } = newUser
-    return NextResponse.json(safeUser, { status: 201 })
+    return NextResponse.json({
+      id:           newUser.id,
+      tabel_number: newUser.tabelNumber,
+      email:        newUser.email,
+      name:         newUser.name,
+      role:         newUser.role,
+      shift:        newUser.shift,
+      shop:         newUser.shop,
+      created_at:   newUser.created_at,
+    }, { status: 201 })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? 'Xatolik' }, { status: 500 })
   }
@@ -140,6 +164,8 @@ export async function PATCH(req: NextRequest) {
     } catch (dbErr) {
       console.warn('users PATCH (DB unavailable), updated in cache only:', (dbErr as Error).message)
     }
+    const edited = usersCache.getAll().find((u: any) => u.id === id)
+    auditLog.add({ actor: session.tabelNumber ?? '?', actorName: session.name, actorRole: session.role, action: password ? 'RESET_PASSWORD' : 'EDIT_USER', target: (edited as any)?.tabelNumber ?? id, details: `Yangi rol: ${role}, Smena: ${shiftVal ?? '—'}, Sexi: ${shopVal ?? '—'}`, ok: true })
     return NextResponse.json({ ok: true })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? 'Xatolik' }, { status: 500 })
@@ -159,6 +185,7 @@ export async function DELETE(req: NextRequest) {
     // Shared cache dan o'chiramiz
     usersCache.remove(id)
 
+    const deleted = usersCache.getAll().find((u: any) => u.id === id)
     try {
       const myTabel = session.tabelNumber ?? ''
       if (myTabel) {
@@ -169,6 +196,7 @@ export async function DELETE(req: NextRequest) {
     } catch (dbErr) {
       console.warn('users DELETE (DB unavailable), removed from cache only:', (dbErr as Error).message)
     }
+    auditLog.add({ actor: session.tabelNumber ?? '?', actorName: session.name, actorRole: session.role, action: 'DELETE_USER', target: (deleted as any)?.tabelNumber ?? id, details: `Rol: ${(deleted as any)?.role ?? '?'}`, ok: true })
     return NextResponse.json({ ok: true })
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? 'Xatolik' }, { status: 500 })

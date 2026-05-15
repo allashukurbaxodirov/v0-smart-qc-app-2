@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import sql from '@/lib/db'
 import { usersCache } from '@/lib/users-cache'
+import { auditLog } from '@/lib/audit-log'
 
 const ROLE_REDIRECTS: Record<string, string> = {
   superadmin:         '/dashboard/superadmin',
@@ -51,6 +52,7 @@ export async function POST(request: Request) {
     }
 
     if (dbUser) {
+      auditLog.add({ actor: dbUser.tabel_number ?? tabelNumber ?? '', actorName: dbUser.name, actorRole: dbUser.role, action: 'LOGIN', ok: true })
       return buildResponse({
         tabelNumber: dbUser.tabel_number ?? tabelNumber ?? '',
         email:       dbUser.email ?? null,
@@ -75,6 +77,7 @@ export async function POST(request: Request) {
       })()
 
   if (cached) {
+    auditLog.add({ actor: cached.tabelNumber, actorName: cached.name, actorRole: cached.role, action: 'LOGIN', ok: true })
     return buildResponse({
       tabelNumber: cached.tabelNumber,
       email:       cached.email,
@@ -86,6 +89,7 @@ export async function POST(request: Request) {
   }
 
   // ── 3. Hech yerda topilmadi ───────────────────────────────────────────────
+  auditLog.add({ actor: tabelNumber ?? email ?? 'unknown', actorName: '?', actorRole: '?', action: 'LOGIN_FAIL', ok: false, details: 'Noto\'g\'ri tabel/parol' })
   return NextResponse.json({ error: "Tabel raqami yoki parol noto'g'ri" }, { status: 401 })
 }
 

@@ -45,36 +45,82 @@ export function ShiftProvider({ children }: { children: React.ReactNode }) {
   const [entries, setEntries] = useState<ShiftEntry[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Yuklash: avval API, keyin localStorage fallback
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY)
-      if (raw) setEntries(JSON.parse(raw))
-    } catch {}
-    setLoading(false)
+    const migrateLocalStorage = async (apiData: ShiftEntry[]) => {
+      try {
+        const raw = localStorage.getItem(LS_KEY)
+        if (!raw) return
+        const localEntries: ShiftEntry[] = JSON.parse(raw)
+        const apiIds = new Set(apiData.map(e => e.id))
+        const toMigrate = localEntries.filter(e => !apiIds.has(e.id))
+        for (const e of toMigrate) {
+          await fetch('/api/shift-entries', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(e),
+          }).catch(() => {})
+        }
+        localStorage.removeItem(LS_KEY)
+      } catch {}
+    }
+
+    fetch('/api/shift-entries')
+      .then(r => r.ok ? r.json() : null)
+      .then(async (data: ShiftEntry[] | null) => {
+        if (data) {
+          await migrateLocalStorage(data)
+          // Re-fetch after migration
+          const fresh = await fetch('/api/shift-entries').then(r => r.ok ? r.json() : data).catch(() => data)
+          setEntries(fresh)
+        } else {
+          // API unavailable — fallback to localStorage
+          try {
+            const raw = localStorage.getItem(LS_KEY)
+            if (raw) setEntries(JSON.parse(raw))
+          } catch {}
+        }
+        setLoading(false)
+      })
+      .catch(() => {
+        try {
+          const raw = localStorage.getItem(LS_KEY)
+          if (raw) setEntries(JSON.parse(raw))
+        } catch {}
+        setLoading(false)
+      })
   }, [])
 
-  const persist = (next: ShiftEntry[]) => {
-    setEntries(next)
-    try { localStorage.setItem(LS_KEY, JSON.stringify(next)) } catch {}
-  }
-
   const upsertEntry = useCallback((e: Omit<ShiftEntry, 'id'> & { id?: string }) => {
+    const id    = e.id ?? `se-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+    const entry: ShiftEntry = { ...e, id } as ShiftEntry
+
     setEntries(prev => {
-      const id = e.id ?? `se-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-      const entry: ShiftEntry = { ...e, id } as ShiftEntry
       const exists = prev.some(x => x.id === id)
-      const next = exists
-        ? prev.map(x => (x.id === id ? entry : x))
-        : [entry, ...prev]
-      try { localStorage.setItem(LS_KEY, JSON.stringify(next)) } catch {}
-      return next
+      return exists ? prev.map(x => (x.id === id ? entry : x)) : [entry, ...prev]
+    })
+
+    // API ga saqlash
+    fetch('/api/shift-entries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(entry),
+    }).catch(() => {
+      // API unavailable — localStorage fallback
+      setEntries(prev => {
+        try { localStorage.setItem(LS_KEY, JSON.stringify(prev)) } catch {}
+        return prev
+      })
     })
   }, [])
 
   const deleteEntry = useCallback((id: string) => {
     setEntries(prev => {
       const next = prev.filter(x => x.id !== id)
-      try { localStorage.setItem(LS_KEY, JSON.stringify(next)) } catch {}
+      // API ga o'chirish
+      fetch(`/api/shift-entries?id=${id}`, { method: 'DELETE' }).catch(() => {
+        try { localStorage.setItem(LS_KEY, JSON.stringify(next)) } catch {}
+      })
       return next
     })
   }, [])

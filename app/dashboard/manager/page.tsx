@@ -345,7 +345,7 @@ export default function ManagerPage() {
 
           {/* Yangilash */}
           <div className="ml-auto flex items-center gap-2">
-            <span className="hidden sm:block text-xs text-muted-foreground">
+            <span suppressHydrationWarning className="hidden sm:block text-xs text-muted-foreground">
               {lastUpdated.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
             <button

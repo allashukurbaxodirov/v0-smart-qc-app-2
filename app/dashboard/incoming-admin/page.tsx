@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import PageHeader from '@/components/dashboard/page-header'
 import { useIncoming } from '@/lib/incoming-context'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Check, Trash2, Upload, ChevronLeft } from 'lucide-react'
+import { Check, Trash2, Upload, ChevronLeft, Lock } from 'lucide-react'
 import Link from 'next/link'
 
 // ─── Nuqson kodlari ────────────────────────────────────────────────────────────
@@ -32,6 +32,8 @@ type Shift = 'A' | 'B' | 'D'
 
 const today = () => new Date().toISOString().split('T')[0]
 
+const LOCKED_ROLES = ['incoming_inspector']
+
 // ─── Asosiy komponent ─────────────────────────────────────────────────────────
 export default function IncomingAdminPage() {
   const { records, addRecord, deleteRecord, loading } = useIncoming()
@@ -40,6 +42,14 @@ export default function IncomingAdminPage() {
   const [filterWarehouse, setFilterWarehouse] = useState('')
   const [filterShift, setFilterShift] = useState('')
   const [sortBy, setSortBy] = useState<'date' | 'defect'>('date')
+
+  // Session — shift locking
+  const [session, setSession] = useState<{ role: string; shift: string | null } | null>(null)
+  useEffect(() => {
+    fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => { if (d) setSession(d) })
+  }, [])
+  const isLocked    = session ? LOCKED_ROLES.includes(session.role) : false
+  const lockedShift = (isLocked && session?.shift) ? session.shift as Shift : null
 
   const [form, setForm] = useState({
     partNumber:   '',
@@ -54,6 +64,11 @@ export default function IncomingAdminPage() {
     date:         today(),
     image:        null as File | null,
   })
+
+  // Agar smena qulflangan bo'lsa, formani avtomatik yangilash
+  useEffect(() => {
+    if (lockedShift) setForm(prev => ({ ...prev, shift: lockedShift }))
+  }, [lockedShift])
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
@@ -310,23 +325,31 @@ export default function IncomingAdminPage() {
 
                 {/* 8. Smena */}
                 <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-foreground">Smena</label>
-                  <div className="flex gap-2">
-                    {(['A', 'B', 'D'] as Shift[]).map(s => (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => setForm(prev => ({ ...prev, shift: s }))}
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all border-2 ${
-                          form.shift === s
-                            ? 'bg-primary border-primary text-primary-foreground'
-                            : 'border-border text-muted-foreground hover:border-primary/40'
-                        }`}
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
+                  <label className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                    Smena {isLocked && lockedShift && <Lock className="w-3 h-3 text-muted-foreground" />}
+                  </label>
+                  {isLocked && lockedShift ? (
+                    <div className="w-full px-3 py-2 bg-muted/40 border border-border rounded-lg text-sm font-bold text-foreground flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-primary" />Smena {lockedShift}
+                    </div>
+                  ) : (
+                    <div className="flex gap-2">
+                      {(['A', 'B', 'D'] as Shift[]).map(s => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => setForm(prev => ({ ...prev, shift: s }))}
+                          className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all border-2 ${
+                            form.shift === s
+                              ? 'bg-primary border-primary text-primary-foreground'
+                              : 'border-border text-muted-foreground hover:border-primary/40'
+                          }`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* 9. Sana */}
