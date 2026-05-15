@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import PageHeader from '@/components/dashboard/page-header'
 import { useGCA } from '@/lib/gca-context'
 import { useDRecords } from '@/lib/d-records-context'
@@ -412,9 +412,8 @@ export default function ManagerPage() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {shopMetrics.map(m => (
-                    <>
+                    <React.Fragment key={m.shop}>
                       <tr
-                        key={m.shop}
                         onClick={() => setExpandedShop(expandedShop === m.shop ? null : m.shop)}
                         className={`cursor-pointer transition-colors hover:bg-muted/20 ${ST[m.ov].row}`}
                       >
@@ -457,7 +456,7 @@ export default function ManagerPage() {
                           <td className="px-4 py-2.5 text-center text-sm text-muted-foreground/40">—</td>
                         </tr>
                       ))}
-                    </>
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
