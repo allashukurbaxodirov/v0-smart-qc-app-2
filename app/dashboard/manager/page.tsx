@@ -176,8 +176,14 @@ export default function ManagerPage() {
     return () => clearInterval(id)
   }, [refreshAll])
 
+  // Barcha D10/D20 — sektor tahlili va lineDetail uchun (filtrlanmagan)
   const d10Recs = useMemo(() => dAllRecs.filter(r => r.type === 'd10'), [dAllRecs])
   const d20Recs = useMemo(() => dAllRecs.filter(r => r.type === 'd20'), [dAllRecs])
+
+  // Tanlangan sana bo'yicha filtrlangan — shopMetrics uchun
+  const filteredGcaRecs = useMemo(() => gcaRecs.filter(r => r.date === activeDate), [gcaRecs, activeDate])
+  const filteredD10Recs = useMemo(() => d10Recs.filter(r => r.date === activeDate), [d10Recs, activeDate])
+  const filteredD20Recs = useMemo(() => d20Recs.filter(r => r.date === activeDate), [d20Recs, activeDate])
 
   const shiftEntries = useMemo(
     () => allShiftEntries.filter(e => e.shift === activeShift && e.date === activeDate),
@@ -195,11 +201,11 @@ export default function ManagerPage() {
   )
 
   const shopMetrics = useMemo(() => SHOPS_ALL.map(shop => {
-    const gcaCnt = gcaRecs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
+    const gcaCnt = filteredGcaRecs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
     const wdpv   = VEHICLES > 0 ? gcaCnt / VEHICLES : 0
     const gs     = gcaSt(wdpv, shop)
-    const d10cnt = d10Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
-    const d20cnt = d20Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
+    const d10cnt = filteredD10Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
+    const d20cnt = filteredD20Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
     const shopQR = filteredQRecs.filter(r => r.shop === shop)
     const drr    = shopQR.filter(r => r.type === 'drr').reduce((s, r) => s + r.count, 0)
     const drl    = shopQR.filter(r => r.type === 'drl').reduce((s, r) => s + r.count, 0)
@@ -207,27 +213,27 @@ export default function ManagerPage() {
     const inc    = shiftEntries.filter(e => e.shop === shop).reduce((s, e) => s + e.incoming, 0)
     const ov     = overall(gs, dCntSt(d10cnt), dCntSt(d20cnt), drrSt(drr), drlSt(drl), incSt(inc), pdiSt(pdi))
     return { shop, wdpv, gs, d10cnt, d20cnt, drr, drl, inc, pdi, ov }
-  }), [gcaRecs, d10Recs, d20Recs, filteredQRecs, shiftEntries, targetsVer])
+  }), [filteredGcaRecs, filteredD10Recs, filteredD20Recs, filteredQRecs, shiftEntries, targetsVer])
 
   const plant = useMemo(() => ({
-    wdpv:          VEHICLES > 0 ? gcaRecs.reduce((s, r) => s + r.count, 0) / VEHICLES : 0,
-    d10:           d10Recs.reduce((s, r) => s + r.count, 0),
-    d20:           d20Recs.reduce((s, r) => s + r.count, 0),
+    wdpv:          VEHICLES > 0 ? filteredGcaRecs.reduce((s, r) => s + r.count, 0) / VEHICLES : 0,
+    d10:           filteredD10Recs.reduce((s, r) => s + r.count, 0),
+    d20:           filteredD20Recs.reduce((s, r) => s + r.count, 0),
     drr:           filteredQRecs.filter(r => r.type === 'drr').reduce((s, r) => s + r.count, 0),
     drl:           filteredQRecs.filter(r => r.type === 'drl').reduce((s, r) => s + r.count, 0),
     pdi:           filteredQRecs.filter(r => r.type === 'pdi').reduce((s, r) => s + r.count, 0),
     incomingTotal: filteredIncoming.reduce((s, r) => s + r.totalCount,  0),
     incomingDefect:filteredIncoming.reduce((s, r) => s + r.defectCount, 0),
-  }), [gcaRecs, d10Recs, d20Recs, filteredQRecs, filteredIncoming, targetsVer])
+  }), [filteredGcaRecs, filteredD10Recs, filteredD20Recs, filteredQRecs, filteredIncoming, targetsVer])
 
   const gcaChart = useMemo(() => SHOPS_ALL.map(shop => ({
     shop:   shop.replace(' SHOP', '').replace('WELDING-', 'W-'),
-    actual: parseFloat((VEHICLES > 0 ? gcaRecs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0) / VEHICLES : 0).toFixed(2)),
+    actual: parseFloat((VEHICLES > 0 ? filteredGcaRecs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0) / VEHICLES : 0).toFixed(2)),
     target: GCA_TARGETS[shop] ?? 0.5,
-  })), [gcaRecs, targetsVer])
+  })), [filteredGcaRecs, targetsVer])
 
   function dChart(type: 'd10' | 'd20') {
-    const recs = type === 'd10' ? d10Recs : d20Recs
+    const recs = type === 'd10' ? filteredD10Recs : filteredD20Recs
     return D_SHOPS.map(shop => {
       const sr = recs.filter(r => r.shop === shop)
       return {
@@ -243,17 +249,26 @@ export default function ManagerPage() {
   const lineDetail = useMemo(() => {
     if (!expandedShop) return []
     return SHOP_LINES[expandedShop].map(line => {
-      const le     = shiftEntries.filter(e => e.shop === expandedShop && e.line === line)
-      const lineQR = filteredQRecs.filter(r => r.shop === expandedShop && r.sector === line)
+      const le      = shiftEntries.filter(e => e.shop === expandedShop && e.line === line)
+      const lineQR  = filteredQRecs.filter(r => r.shop === expandedShop && r.sector === line)
+      const lineGCA = gcaRecs.filter(r => r.shop === expandedShop && r.sector === line)
+      const lineD10 = d10Recs.filter(r => r.shop === expandedShop && r.sector === line)
+      const lineD20 = d20Recs.filter(r => r.shop === expandedShop && r.sector === line)
+      const gcaCnt  = lineGCA.reduce((s, r) => s + r.count, 0)
+      const wdpv    = VEHICLES > 0 ? gcaCnt / VEHICLES : 0
       return {
         line,
-        drr: lineQR.filter(r => r.type === 'drr').reduce((s, r) => s + r.count, 0),
-        drl: lineQR.filter(r => r.type === 'drl').reduce((s, r) => s + r.count, 0),
-        inc: le.reduce((s, e) => s + e.incoming, 0),
-        pdi: lineQR.filter(r => r.type === 'pdi').reduce((s, r) => s + r.count, 0),
+        wdpv,
+        gs:     gcaSt(wdpv, expandedShop),
+        d10cnt: lineD10.reduce((s, r) => s + r.count, 0),
+        d20cnt: lineD20.reduce((s, r) => s + r.count, 0),
+        drr:    lineQR.filter(r => r.type === 'drr').reduce((s, r) => s + r.count, 0),
+        drl:    lineQR.filter(r => r.type === 'drl').reduce((s, r) => s + r.count, 0),
+        inc:    le.reduce((s, e) => s + e.incoming, 0),
+        pdi:    lineQR.filter(r => r.type === 'pdi').reduce((s, r) => s + r.count, 0),
       }
     })
-  }, [expandedShop, shiftEntries, filteredQRecs])
+  }, [expandedShop, shiftEntries, filteredQRecs, gcaRecs, d10Recs, d20Recs])
 
   const critCount = shopMetrics.filter(s => s.ov === 'crit').length
   const warnCount = shopMetrics.filter(s => s.ov === 'warn').length
@@ -441,7 +456,7 @@ export default function ManagerPage() {
                         </td>
                       </tr>
 
-                      {expandedShop === m.shop && lineDetail.map(({ line, drr, drl, pdi }) => (
+                      {expandedShop === m.shop && lineDetail.map(({ line, wdpv, gs, d10cnt, d20cnt, drr, drl, pdi }) => (
                         <tr key={line} className="bg-muted/5 hover:bg-muted/15 transition-colors">
                           <td className="px-5 py-2.5 pl-12">
                             <div className="flex items-center gap-2">
@@ -449,7 +464,9 @@ export default function ManagerPage() {
                               <span className="text-sm text-muted-foreground font-medium">{line}</span>
                             </div>
                           </td>
-                          <td colSpan={3} className="px-3 py-2.5 text-center text-sm text-muted-foreground/40">—</td>
+                          <MCell v={parseFloat(wdpv.toFixed(2))} st={gs} f2 />
+                          <MCell v={d10cnt} st={dCntSt(d10cnt)} />
+                          <MCell v={d20cnt} st={dCntSt(d20cnt)} />
                           <MCell v={drr} st={drrSt(drr)} />
                           <MCell v={drl} st={drlSt(drl)} />
                           <MCell v={pdi} st={pdiSt(pdi)} />
@@ -463,7 +480,7 @@ export default function ManagerPage() {
             </div>
 
             <div className="px-5 py-2.5 border-t border-border bg-muted/10 text-xs text-muted-foreground">
-              Sehni bosing — liniyalar ma'lumoti ochiladi
+              Sehni bosing — sektorlar bo'yicha GCA, D10, D20, DRR, DRL, PDI ko'rsatkichlari ochiladi
             </div>
           </div>
 
@@ -660,10 +677,14 @@ export default function ManagerPage() {
                 data={SHOPS_ALL.map(shop => {
                   const sq = filteredQRecs.filter(r => r.shop === shop)
                   const se = shiftEntries.filter(e => e.shop === shop)
+                  const d10 = filteredD10Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
+                  const d20 = filteredD20Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
                   return {
                     shop:     shop.replace(' SHOP', '').replace('WELDING-', 'W-'),
                     DRR:      sq.filter(r => r.type === 'drr').reduce((s, r) => s + r.count, 0),
                     DRL:      sq.filter(r => r.type === 'drl').reduce((s, r) => s + r.count, 0),
+                    D10:      d10,
+                    D20:      d20,
                     Kiruvchi: se.reduce((s, e) => s + e.incoming, 0),
                     PDI:      sq.filter(r => r.type === 'pdi').reduce((s, r) => s + r.count, 0),
                   }
@@ -677,8 +698,10 @@ export default function ManagerPage() {
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="DRR"      name="DRR"      fill="#ea580c" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="DRL"      name="DRL"      fill="#ca8a04" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="D10"      name="D10"      fill="#7c3aed" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="D20"      name="D20"      fill="#4f46e5" radius={[3, 3, 0, 0]} />
                 <Bar dataKey="Kiruvchi" name="Kiruvchi" fill="#0891b2" radius={[3, 3, 0, 0]} />
-                <Bar dataKey="PDI"      name="PDI"      fill="#7c3aed" radius={[3, 3, 0, 0]} />
+                <Bar dataKey="PDI"      name="PDI"      fill="#16a34a" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
