@@ -10,8 +10,9 @@ import {
   X, UserPlus, ShieldCheck, Activity,
   Loader2, Search, LogIn,
   AlertCircle, Key,
-  Clock, UserX,
+  Clock, UserX, LayoutGrid,
 } from 'lucide-react'
+import Link from 'next/link'
 
 // ─── Konstantalar ─────────────────────────────────────────────────────────────
 const ROLES: {
@@ -366,6 +367,7 @@ export default function SuperAdminPage() {
       <div className="p-6 space-y-6">
 
         {/* ── Tabs ──────────────────────────────────────────────────────────── */}
+        <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1 p-1 bg-muted/40 rounded-xl border border-border w-fit flex-wrap">
           {([
             { key: 'users',    label: 'Foydalanuvchilar', icon: <Users    className="w-4 h-4" />, badge: stats.noShift + stats.noShop > 0 ? stats.noShift + stats.noShop : null },
@@ -390,6 +392,14 @@ export default function SuperAdminPage() {
               )}
             </button>
           ))}
+        </div>
+
+        {/* Profil diagnostika tugmasi */}
+        <Link href="/dashboard/superadmin/profiles">
+          <Button variant="outline" size="sm" className="gap-1.5 border-primary/40 text-primary hover:bg-primary/5">
+            <LayoutGrid className="w-4 h-4" /> Profil diagnostika
+          </Button>
+        </Link>
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════
