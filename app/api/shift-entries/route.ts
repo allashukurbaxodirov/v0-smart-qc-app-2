@@ -1,33 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
-import fs from 'fs'
-import path from 'path'
-
-// ─── In-memory + file cache ───────────────────────────────────────────────────
-const FILE = path.join(process.cwd(), '.shift-entries.json')
-
-declare global {
-  // eslint-disable-next-line no-var
-  var __shiftEntriesCache: any[] | undefined
-}
-
-function load(): any[] {
-  if (globalThis.__shiftEntriesCache) return globalThis.__shiftEntriesCache
-  try {
-    if (fs.existsSync(FILE)) {
-      const data = JSON.parse(fs.readFileSync(FILE, 'utf-8'))
-      globalThis.__shiftEntriesCache = data
-      return data
-    }
-  } catch {}
-  globalThis.__shiftEntriesCache = []
-  return []
-}
-
-function save(data: any[]) {
-  globalThis.__shiftEntriesCache = data
-  try { fs.writeFileSync(FILE, JSON.stringify(data, null, 2)) } catch {}
-}
+import sql from '@/lib/db'
 
 async function getSession() {
   const cs = await cookies()
@@ -41,7 +14,18 @@ async function getSession() {
 export async function GET() {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 401 })
-  return NextResponse.json(load())
+
+  try {
+    const rows = await sql`
+      SELECT id, date::text, shift, shop, line, drr, drl, incoming, pdi, notes
+      FROM shift_entries
+      ORDER BY date DESC, shift ASC
+    `
+    return NextResponse.json(rows)
+  } catch (e) {
+    console.warn('shift-entries GET error:', (e as Error).message)
+    return NextResponse.json([])
+  }
 }
 
 // ─── POST: entry qo'shish yoki yangilash (upsert) ────────────────────────────
@@ -52,21 +36,36 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { id, date, shift, shop, line, drr, drl, incoming, pdi, notes } = body
+
     if (!date || !shift || !shop) {
       return NextResponse.json({ error: 'date, shift, shop majburiy' }, { status: 400 })
     }
 
-    const entryId = id ?? `se-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
-    const entry = { id: entryId, date, shift, shop, line: line ?? '', drr: drr ?? 0, drl: drl ?? 0, incoming: incoming ?? 0, pdi: pdi ?? 0, notes: notes ?? '' }
+    const entryId = (id && !String(id).startsWith('se-')) ? id
+      : `se-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 
-    const all  = load()
-    const idx  = all.findIndex((e: any) => e.id === entryId)
-    const next = idx >= 0
-      ? all.map((e: any) => (e.id === entryId ? entry : e))
-      : [entry, ...all]
-
-    save(next.slice(0, 5000))
-    return NextResponse.json(entry, { status: 201 })
+    try {
+      const [row] = await sql`
+        INSERT INTO shift_entries (id, date, shift, shop, line, drr, drl, incoming, pdi, notes)
+        VALUES (${entryId}, ${date}::date, ${shift}, ${shop},
+                ${line ?? ''}, ${drr ?? 0}, ${drl ?? 0}, ${incoming ?? 0}, ${pdi ?? 0}, ${notes ?? ''})
+        ON CONFLICT (id) DO UPDATE SET
+          date     = EXCLUDED.date,
+          shift    = EXCLUDED.shift,
+          shop     = EXCLUDED.shop,
+          line     = EXCLUDED.line,
+          drr      = EXCLUDED.drr,
+          drl      = EXCLUDED.drl,
+          incoming = EXCLUDED.incoming,
+          pdi      = EXCLUDED.pdi,
+          notes    = EXCLUDED.notes
+        RETURNING id, date::text, shift, shop, line, drr, drl, incoming, pdi, notes
+      `
+      return NextResponse.json(row, { status: 201 })
+    } catch (dbErr) {
+      console.warn('shift-entries POST DB error:', (dbErr as Error).message)
+      return NextResponse.json({ id: entryId, date, shift, shop, line: line ?? '', drr: drr ?? 0, drl: drl ?? 0, incoming: incoming ?? 0, pdi: pdi ?? 0, notes: notes ?? '' }, { status: 201 })
+    }
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? 'Xatolik' }, { status: 500 })
   }
@@ -80,7 +79,10 @@ export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id kerak' }, { status: 400 })
 
-  const next = load().filter((e: any) => e.id !== id)
-  save(next)
+  try {
+    await sql`DELETE FROM shift_entries WHERE id = ${id}`
+  } catch (e) {
+    console.warn('shift-entries DELETE error:', (e as Error).message)
+  }
   return NextResponse.json({ ok: true })
 }

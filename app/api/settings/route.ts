@@ -1,9 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
-import fs from 'fs'
-import path from 'path'
-
-const FILE = path.join(process.cwd(), '.settings.json')
+import sql from '@/lib/db'
 
 export interface AppSettings {
   companyName:       string
@@ -39,29 +36,6 @@ const DEFAULTS: AppSettings = {
   alertHighDefect:  true,
 }
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __appSettings: AppSettings | undefined
-}
-
-function load(): AppSettings {
-  if (globalThis.__appSettings) return globalThis.__appSettings
-  try {
-    if (fs.existsSync(FILE)) {
-      const s = JSON.parse(fs.readFileSync(FILE, 'utf-8'))
-      globalThis.__appSettings = { ...DEFAULTS, ...s }
-      return globalThis.__appSettings!
-    }
-  } catch {}
-  globalThis.__appSettings = { ...DEFAULTS }
-  return globalThis.__appSettings
-}
-
-function persist(s: AppSettings) {
-  globalThis.__appSettings = s
-  try { fs.writeFileSync(FILE, JSON.stringify(s, null, 2)) } catch {}
-}
-
 async function getSession() {
   const cs = await cookies()
   const raw = cs.get('qc_session')?.value
@@ -72,7 +46,16 @@ async function getSession() {
 export async function GET() {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 401 })
-  return NextResponse.json(load())
+
+  try {
+    const [row] = await sql`
+      SELECT value FROM app_settings WHERE key = 'main' LIMIT 1
+    `
+    if (row) return NextResponse.json({ ...DEFAULTS, ...row.value })
+  } catch (e) {
+    console.warn('settings GET error:', (e as Error).message)
+  }
+  return NextResponse.json(DEFAULTS)
 }
 
 export async function POST(req: NextRequest) {
@@ -80,10 +63,23 @@ export async function POST(req: NextRequest) {
   if (!session || !['superadmin', 'admin'].includes(session.role)) {
     return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 401 })
   }
+
   try {
     const body = await req.json()
-    const updated: AppSettings = { ...load(), ...body }
-    persist(updated)
+    const updated: AppSettings = { ...DEFAULTS, ...body }
+
+    try {
+      await sql`
+        INSERT INTO app_settings (key, value, updated_at)
+        VALUES ('main', ${JSON.stringify(updated)}::jsonb, NOW())
+        ON CONFLICT (key) DO UPDATE SET
+          value      = EXCLUDED.value,
+          updated_at = NOW()
+      `
+    } catch (dbErr) {
+      console.warn('settings POST DB error:', (dbErr as Error).message)
+    }
+
     return NextResponse.json(updated)
   } catch (e: any) {
     return NextResponse.json({ error: e?.message ?? 'Xatolik' }, { status: 500 })

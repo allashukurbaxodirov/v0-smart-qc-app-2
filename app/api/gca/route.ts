@@ -9,110 +9,86 @@ async function getSession() {
   try { return JSON.parse(raw) } catch { return null }
 }
 
-// ─── Server-side in-memory cache ─────────────────────────────────────────────
-interface CachedRecord {
-  id: string
-  shop: string
-  sector: string | null
-  code: string
-  code_name: string
-  factor: number
-  count: number
-  notes: string | null
-  image_url: string | null
-  date: string
-  created_by_name?: string | null
-}
-
-const memCache: CachedRecord[] = []
-
-// ─── GET — auth talab qilinmaydi (barcha login qilgan userlar ko'radi) ────────
+// ─── GET ──────────────────────────────────────────────────────────────────────
 export async function GET() {
   try {
     const rows = await sql`
       SELECT
         r.id, r.shop, r.sector, r.code, r.code_name, r.factor,
         r.count, r.notes, r.image_url,
-        r.created_at::date::text AS date,
+        COALESCE(r.date::text, r.created_at::date::text) AS date,
+        COALESCE(r.shift, 'A') AS shift,
         u.name AS created_by_name
       FROM gca_records r
       LEFT JOIN users u ON u.id = r.created_by
       ORDER BY r.created_at DESC
     `
-    rows.forEach((row: any) => {
-      if (!memCache.find((c) => c.id === row.id)) {
-        memCache.unshift(row)
-      }
-    })
-  } catch {
-    // DB o'chiq — cache dan qaytaramiz
+    return NextResponse.json(rows)
+  } catch (e) {
+    console.warn('gca GET error:', (e as Error).message)
+    return NextResponse.json([])
   }
-  return NextResponse.json(memCache)
 }
 
-// ─── POST — faqat login qilganlar yozuv qo'sha oladi ─────────────────────────
+// ─── POST ─────────────────────────────────────────────────────────────────────
 export async function POST(request: Request) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { shop, sector, code, codeName, factor, count, notes, imageUrl } = body
+  const { shop, sector, code, codeName, factor, count, notes, imageUrl, date, shift } = body
 
   if (!shop || !code || !codeName || !factor || !count) {
     return NextResponse.json({ error: "Barcha maydonlar to'ldirilishi shart" }, { status: 400 })
   }
 
+  const recordDate  = date  ?? new Date().toISOString().split('T')[0]
+  const recordShift = shift ?? 'A'
+
   try {
-    // tabelNumber yoki email bilan user ni topamiz
     const tabel = session.tabelNumber ?? ''
-    const email = session.email ?? ''
     const [user] = tabel
       ? await sql`SELECT id FROM users WHERE tabel_number = ${tabel} LIMIT 1`
-      : await sql`SELECT id FROM users WHERE email = ${email} LIMIT 1`
+      : await sql`SELECT id FROM users WHERE email = ${session.email ?? ''} LIMIT 1`
 
     const [record] = await sql`
-      INSERT INTO gca_records (shop, sector, code, code_name, factor, count, notes, image_url, created_by)
-      VALUES (${shop}, ${sector ?? null}, ${code}, ${codeName}, ${factor}, ${count}, ${notes ?? null}, ${imageUrl ?? null}, ${user?.id ?? null})
-      RETURNING id, shop, sector, code, code_name, factor, count, notes, image_url, created_at::date::text AS date
+      INSERT INTO gca_records (shop, sector, code, code_name, factor, count, notes, image_url, created_by, date, shift)
+      VALUES (${shop}, ${sector ?? null}, ${code}, ${codeName}, ${factor}, ${count},
+              ${notes ?? null}, ${imageUrl ?? null}, ${user?.id ?? null},
+              ${recordDate}::date, ${recordShift})
+      RETURNING id, shop, sector, code, code_name, factor, count, notes, image_url,
+                date::text, shift, created_at::date::text AS created_date
     `
-    memCache.unshift({ ...record, created_by_name: session.name ?? null } as CachedRecord)
-    return NextResponse.json(record, { status: 201 })
-  } catch {
-    const tempRecord: CachedRecord = {
+    return NextResponse.json({
+      ...record,
+      date:             record.date ?? record.created_date,
+      created_by_name:  session.name ?? null,
+    }, { status: 201 })
+  } catch (e) {
+    // DB o'chiq — temp ID bilan qaytaramiz
+    console.warn('gca POST fallback:', (e as Error).message)
+    return NextResponse.json({
       id:              `mem-${Date.now()}`,
-      shop,
-      sector:          sector ?? null,
-      code,
+      shop, sector: sector ?? null, code,
       code_name:       codeName,
-      factor:          Number(factor),
-      count:           Number(count),
-      notes:           notes ?? null,
-      image_url:       imageUrl ?? null,
-      date:            new Date().toISOString().split('T')[0],
+      factor:          Number(factor), count: Number(count),
+      notes:           notes ?? null, image_url: imageUrl ?? null,
+      date:            recordDate, shift: recordShift,
       created_by_name: session.name ?? null,
-    }
-    memCache.unshift(tempRecord)
-    return NextResponse.json(tempRecord, { status: 201 })
+    }, { status: 201 })
   }
 }
 
-// ─── DELETE — faqat login qilganlar o'chira oladi ─────────────────────────────
+// ─── DELETE ───────────────────────────────────────────────────────────────────
 export async function DELETE(request: Request) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { searchParams } = new URL(request.url)
-  const id = searchParams.get('id')
+  const id = new URL(request.url).searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'ID kerak' }, { status: 400 })
 
-  const idx = memCache.findIndex((c) => c.id === id)
-  if (idx !== -1) memCache.splice(idx, 1)
-
   if (!id.startsWith('mem-')) {
-    try {
-      await sql`DELETE FROM gca_records WHERE id = ${id}`
-    } catch {}
+    try { await sql`DELETE FROM gca_records WHERE id = ${id}` } catch {}
   }
-
   return NextResponse.json({ ok: true })
 }

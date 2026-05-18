@@ -22,6 +22,7 @@ interface CachedRecord {
   notes: string | null
   image_url: string | null
   date: string
+  shift?: string
   created_by_name?: string | null
 }
 
@@ -34,7 +35,8 @@ export async function GET() {
       SELECT
         r.id, r.type, r.shop, r.sector, r.code, r.code_name, r.factor,
         r.count, r.notes, r.image_url,
-        r.created_at::date::text AS date,
+        COALESCE(r.date::text, r.created_at::date::text) AS date,
+        COALESCE(r.shift, 'A') AS shift,
         u.name AS created_by_name
       FROM d_records r
       LEFT JOIN users u ON u.id = r.created_by
@@ -57,23 +59,28 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { type, shop, sector, code, codeName, factor, count, notes, imageUrl } = body
+  const { type, shop, sector, code, codeName, factor, count, notes, imageUrl, date, shift } = body
 
   if (!type || !shop || !code || !codeName || !factor || !count) {
     return NextResponse.json({ error: "Barcha maydonlar to'ldirilishi shart" }, { status: 400 })
   }
 
+  const recordDate  = date  ?? new Date().toISOString().split('T')[0]
+  const recordShift = shift ?? 'A'
+
   try {
-    // tabelNumber yoki email bilan user ni topamiz
     const tabel = session.tabelNumber ?? ''
     const [user] = tabel
       ? await sql`SELECT id FROM users WHERE tabel_number = ${tabel} LIMIT 1`
       : await sql`SELECT id FROM users WHERE email = ${session.email ?? ''} LIMIT 1`
 
     const [record] = await sql`
-      INSERT INTO d_records (type, shop, sector, code, code_name, factor, count, notes, image_url, created_by)
-      VALUES (${type}, ${shop}, ${sector ?? null}, ${code}, ${codeName}, ${factor}, ${count}, ${notes ?? null}, ${imageUrl ?? null}, ${user?.id ?? null})
-      RETURNING id, type, shop, sector, code, code_name, factor, count, notes, image_url, created_at::date::text AS date
+      INSERT INTO d_records (type, shop, sector, code, code_name, factor, count, notes, image_url, created_by, date, shift)
+      VALUES (${type}, ${shop}, ${sector ?? null}, ${code}, ${codeName}, ${factor}, ${count},
+              ${notes ?? null}, ${imageUrl ?? null}, ${user?.id ?? null},
+              ${recordDate}::date, ${recordShift})
+      RETURNING id, type, shop, sector, code, code_name, factor, count, notes, image_url,
+                date::text, shift, created_at::date::text AS created_date
     `
     const newRec: CachedRecord = {
       id:              record.id,
@@ -86,24 +93,21 @@ export async function POST(request: Request) {
       count:           Number(record.count),
       notes:           record.notes ?? null,
       image_url:       record.image_url ?? null,
-      date:            record.date,
+      date:            record.date ?? record.created_date,
+      shift:           record.shift ?? 'A',
       created_by_name: session.name ?? null,
     }
     memCache.unshift(newRec)
     return NextResponse.json(newRec, { status: 201 })
-  } catch {
+  } catch (e) {
+    console.warn('d-records POST fallback:', (e as Error).message)
     const tempRecord: CachedRecord = {
       id:              `mem-${Date.now()}`,
-      type,
-      shop,
-      sector:          sector ?? null,
-      code,
+      type, shop, sector: sector ?? null, code,
       code_name:       codeName,
-      factor:          Number(factor),
-      count:           Number(count),
-      notes:           notes ?? null,
-      image_url:       imageUrl ?? null,
-      date:            new Date().toISOString().split('T')[0],
+      factor:          Number(factor), count: Number(count),
+      notes:           notes ?? null, image_url: imageUrl ?? null,
+      date:            recordDate, shift: recordShift,
       created_by_name: session.name ?? null,
     }
     memCache.unshift(tempRecord)
