@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import DrlEscalationPanel from '@/components/dashboard/drl-escalation-panel'
 
 
 // ─── Tip ──────────────────────────────────────────────────────────────────────
@@ -72,6 +73,10 @@ function getStatusInfo(status: ResolutionStatus) {
 export default function WeldingEngineerPage() {
   const { records, loading, refresh } = useDRecords()
   const [refreshing, setRefreshing] = useState(false)
+  const [userName, setUserName] = useState<string | null>(null)
+  useEffect(() => {
+    fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => { if (d?.name) setUserName(d.name) })
+  }, [])
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -118,6 +123,7 @@ export default function WeldingEngineerPage() {
   }
 
   // Filtirlar
+  const WELDING_SHOPS = ['WELDING-1', 'WELDING-2']
   const [filterShop,   setFilterShop]   = useState('')
   const [filterType,   setFilterType]   = useState('')
   const [filterStatus, setFilterStatus] = useState('')
@@ -149,7 +155,8 @@ export default function WeldingEngineerPage() {
 
   // Filterlangan yozuvlar
   const filtered = useMemo(() => {
-    let list = [...records]
+    // Always restrict to welding shops only
+    let list = records.filter((r) => WELDING_SHOPS.includes(r.shop))
     if (filterShop)   list = list.filter((r) => r.shop === filterShop)
     if (filterType)   list = list.filter((r) => r.type === filterType)
     if (filterFactor) list = list.filter((r) => r.factor === Number(filterFactor))
@@ -163,13 +170,14 @@ export default function WeldingEngineerPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [records, filterShop, filterType, filterStatus, filterFactor, sortBy, resolutions])
 
-  // KPI
-  const total       = records.length
-  const open        = records.filter((r) => getStatus(r.id) === 'ochiq').length
-  const closed      = records.filter((r) => getStatus(r.id) === 'yopilgan').length
-  const inProgress  = records.filter((r) => getStatus(r.id) === 'jarayonda').length
-  const transferred = records.filter((r) => getStatus(r.id) === 'uzatilgan').length
-  const f50Count    = records.filter((r) => r.factor === 50).length
+  // KPI — faqat welding sehlar
+  const weldingRecords = records.filter((r) => WELDING_SHOPS.includes(r.shop))
+  const total       = weldingRecords.length
+  const open        = weldingRecords.filter((r) => getStatus(r.id) === 'ochiq').length
+  const closed      = weldingRecords.filter((r) => getStatus(r.id) === 'yopilgan').length
+  const inProgress  = weldingRecords.filter((r) => getStatus(r.id) === 'jarayonda').length
+  const transferred = weldingRecords.filter((r) => getStatus(r.id) === 'uzatilgan').length
+  const f50Count    = weldingRecords.filter((r) => r.factor === 50).length
 
   // Forma validatsiya
   const validate = () => {
@@ -253,6 +261,9 @@ export default function WeldingEngineerPage() {
 
       <div className="p-6 space-y-6">
 
+        {/* DRL Eskalatsiyalar */}
+        <DrlEscalationPanel role="welding_engineer" />
+
         {/* Muvaffaqiyat xabari */}
         {successMsg && (
           <div className="bg-success/10 border border-success/30 rounded-lg p-4 flex items-center gap-3">
@@ -307,10 +318,10 @@ export default function WeldingEngineerPage() {
               <select
                 value={filterShop}
                 onChange={(e) => setFilterShop(e.target.value)}
-                className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground"
+                className="px-3 py-2 bg-card border border-border rounded-lg text-sm font-semibold text-foreground border-blue-300 bg-blue-50"
               >
-                <option value="">Barcha sehlar</option>
-                {SHOPS.map((s) => <option key={s} value={s}>{s}</option>)}
+                <option value="">Barcha Welding sehlar</option>
+                {WELDING_SHOPS.map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
 
               <select
@@ -515,7 +526,7 @@ export default function WeldingEngineerPage() {
             <div className="bg-card border border-border rounded-xl p-6">
               <h3 className="text-base font-bold text-foreground mb-4">Sehlar bo&apos;yicha nuqsonlar</h3>
               <div className="space-y-3">
-                {SHOPS.map((shop) => {
+                {WELDING_SHOPS.map((shop) => {
                   const shopRecs  = records.filter((r) => r.shop === shop)
                   const shopOpen  = shopRecs.filter((r) => getStatus(r.id) === 'ochiq').length
                   const shopDone  = shopRecs.filter((r) => getStatus(r.id) === 'yopilgan').length
@@ -861,6 +872,7 @@ export default function WeldingEngineerPage() {
           </div>
         </div>
       )}
+
     </div>
   )
 }

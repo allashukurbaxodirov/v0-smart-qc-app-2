@@ -14,7 +14,7 @@ const ROLES = [
   { value: 'superadmin',         label: 'Super Admin',         needsShift: false, needsShop: false },
   { value: 'admin',              label: 'Admin',               needsShift: false, needsShop: false },
   { value: 'manager',            label: 'Rahbar (Manager)',    needsShift: false, needsShop: false },
-  { value: 'gca_auditor',        label: 'GCA Auditor',         needsShift: false, needsShop: true  },
+  { value: 'gca_auditor',        label: 'GCA Auditor',         needsShift: true,  needsShop: true  },
   { value: 'cmm_inspector',      label: 'CMM Inspector',       needsShift: false, needsShop: true  },
   { value: 'd10_inspector',      label: 'D10 Inspector',       needsShift: false, needsShop: true  },
   { value: 'd20_inspector',      label: 'D20 Inspector',       needsShift: false, needsShop: true  },
@@ -286,8 +286,8 @@ export default function UsersPage() {
               <p className="text-muted-foreground text-xs">DRR, DRL, PDI, Incoming — smena va seh tayinlanmasa nuqson kira olmaydi</p>
             </div>
             <div className="bg-muted/20 rounded-lg p-4">
-              <p className="font-semibold text-foreground mb-1">Faqat Seh kerak</p>
-              <p className="text-muted-foreground text-xs">GCA, CMM, D10, D20, GA Engineer, Welding Engineer — seh tayinlanmasa nuqson kira olmaydi</p>
+              <p className="font-semibold text-foreground mb-1">Smena + Seh kerak</p>
+              <p className="text-muted-foreground text-xs">GCA Auditor — smena (A/B/D) va seh tayinlanishi shart. Excel yuklanganda smena avtomatik belgilanadi</p>
             </div>
             <div className="bg-muted/20 rounded-lg p-4">
               <p className="font-semibold text-foreground mb-1">Erkin kirish</p>

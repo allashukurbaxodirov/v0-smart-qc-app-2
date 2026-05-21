@@ -1,611 +1,706 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import Link from 'next/link'
 import PageHeader from '@/components/dashboard/page-header'
-import { useGCA } from '@/lib/gca-context'
 import {
-  ComposedChart,
-  Bar,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Cell,
-} from 'recharts'
-import {
-  ChevronLeft,
-  Target,
-  TrendingUp,
-  AlertTriangle,
-  CheckCircle,
-  Activity,
+  ChevronLeft, TrendingDown, AlertTriangle, RefreshCw,
+  Car, Layers, Building2, FileSpreadsheet, Activity,
+  CheckCircle, X, Search,
 } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
+import {
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+} from 'recharts'
 
-// ─── Configuration ────────────────────────────────────────────────────────────
-const SHOPS = ['PRESS SHOP', 'WELDING-1', 'WELDING-2', 'PAINT SHOP', 'GA'] as const
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface GcaStats {
+  batchId:    string
+  batchInfo:  { imported_by: string; file_name: string; date_from: string; date_to: string; shift_from: string; shift_to: string } | null
+  totals: {
+    row_count:    number
+    total_weight: number
+    veh_count:    number
+    wdpv:         number
+    damas_weight: number
+    labo_weight:  number
+    damas_veh:    number
+    labo_veh:     number
+    date_from:    string
+    date_to:      string
+  }
+  byShop: {
+    shop:         string
+    row_count:    number
+    total_weight: number
+    veh_count:    number
+    wdpv:         number
+    f50:          number
+    f20:          number
+    f10:          number
+    f5:           number
+  }[]
+  byModel:    { model_label: string; model_group: string; total_weight: number; veh_count: number; wdpv: number }[]
+  byPartLv1:  { part_lv1: string; row_count: number; total_weight: number; veh_count: number }[]
+  byCategory: { category: string; row_count: number; total_weight: number }[]
+  top10:      Top10Fault[]
+}
 
+interface Top10Fault {
+  rank:          number
+  fault_code:    string
+  fault_name:    string
+  total_weight:  number
+  total_veh:     number
+  veh_damas:     number
+  veh_labo:      number
+  top_prod_team: string
+  top_shop:      string
+  top_part_lv1:  string
+}
+
+interface GcaBatch {
+  id:           string
+  imported_at:  string
+  file_name:    string
+  date_from:    string
+  date_to:      string
+  shift_from:   string
+  shift_to:     string
+  shift_label:  string | null
+  total_weight: number
+  veh_count:    number
+}
+
+// ─── Drilldown types ──────────────────────────────────────────────────────────
+interface DrillRow {
+  part_lv2:   string
+  part_lv3:   string
+  fault_code: string
+  fault_name: string
+  defect_note:string
+  shop:       string
+  gca_weight: number
+  veh_count:  number
+}
+interface DrillData { lv1: string; rows: DrillRow[] }
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 const WDPV_TARGETS: Record<string, number> = {
-  'PLANT':      2.5,
-  'PRESS SHOP': 0.40,
-  'WELDING-1':  0.45,
-  'WELDING-2':  0.45,
-  'PAINT SHOP': 0.70,
-  'GA':         0.50,
+  'PRESS SHOP': 0.40, 'WELDING': 0.45,
+  'PAINT SHOP': 0.70, 'GA':      0.50,
 }
 
-const SHOP_SHORT: Record<string, string> = {
-  'PRESS SHOP': 'PRESS',
-  'WELDING-1':  'WELD-1',
-  'WELDING-2':  'WELD-2',
-  'PAINT SHOP': 'PAINT',
-  'GA':         'GA',
+const SHOP_COLORS: Record<string, string> = {
+  'WELDING':    'bg-sky-600 text-white border-sky-500',
+  'PAINT SHOP': 'bg-violet-600 text-white border-violet-500',
+  'GA':         'bg-emerald-600 text-white border-emerald-500',
+  'PRESS SHOP': 'bg-amber-600 text-white border-amber-500',
+}
+const SHOP_HEX: Record<string, string> = {
+  'WELDING':    '#0284c7',
+  'PAINT SHOP': '#7c3aed',
+  'GA':         '#059669',
+  'PRESS SHOP': '#d97706',
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function getRiskLabel(factor: number) {
-  if (factor === 50) return 'Yuqori'
-  if (factor === 20) return "O'rtacha"
-  if (factor === 10) return 'Past'
-  return 'Minimal'
+function rankColor(r: number) {
+  if (r === 1) return 'bg-red-600'
+  if (r === 2) return 'bg-red-500'
+  if (r === 3) return 'bg-orange-500'
+  if (r <= 6)  return 'bg-amber-500'
+  return 'bg-blue-500'
 }
 
-function getRiskBadgeClass(factor: number) {
-  if (factor === 50) return 'bg-critical text-white'
-  if (factor === 20) return 'bg-warning text-white'
-  if (factor === 10) return 'bg-blue-500 text-white'
-  return 'bg-success text-white'
-}
-
-// ─── Custom Tooltip ───────────────────────────────────────────────────────────
-function CustomTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null
-  return (
-    <div
-      style={{
-        background: 'var(--color-card, #1e1e2e)',
-        border: '1px solid rgba(128,128,128,0.25)',
-        borderRadius: 10,
-        padding: '10px 14px',
-        fontSize: 13,
-        color: 'inherit',
-      }}
-    >
-      <p style={{ fontWeight: 700, marginBottom: 6 }}>{label}</p>
-      {payload.map((p: any) => (
-        <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.color, flexShrink: 0 }} />
-          <span style={{ opacity: 0.7 }}>{p.name}:</span>
-          <span style={{ fontWeight: 600 }}>{Number(p.value).toFixed(2)}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ─── Main Component ───────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function GCAPage() {
-  const { records, loading } = useGCA()
-  const [selectedShop, setSelectedShop] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<'factor' | 'count'>('factor')
-  const [vehicles, setVehicles] = useState(50)
-  const [wdpvTargets, setWdpvTargets] = useState({ ...WDPV_TARGETS })
+  const [stats,    setStats]    = useState<GcaStats | null>(null)
+  const [batches,  setBatches]  = useState<GcaBatch[]>([])
+  const [selBatch, setSelBatch] = useState('')
+  const [selShift, setSelShift] = useState<'all' | 'A' | 'B' | 'D'>('all')
+  const [loading,  setLoading]  = useState(true)
+  const [empty,    setEmpty]    = useState(false)
+  const [session,  setSession]  = useState<{ role: string } | null>(null)
 
-  // SuperAdmin tomonidan o'zgartirilgan targetlarni yuklash
+  // Drilldown
+  const [drill,        setDrill]        = useState<DrillData | null>(null)
+  const [drillLoading, setDrillLoading] = useState(false)
+  const [drillSearch,  setDrillSearch]  = useState('')
+
   useEffect(() => {
-    const load = () => {
-      try {
-        const t = localStorage.getItem('gca_wdpv_targets_v1')
-        const v = localStorage.getItem('gca_vehicles_v1')
-        if (t) setWdpvTargets(prev => ({ ...prev, ...JSON.parse(t) }))
-        if (v) setVehicles(Number(v))
-      } catch {}
-    }
-    load()
-    window.addEventListener('gca_targets_updated', load)
-    return () => window.removeEventListener('gca_targets_updated', load)
+    fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => { if (d) setSession(d) })
   }, [])
 
-  // ── WDPV: faqat real yozuvlardan ──────────────────────────────────────────
-  const calcWDPV = (shop: string) => {
-    const shopRecords =
-      shop === 'PLANT' ? records : records.filter((r) => r.shop === shop)
-    const total = shopRecords.reduce((s, r) => s + r.count, 0)
-    return vehicles > 0 ? total / vehicles : 0
-  }
-
-  // ── Chart data ─────────────────────────────────────────────────────────────
-  const chartData = useMemo(() => {
-    const rows = [
-      {
-        shop: 'PLANT',
-        shopFull: 'PLANT',
-        actual: parseFloat(calcWDPV('PLANT').toFixed(2)),
-        target: wdpvTargets['PLANT'],
-      },
-      ...SHOPS.map((s) => ({
-        shop: SHOP_SHORT[s],
-        shopFull: s,
-        actual: parseFloat(calcWDPV(s).toFixed(2)),
-        target: wdpvTargets[s],
-      })),
-    ]
-    return rows
+  // Batch list yuklash (alohida funksiya — Yangilash tugmasi ham chaqiradi)
+  const loadBatches = useCallback(async (currentShift = selShift) => {
+    try {
+      const res  = await fetch('/api/gca-import')
+      const data: GcaBatch[] = res.ok ? await res.json() : []
+      setBatches(data)
+      const list = currentShift === 'all' ? data : data.filter(b => b.shift_label === currentShift)
+      if (list.length > 0) {
+        setSelBatch(list[0].id)
+      } else if (data.length > 0 && currentShift !== 'all') {
+        // Tanlangan smena uchun batch yo'q — barchani ko'rsat
+        setSelBatch(data[0].id)
+      } else {
+        setSelBatch('')
+        setStats(null)
+        setEmpty(true)
+        setLoading(false)
+      }
+    } catch {
+      setEmpty(true)
+      setLoading(false)
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [records, vehicles])
+  }, [selShift])
 
-  // ── Defect list for a shop (only real records) ─────────────────────────────
-  const getShopDefects = (shop: string) => {
-    // Yozuvlarni birlashtir: bir xil kodli yozuvlar qo'shiladi
-    const merged: { code: string; name: string; count: number; factor: number }[] = []
-    records
-      .filter((r) => r.shop === shop)
-      .forEach((r) => {
-        const existing = merged.find((m) => m.code === r.code && m.factor === r.factor)
-        if (existing) {
-          existing.count += r.count
-        } else {
-          merged.push({ code: r.code, name: r.codeName, count: r.count, factor: r.factor })
-        }
-      })
+  useEffect(() => { loadBatches() }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-    return sortBy === 'factor'
-      ? merged.sort((a, b) => b.factor - a.factor)
-      : merged.sort((a, b) => b.count - a.count)
+  // Shift bo'yicha filtrlangan batchlar
+  const filteredBatches = selShift === 'all'
+    ? batches
+    : batches.filter(b => b.shift_label === selShift)
+
+  // Shift o'zgarganda — filtrlangan ro'yxatdan birinchi batch tanlash
+  useEffect(() => {
+    if (batches.length === 0) return
+    const list = selShift === 'all' ? batches : batches.filter(b => b.shift_label === selShift)
+    if (list.length > 0) {
+      setSelBatch(list[0].id)
+    } else {
+      setSelBatch('')
+      setStats(null)
+      setEmpty(true)
+      setLoading(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selShift])
+
+  // Stats
+  const loadStats = useCallback(async (batchId?: string) => {
+    if (!batchId) return
+    setLoading(true)
+    setEmpty(false)
+    try {
+      const res  = await fetch(`/api/gca-import/stats?batch=${batchId}`)
+      const data = await res.json()
+      if (data.empty || !data.totals) { setEmpty(true); setStats(null) }
+      else setStats(data)
+    } catch { setEmpty(true) }
+    finally  { setLoading(false) }
+  }, [])
+
+  useEffect(() => {
+    if (selBatch) loadStats(selBatch)
+    else if (batches.length === 0 && !loading) setEmpty(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selBatch])
+
+  // Drilldown (part_lv1 kategoriya bo'yicha)
+  const openDrill = async (lv1: string) => {
+    if (!stats?.batchId) return
+    setDrillLoading(true)
+    setDrill(null)
+    setDrillSearch('')
+    try {
+      const res  = await fetch(`/api/gca-import/drilldown?batch=${stats.batchId}&lv1=${encodeURIComponent(lv1)}`)
+      const data = await res.json()
+      if (data.rows) setDrill({ lv1, rows: data.rows })
+    } finally { setDrillLoading(false) }
   }
 
-  // ── Factor buckets (aniq qiymatlar: 50 / 20 / 10 / 5) ────────────────────
-  const getFactorBuckets = (defects: ReturnType<typeof getShopDefects>) => ({
-    f50: defects.filter((d) => d.factor === 50),
-    f20: defects.filter((d) => d.factor === 20),
-    f10: defects.filter((d) => d.factor === 10),
-    f5:  defects.filter((d) => d.factor === 5),
-  })
+  const isAdmin = session && ['superadmin', 'admin'].includes(session.role)
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // SHOP DETAIL VIEW
-  // ══════════════════════════════════════════════════════════════════════════
-  if (selectedShop) {
-    const defects    = getShopDefects(selectedShop)
-    const { f50, f20, f10, f5 } = getFactorBuckets(defects)
-    const wdpv       = calcWDPV(selectedShop)
-    const target     = wdpvTargets[selectedShop] ?? 0.5
-    const over       = wdpv > target
-    const totalCount = defects.reduce((s, d) => s + d.count, 0)
-
-    return (
-      <div className="min-h-screen bg-background">
-        <PageHeader
-          title={`GCA — ${selectedShop}`}
-          description="Sehdan kelgan nuqsonlar • WDPV tahlili"
-          breadcrumbs={[
-            { label: 'Dashboard', href: '/dashboard' },
-            { label: 'GCA Daily Board', href: '/dashboard/gca' },
-            { label: selectedShop },
-          ]}
-        />
-
-        <div className="p-6 space-y-6">
-          {/* Back */}
-          <button
-            onClick={() => setSelectedShop(null)}
-            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4" />
-            GCA Daily Board ga qaytish
-          </button>
-
-          {/* WDPV KPI row */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-card border border-border rounded-xl p-5">
-              <p className="text-xs text-muted-foreground mb-1">WDPV Actual</p>
-              <p className={`text-3xl font-bold ${over ? 'text-critical' : 'text-success'}`}>
-                {wdpv.toFixed(2)}
-              </p>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-5">
-              <p className="text-xs text-muted-foreground mb-1">WDPV Target</p>
-              <p className="text-3xl font-bold text-primary">{target.toFixed(2)}</p>
-            </div>
-            <div className="bg-card border border-border rounded-xl p-5">
-              <p className="text-xs text-muted-foreground mb-1">Jami nuqsonlar</p>
-              <p className="text-3xl font-bold text-foreground">{totalCount}</p>
-            </div>
-            <div className={`border-2 rounded-xl p-5 flex items-center gap-3 ${
-              over ? 'border-critical bg-critical/5' : 'border-success bg-success/5'
-            }`}>
-              {over
-                ? <TrendingUp className="w-8 h-8 text-critical" />
-                : <CheckCircle className="w-8 h-8 text-success" />
-              }
-              <div>
-                <p className="text-xs text-muted-foreground">Status</p>
-                <p className={`text-sm font-bold ${over ? 'text-critical' : 'text-success'}`}>
-                  {over ? 'Target oshdi!' : 'Targetda'}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Factor buckets — 50 / 20 / 10 / 5 */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {([
-              { key: 'f50', label: 'Faktor 50', data: f50, border: 'border-critical', bg: 'bg-critical/5', text: 'text-critical' },
-              { key: 'f20', label: 'Faktor 20', data: f20, border: 'border-warning',  bg: 'bg-warning/5',  text: 'text-warning'  },
-              { key: 'f10', label: 'Faktor 10', data: f10, border: 'border-blue-500', bg: 'bg-blue-500/5', text: 'text-blue-500' },
-              { key: 'f5',  label: 'Faktor 5',  data: f5,  border: 'border-success',  bg: 'bg-success/5',  text: 'text-success'  },
-            ] as const).map(({ key, label, data, border, bg, text }) => (
-              <div key={key} className={`border-2 ${border} ${bg} rounded-xl p-4`}>
-                <p className="text-xs font-semibold text-muted-foreground mb-1">{label}</p>
-                <p className={`text-2xl font-bold ${text}`}>
-                  {data.reduce((s, d) => s + d.count, 0)}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">{data.length} tur nuqson</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Sort controls */}
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg font-bold text-foreground">Nuqsonlar ro'yxati</h2>
-            <div className="inline-flex bg-card border border-border rounded-lg p-1 gap-1">
-              {(['factor', 'count'] as const).map((key) => (
-                <button
-                  key={key}
-                  onClick={() => setSortBy(key)}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                    sortBy === key
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {key === 'factor' ? "Faktor bo'yicha" : "Soni bo'yicha"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Defects table */}
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border bg-muted/30">
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Kod</th>
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Nuqson nomi</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground">Soni</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground">Faktor</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground">Og'irlik (S×F)</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground">Xavflilik</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {defects.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground">
-                        Bu sehda hali nuqson kiritilmagan
-                      </td>
-                    </tr>
-                  ) : (
-                    defects.map((d, i) => (
-                      <tr
-                        key={`${d.code}-${i}`}
-                        className={`transition-colors hover:bg-muted/30 ${
-                          d.factor === 50 ? 'bg-critical/5' : d.factor === 20 ? 'bg-warning/5' : ''
-                        }`}
-                      >
-                        <td className="px-5 py-3 font-bold text-foreground">{d.code}</td>
-                        <td className="px-5 py-3 text-sm text-foreground">{d.name}</td>
-                        <td className="px-5 py-3 text-right font-semibold text-foreground">{d.count}</td>
-                        <td className="px-5 py-3 text-right font-bold text-lg text-foreground">{d.factor}</td>
-                        <td className="px-5 py-3 text-right font-semibold text-primary">{d.count * d.factor}</td>
-                        <td className="px-5 py-3 text-right">
-                          <Badge className={getRiskBadgeClass(d.factor)}>
-                            {getRiskLabel(d.factor)}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+  // ── Empty state ────────────────────────────────────────────────────────────
+  if (!loading && empty) return (
+    <div className="min-h-screen bg-background">
+      <PageHeader title="GCA Dashboard" description="GCA WDPV — GSIP import ma'lumotlari"
+        breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'GCA Dashboard' }]} />
+      <div className="p-6 flex flex-col items-center justify-center py-20 gap-4">
+        <FileSpreadsheet className="w-14 h-14 text-muted-foreground" />
+        <p className="text-foreground font-semibold">Hali GSIP GCA import qilinmagan</p>
+        <p className="text-sm text-muted-foreground">GCA ma'lumotlarini ko'rish uchun Excel faylni yuklang</p>
+        {isAdmin && (
+          <Link href="/dashboard/gca-admin">
+            <button className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 transition-all">
+              Excel yuklash →
+            </button>
+          </Link>
+        )}
       </div>
-    )
-  }
+    </div>
+  )
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // MAIN DASHBOARD VIEW
-  // ══════════════════════════════════════════════════════════════════════════
-  const plantWDPV   = calcWDPV('PLANT')
-  const plantTarget = wdpvTargets['PLANT']
-  const plantOver   = plantWDPV > plantTarget
-  const totalDefects = records.reduce((s, r) => s + r.count, 0)
-
+  // ── Main dashboard ─────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background">
       <PageHeader
-        title="GCA Daily Board"
-        description="WDPV — Weighted Defects Per Vehicle • Sehlar bo'yicha nuqsonlar tahlili"
-        breadcrumbs={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'GCA Daily Board' },
-        ]}
+        title="GCA Dashboard"
+        description="WDPV — Weighted Defects Per Vehicle · GSIP import ma'lumotlari"
+        breadcrumbs={[{ label: 'Dashboard', href: '/dashboard' }, { label: 'GCA Dashboard' }]}
       />
 
       <div className="p-6 space-y-6">
 
-        {/* Top KPI Strip */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Plant WDPV */}
-          <div className={`border-2 rounded-xl p-5 ${plantOver ? 'border-critical bg-critical/5' : 'border-success bg-success/5'}`}>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-semibold text-muted-foreground">PLANT WDPV</p>
-              <Activity className={`w-4 h-4 ${plantOver ? 'text-critical' : 'text-success'}`} />
-            </div>
-            <p className={`text-3xl font-bold ${plantOver ? 'text-critical' : 'text-success'}`}>
-              {plantWDPV.toFixed(2)}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">Target: {plantTarget}</p>
-          </div>
+        {/* Top bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link href="/dashboard">
+            <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <ChevronLeft className="w-4 h-4" /> Orqaga
+            </button>
+          </Link>
 
-          {/* Total Defects */}
-          <div className="bg-card border border-border rounded-xl p-5">
-            <p className="text-xs text-muted-foreground mb-2">Jami nuqsonlar</p>
-            <p className="text-3xl font-bold text-foreground">{totalDefects}</p>
-            <p className="text-xs text-muted-foreground mt-1">{SHOPS.length} sehdan</p>
-          </div>
-
-          {/* Over Target shops */}
-          <div className="bg-card border border-border rounded-xl p-5">
-            <p className="text-xs text-muted-foreground mb-2">Target oshgan sehlar</p>
-            <p className="text-3xl font-bold text-critical">
-              {SHOPS.filter((s) => calcWDPV(s) > wdpvTargets[s]).length}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">ta seh</p>
-          </div>
-
-          {/* Vehicles count */}
-          <div className="bg-card border border-border rounded-xl p-5">
-            <p className="text-xs text-muted-foreground mb-2">Tekshirilgan avtomobil</p>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                value={vehicles}
-                onChange={(e) => setVehicles(Math.max(1, parseInt(e.target.value) || 1))}
-                min="1"
-                className="w-20 px-2 py-1 bg-background border border-border rounded-lg text-foreground text-xl font-bold"
-              />
-              <span className="text-xs text-muted-foreground">ta</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">WDPV hisoblash uchun</p>
-          </div>
-        </div>
-
-        {/* Loading state */}
-        {loading && (
-          <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">
-            Ma'lumotlar yuklanmoqda...
-          </div>
-        )}
-
-        {/* ── WDPV Bar Chart ─────────────────────────────────────────────── */}
-        {!loading && (
-          <div className="bg-card border border-border rounded-xl p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-              <div>
-                <h2 className="text-lg font-bold text-foreground">WDPV — Actual vs Target</h2>
-                <p className="text-xs text-muted-foreground">
-                  Weighted Defects Per Vehicle (nuqsonlar soni / tekshirilgan avtomobil)
-                </p>
-              </div>
-              <div className="flex items-center gap-5 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-3 h-3 rounded bg-primary" />
-                  Actual
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-block w-5 border-t-2 border-dashed border-yellow-500" />
-                  Target
-                </span>
-              </div>
-            </div>
-
-            <ResponsiveContainer width="100%" height={300}>
-              <ComposedChart data={chartData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.2)" vertical={false} />
-                <XAxis
-                  dataKey="shop"
-                  tick={{ fill: '#9ca3af', fontSize: 12, fontWeight: 600 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <YAxis
-                  tick={{ fill: '#9ca3af', fontSize: 11 }}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip content={<CustomTooltip />} />
-
-                <Bar dataKey="actual" name="Actual WDPV" radius={[6, 6, 0, 0]} maxBarSize={60}>
-                  {chartData.map((entry, idx) => (
-                    <Cell
-                      key={`cell-${idx}`}
-                      fill={entry.actual > entry.target ? '#e05c3a' : '#7c6fcd'}
-                      fillOpacity={0.9}
-                    />
-                  ))}
-                </Bar>
-
-                <Line
-                  dataKey="target"
-                  name="Target WDPV"
-                  type="monotone"
-                  stroke="#d4a017"
-                  strokeWidth={2}
-                  strokeDasharray="6 3"
-                  dot={{ fill: '#d4a017', r: 4, strokeWidth: 0 }}
-                  activeDot={{ r: 6 }}
-                />
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-
-        {/* ── Shop Cards Grid ────────────────────────────────────────────── */}
-        {!loading && (
-          <div>
-            <h2 className="text-xl font-bold text-foreground mb-4">
-              Sehlar bo'yicha — bosib kirish
-            </h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {SHOPS.map((shop) => {
-                const wdpv   = calcWDPV(shop)
-                const target = wdpvTargets[shop]
-                const over   = wdpv > target
-                const shopRecords = records.filter((r) => r.shop === shop)
-                const total  = shopRecords.reduce((s, r) => s + r.count, 0)
-                const pct    = Math.min(100, (wdpv / (target * 2)) * 100)
-                const highRisk = shopRecords.filter((r) => r.factor === 50).reduce((s, r) => s + r.count, 0)
-
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Shift filter tabs */}
+            <div className="flex items-center bg-muted/40 border border-border rounded-lg p-0.5 gap-0.5">
+              {(['all', 'A', 'B', 'D'] as const).map(s => {
+                const count = s === 'all' ? batches.length : batches.filter(b => b.shift_label === s).length
                 return (
                   <button
-                    key={shop}
-                    onClick={() => setSelectedShop(shop)}
-                    className={`group p-5 bg-card border-2 rounded-xl text-left transition-all hover:shadow-xl ${
-                      over
-                        ? 'border-critical hover:bg-critical/5'
-                        : 'border-border hover:border-primary hover:bg-primary/5'
+                    key={s}
+                    onClick={() => setSelShift(s)}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                      selShift === s
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="font-bold text-foreground text-sm leading-tight">{shop}</h3>
-                      {over
-                        ? <AlertTriangle className="w-4 h-4 text-critical flex-shrink-0" />
-                        : <Target className="w-4 h-4 text-success flex-shrink-0" />
-                      }
-                    </div>
-
-                    <div className="mb-3">
-                      <p className="text-xs text-muted-foreground">WDPV</p>
-                      <p className={`text-2xl font-bold ${over ? 'text-critical' : 'text-foreground'}`}>
-                        {wdpv.toFixed(2)}
-                      </p>
-                      <p className="text-xs text-muted-foreground">target: {target.toFixed(2)}</p>
-                    </div>
-
-                    <div className="mb-3">
-                      <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                        <div
-                          className={`h-1.5 rounded-full transition-all ${over ? 'bg-critical' : 'bg-success'}`}
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>{total} nuqson</span>
-                      {highRisk > 0 && (
-                        <span className="text-critical font-semibold">{highRisk} yuqori</span>
-                      )}
-                    </div>
-
-                    <p className="mt-3 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity font-medium">
-                      Batafsil ko'rish →
-                    </p>
+                    {s === 'all' ? 'Barchasi' : `${s} smena`}
+                    {count > 0 && (
+                      <span className={`ml-1.5 text-[10px] px-1 py-0.5 rounded-full ${
+                        selShift === s ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'
+                      }`}>{count}</span>
+                    )}
                   </button>
                 )
               })}
             </div>
+
+            {filteredBatches.length > 0 && (
+              <select value={selBatch} onChange={e => setSelBatch(e.target.value)}
+                className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground">
+                {filteredBatches.map(b => (
+                  <option key={b.id} value={b.id}>
+                    {b.date_from} — {b.shift_label ? `Smena ${b.shift_label} · ` : ''}{b.shift_from}→{b.shift_to} ({Number(b.total_weight).toFixed(0)} og'irlik · {b.veh_count} avto)
+                  </option>
+                ))}
+              </select>
+            )}
+            <button onClick={() => loadBatches()}
+              className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Yangilash
+            </button>
+            {isAdmin && (
+              <Link href="/dashboard/gca-admin">
+                <button className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all">
+                  <FileSpreadsheet className="w-3.5 h-3.5" /> Yangi Import
+                </button>
+              </Link>
+            )}
+          </div>
+        </div>
+
+        {/* Loading */}
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <RefreshCw className="w-8 h-8 animate-spin text-indigo-500" />
           </div>
         )}
 
-        {/* ── Factor Summary Table ───────────────────────────────────────── */}
-        {!loading && records.length > 0 && (
-          <div className="bg-card border border-border rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-border">
-              <h2 className="text-base font-bold text-foreground">
-                Faktor bo'yicha umumiy taqsimot
-              </h2>
+        {stats && !loading && (
+          <>
+            {/* Meta bar */}
+            <div className="flex flex-wrap gap-2 items-center text-xs text-muted-foreground">
+              <span className="px-2.5 py-1 bg-card border border-border rounded-full">
+                📅 {stats.totals.date_from} → {stats.totals.date_to}
+              </span>
+              {stats.batchInfo?.file_name && (
+                <span className="px-2.5 py-1 bg-card border border-border rounded-full truncate max-w-[220px]">
+                  📁 {stats.batchInfo.file_name}
+                </span>
+              )}
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-border bg-muted/30">
-                    <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Sehi</th>
-                    <th className="px-5 py-3 text-center text-xs font-semibold text-critical">Faktor 50</th>
-                    <th className="px-5 py-3 text-center text-xs font-semibold text-warning">Faktor 20</th>
-                    <th className="px-5 py-3 text-center text-xs font-semibold text-blue-400">Faktor 10</th>
-                    <th className="px-5 py-3 text-center text-xs font-semibold text-success">Faktor 5</th>
-                    <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Jami</th>
-                    <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">WDPV</th>
-                    <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {SHOPS.map((shop) => {
-                    const shopRecords = records.filter((r) => r.shop === shop)
-                    const f50 = shopRecords.filter((r) => r.factor === 50).reduce((s, r) => s + r.count, 0)
-                    const f20 = shopRecords.filter((r) => r.factor === 20).reduce((s, r) => s + r.count, 0)
-                    const f10 = shopRecords.filter((r) => r.factor === 10).reduce((s, r) => s + r.count, 0)
-                    const f5  = shopRecords.filter((r) => r.factor === 5).reduce((s, r) => s + r.count, 0)
-                    const tot = shopRecords.reduce((s, r) => s + r.count, 0)
-                    const wdpv   = calcWDPV(shop)
-                    const target = wdpvTargets[shop]
-                    const over   = wdpv > target
 
-                    return (
-                      <tr
-                        key={shop}
-                        className="hover:bg-muted/30 transition-colors cursor-pointer"
-                        onClick={() => setSelectedShop(shop)}
-                      >
-                        <td className="px-5 py-3 font-semibold text-foreground">{shop}</td>
-                        <td className="px-5 py-3 text-center">
-                          {f50 > 0 ? <span className="font-bold text-critical">{f50}</span> : <span className="text-muted-foreground">—</span>}
-                        </td>
-                        <td className="px-5 py-3 text-center">
-                          {f20 > 0 ? <span className="font-bold text-warning">{f20}</span> : <span className="text-muted-foreground">—</span>}
-                        </td>
-                        <td className="px-5 py-3 text-center">
-                          {f10 > 0 ? <span className="font-bold text-blue-400">{f10}</span> : <span className="text-muted-foreground">—</span>}
-                        </td>
-                        <td className="px-5 py-3 text-center">
-                          {f5 > 0 ? <span className="font-bold text-success">{f5}</span> : <span className="text-muted-foreground">—</span>}
-                        </td>
-                        <td className="px-5 py-3 text-center font-semibold text-foreground">{tot}</td>
-                        <td className="px-5 py-3 text-center font-bold text-foreground">{wdpv.toFixed(2)}</td>
-                        <td className="px-5 py-3 text-center">
-                          <Badge className={over ? 'bg-critical text-white' : 'bg-success text-white'}>
-                            {over ? 'Yuqori' : 'OK'}
-                          </Badge>
-                        </td>
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+              {[
+                { label: 'Plant WDPV',       value: Number(stats.totals.wdpv).toFixed(2),          icon: <Activity className="w-5 h-5" />,     color: 'text-indigo-400',  bg: 'bg-indigo-500/10 border-indigo-500/20' },
+                { label: "Jami og'irlik",     value: Number(stats.totals.total_weight).toFixed(0),  icon: <AlertTriangle className="w-5 h-5" />, color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/20' },
+                { label: 'Avtomobillar (VIN)',value: stats.totals.veh_count,                        icon: <Car className="w-5 h-5" />,           color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/20' },
+              ].map(({ label, value, icon, color, bg }) => (
+                <div key={label} className={`rounded-xl border p-5 ${bg}`}>
+                  <div className={`mb-2 ${color}`}>{icon}</div>
+                  <p className="text-2xl font-bold text-foreground">{typeof value === 'number' ? value.toLocaleString() : value}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Model taqsimoti */}
+            {stats.byModel.length > 0 && (
+              <div className="grid grid-cols-2 gap-4">
+                {stats.byModel.map(m => (
+                  <div key={m.model_label} className="bg-card border border-border rounded-xl p-4 flex items-center gap-4">
+                    <Car className={`w-8 h-8 flex-shrink-0 ${m.model_group === 'R7' ? 'text-blue-400' : 'text-green-400'}`} />
+                    <div>
+                      <p className={`text-base font-bold ${m.model_group === 'R7' ? 'text-blue-400' : 'text-green-400'}`}>{m.model_label}</p>
+                      <p className="text-2xl font-bold text-foreground">{Number(m.total_weight).toFixed(0)} <span className="text-sm font-normal text-muted-foreground">og'irlik</span></p>
+                      <p className="text-xs text-muted-foreground">{m.veh_count} avto · WDPV {Number(m.wdpv).toFixed(2)}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── Faktor taqsimoti jadvali ─────────────────────────────── */}
+            <div>
+              <h2 className="text-base font-bold text-foreground mb-3 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-indigo-500" />
+                Faktor bo&apos;yicha umumiy taqsimot
+              </h2>
+              <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Sehi</th>
+                        <th className="px-5 py-3 text-center text-xs font-semibold text-red-400">Faktor 50</th>
+                        <th className="px-5 py-3 text-center text-xs font-semibold text-orange-400">Faktor 20</th>
+                        <th className="px-5 py-3 text-center text-xs font-semibold text-blue-400">Faktor 10</th>
+                        <th className="px-5 py-3 text-center text-xs font-semibold text-green-400">Faktor 5</th>
+                        <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Jami og&apos;irlik</th>
+                        <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Avto</th>
+                        <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">WDPV</th>
+                        <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Status</th>
                       </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {stats.byShop.map(s => {
+                        const target = WDPV_TARGETS[s.shop] ?? 0.5
+                        const wdpv   = Number(s.wdpv)
+                        const over   = wdpv > target
+                        return (
+                          <tr key={s.shop} className="hover:bg-muted/20 transition-colors">
+                            <td className="px-5 py-3 font-semibold text-sm text-foreground">{s.shop}</td>
+                            <td className="px-5 py-3 text-center">
+                              {s.f50 > 0 ? <span className="font-bold text-red-400">{s.f50}</span> : <span className="text-muted-foreground">—</span>}
+                            </td>
+                            <td className="px-5 py-3 text-center">
+                              {s.f20 > 0 ? <span className="font-bold text-orange-400">{s.f20}</span> : <span className="text-muted-foreground">—</span>}
+                            </td>
+                            <td className="px-5 py-3 text-center">
+                              {s.f10 > 0 ? <span className="font-bold text-blue-400">{s.f10}</span> : <span className="text-muted-foreground">—</span>}
+                            </td>
+                            <td className="px-5 py-3 text-center">
+                              {s.f5 > 0 ? <span className="font-bold text-green-400">{s.f5}</span> : <span className="text-muted-foreground">—</span>}
+                            </td>
+                            <td className="px-5 py-3 text-center font-semibold text-foreground">{Number(s.total_weight).toFixed(0)}</td>
+                            <td className="px-5 py-3 text-center text-sm text-foreground">{s.veh_count}</td>
+                            <td className="px-5 py-3 text-center font-bold text-foreground">{wdpv.toFixed(2)}</td>
+                            <td className="px-5 py-3 text-center">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${over ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
+                                {over ? <><AlertTriangle className="w-3 h-3" /> Yuqori</> : <><CheckCircle className="w-3 h-3" /> OK</>}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Sehlar bo'yicha — Pie chart ──────────────────────────── */}
+            <div>
+              <h2 className="text-base font-bold text-foreground mb-3 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-indigo-500" />
+                Sehlar bo&apos;yicha og&apos;irlik taqsimoti
+              </h2>
+              <div className="bg-card border border-border rounded-2xl p-5">
+                <div className="flex flex-col md:flex-row items-center gap-6">
+                  <div className="w-full md:w-[280px] h-[260px] shrink-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={stats.byShop.map(s => ({ ...s, total_weight: Number(s.total_weight) }))}
+                          dataKey="total_weight" nameKey="shop"
+                          cx="50%" cy="50%" innerRadius={65} outerRadius={110} paddingAngle={3}>
+                          {stats.byShop.map(s => (
+                            <Cell key={s.shop} fill={SHOP_HEX[s.shop] ?? '#6366f1'} stroke="transparent" />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          formatter={(value: number, _: any, props: any) => {
+                            const wdpv = Number(props?.payload?.wdpv ?? 0).toFixed(2)
+                            return [`${Number(value).toFixed(0)} og'irlik · WDPV ${wdpv}`, '']
+                          }}
+                          contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '10px', color: 'hsl(var(--foreground))', fontSize: '13px' }}
+                        />
+                        <text x="50%" y="44%" textAnchor="middle" dominantBaseline="middle"
+                          style={{ fill: 'hsl(var(--foreground))', fontSize: 22, fontWeight: 700 }}>
+                          {Number(stats.totals.total_weight).toFixed(0)}
+                        </text>
+                        <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle"
+                          style={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}>
+                          jami og'irlik
+                        </text>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3 w-full">
+                    {stats.byShop.map(s => {
+                      const totalW = Number(stats.totals.total_weight)
+                      const pct    = totalW > 0 ? ((Number(s.total_weight) / totalW) * 100).toFixed(1) : '0'
+                      const hex    = SHOP_HEX[s.shop] ?? '#6366f1'
+                      const target = WDPV_TARGETS[s.shop] ?? 0.5
+                      const over   = Number(s.wdpv) > target
+                      return (
+                        <div key={s.shop} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-background">
+                          <div className="w-3 h-12 rounded-full shrink-0" style={{ backgroundColor: hex }} />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">{s.shop}</p>
+                            <p className="text-xl font-bold text-foreground leading-tight">
+                              {Number(s.total_weight).toFixed(0)} <span className="text-xs font-normal text-muted-foreground">og'irlik</span>
+                            </p>
+                            <p className="text-xs font-semibold" style={{ color: hex }}>
+                              WDPV {Number(s.wdpv).toFixed(2)}
+                              <span className={`ml-2 ${over ? 'text-red-400' : 'text-green-400'}`}>{over ? '▲' : '✓'}</span>
+                            </p>
+                            <div className="mt-1 h-1 bg-muted rounded-full overflow-hidden">
+                              <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: hex }} />
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-lg font-bold" style={{ color: hex }}>{pct}%</p>
+                            <p className="text-xs text-muted-foreground">{s.veh_count} avto</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Top 10 nuqsonlar ─────────────────────────────────────── */}
+            <div>
+              <h2 className="text-base font-bold text-foreground mb-3 flex items-center gap-2">
+                <TrendingDown className="w-4 h-4 text-indigo-500" />
+                Top 10 Ko&apos;p Takrorlangan Nuqsonlar
+              </h2>
+              <div className="bg-card border border-border rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground w-10">#</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nuqson</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sexi</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Og'irlik</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Mashina</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">DAMAS</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">LABO</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Qism</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stats.top10.map(f => {
+                        const maxW    = Number(stats.top10[0]?.total_weight ?? 1)
+                        const barW    = Math.round((Number(f.total_weight) / maxW) * 100)
+                        const shopCls = SHOP_COLORS[f.top_shop] ?? 'bg-muted/20 text-muted-foreground border-border'
+                        return (
+                          <tr key={f.rank} className="border-b border-border hover:bg-muted/20 transition-colors">
+                            <td className="px-4 py-3">
+                              <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white ${rankColor(f.rank)}`}>
+                                {f.rank}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 max-w-[220px]">
+                              <div>
+                                {f.fault_code !== '—' && (
+                                  <span className="text-xs font-mono text-indigo-400 mr-1">{f.fault_code}</span>
+                                )}
+                                <span className="text-sm text-foreground">{f.fault_name}</span>
+                              </div>
+                              <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden w-full max-w-[160px]">
+                                <div className={`h-full rounded-full ${rankColor(f.rank)} opacity-70`} style={{ width: `${barW}%` }} />
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium border ${shopCls}`}>
+                                {f.top_shop}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-right text-sm font-bold text-foreground">
+                              {Number(f.total_weight).toFixed(0)}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <span className="text-sm font-semibold text-indigo-400">{f.total_veh}</span>
+                            </td>
+                            <td className="px-4 py-3 text-right text-sm text-blue-300">{f.veh_damas}</td>
+                            <td className="px-4 py-3 text-right text-sm text-green-300">{f.veh_labo}</td>
+                            <td className="px-4 py-3 text-right text-xs text-muted-foreground max-w-[100px] truncate">
+                              {f.top_part_lv1}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Qism kategoriyalari ───────────────────────────────────── */}
+            {stats.byPartLv1.length > 0 && (
+              <div>
+                <h2 className="text-base font-bold text-foreground mb-3 flex items-center gap-2">
+                  <Layers className="w-4 h-4 text-indigo-500" />
+                  Qism kategoriyalari bo&apos;yicha (Top 10)
+                  <span className="text-xs font-normal text-muted-foreground ml-1">— batafsil ko&apos;rish uchun bosing</span>
+                </h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {stats.byPartLv1.slice(0, 10).map(p => {
+                    const totalW = Number(stats.totals.total_weight)
+                    const pct    = totalW > 0 ? Math.round((Number(p.total_weight) / totalW) * 100) : 0
+                    return (
+                      <button key={p.part_lv1} onClick={() => openDrill(p.part_lv1)}
+                        className="bg-card border border-border rounded-xl p-3 text-left hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all group cursor-pointer">
+                        <p className="text-xs text-muted-foreground truncate mb-1 group-hover:text-indigo-400 transition-colors">{p.part_lv1}</p>
+                        <p className="text-xl font-bold text-foreground">{Number(p.total_weight).toFixed(0)}</p>
+                        <p className="text-xs text-indigo-400">{p.veh_count} mashina</p>
+                        <div className="mt-1.5 h-1 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                        <div className="flex items-center justify-between mt-0.5">
+                          <p className="text-xs text-muted-foreground">{pct}%</p>
+                          <span className="text-xs text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">tafsilot →</span>
+                        </div>
+                      </button>
                     )
                   })}
-                </tbody>
-              </table>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* ── Drilldown Drawer ─────────────────────────────────────────────── */}
+      {(drill || drillLoading) && (
+        <div className="fixed inset-0 z-50 flex">
+          <div className="flex-1 bg-black/40 backdrop-blur-sm" onClick={() => setDrill(null)} />
+          <div className="w-full max-w-3xl bg-card border-l border-border flex flex-col h-full shadow-2xl">
+
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center shrink-0">
+                  <Layers className="w-4 h-4 text-indigo-500" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="font-bold text-foreground text-base truncate">{drill?.lv1 ?? '...'}</h3>
+                  {drill && (
+                    <span className="text-xs text-muted-foreground">{drill.rows.length} ta yozuv</span>
+                  )}
+                </div>
+              </div>
+              <button onClick={() => setDrill(null)}
+                className="w-8 h-8 rounded-lg bg-muted hover:bg-muted/70 flex items-center justify-center transition-colors shrink-0 ml-3">
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            {drill && (
+              <div className="px-6 py-3 border-b border-border shrink-0">
+                <div className="flex items-center gap-2 bg-background border border-border rounded-xl px-3 py-2.5">
+                  <Search className="w-4 h-4 text-muted-foreground shrink-0" />
+                  <input value={drillSearch} onChange={e => setDrillSearch(e.target.value)}
+                    placeholder="Qidirish: nuqson nomi, kodi..."
+                    className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none" />
+                  {drillSearch && (
+                    <button onClick={() => setDrillSearch('')}><X className="w-3.5 h-3.5 text-muted-foreground" /></button>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto">
+              {drillLoading && (
+                <div className="flex items-center justify-center py-20">
+                  <RefreshCw className="w-7 h-7 animate-spin text-indigo-500" />
+                </div>
+              )}
+              {drill && (() => {
+                const search   = drillSearch.toLowerCase()
+                const filtered = search
+                  ? drill.rows.filter(r =>
+                      r.fault_name.toLowerCase().includes(search) ||
+                      r.fault_code.toLowerCase().includes(search) ||
+                      r.defect_note.toLowerCase().includes(search) ||
+                      r.part_lv2.toLowerCase().includes(search)
+                    )
+                  : drill.rows
+
+                if (filtered.length === 0) return (
+                  <div className="text-center py-16 text-sm text-muted-foreground">Hech narsa topilmadi</div>
+                )
+
+                const byLv2: Record<string, DrillRow[]> = {}
+                for (const row of filtered) {
+                  const lv2 = row.part_lv2 || '—'
+                  if (!byLv2[lv2]) byLv2[lv2] = []
+                  byLv2[lv2].push(row)
+                }
+
+                return (
+                  <div className="divide-y divide-border">
+                    {Object.entries(byLv2).map(([lv2, rows]) => (
+                      <div key={lv2}>
+                        <div className="sticky top-0 z-10 flex items-center justify-between px-6 py-2.5 bg-muted/60 backdrop-blur-sm border-b border-border">
+                          <span className="text-sm font-bold text-foreground">{lv2}</span>
+                          <span className="text-xs text-indigo-400 font-semibold">
+                            {rows.reduce((s, r) => s + r.gca_weight, 0).toFixed(0)} og'irlik
+                          </span>
+                        </div>
+                        <div className="divide-y divide-border/50">
+                          {rows.map((row, idx) => {
+                            const shopCls = SHOP_COLORS[row.shop] ?? 'bg-muted/20 text-muted-foreground border-border'
+                            return (
+                              <div key={idx} className="grid grid-cols-[1fr_1.6fr_auto_auto] gap-x-3 items-start px-6 py-3.5 hover:bg-muted/20 transition-colors">
+                                <div className="min-w-0 pt-0.5">
+                                  <p className="text-sm text-foreground">{row.part_lv3 || '—'}</p>
+                                </div>
+                                <div className="min-w-0 space-y-1">
+                                  <div className="flex items-start gap-1.5 flex-wrap">
+                                    {row.fault_code && row.fault_code !== '—' && (
+                                      <span className="text-xs font-mono font-bold bg-indigo-500/15 text-indigo-400 px-1.5 py-0.5 rounded shrink-0">{row.fault_code}</span>
+                                    )}
+                                    <span className="text-sm text-foreground font-medium">{row.fault_name}</span>
+                                  </div>
+                                  {row.defect_note && <p className="text-xs text-sky-300">📝 {row.defect_note}</p>}
+                                </div>
+                                <div className="flex justify-center pt-0.5">
+                                  <span className={`px-2 py-0.5 rounded text-xs font-bold border whitespace-nowrap ${shopCls}`}>{row.shop}</span>
+                                </div>
+                                <div className="text-right pt-0.5">
+                                  <span className="text-sm font-bold text-indigo-400">{row.gca_weight}</span>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
             </div>
           </div>
-        )}
-
-        {/* Empty state */}
-        {!loading && records.length === 0 && (
-          <div className="bg-card border border-border rounded-xl p-12 text-center">
-            <p className="text-muted-foreground text-sm">
-              Hali GCA nuqsoni kiritilmagan.
-            </p>
-            <p className="text-muted-foreground text-xs mt-1">
-              GCA Admin panelidan yangi yozuv qo'shing.
-            </p>
-          </div>
-        )}
-
-      </div>
+        </div>
+      )}
     </div>
   )
 }

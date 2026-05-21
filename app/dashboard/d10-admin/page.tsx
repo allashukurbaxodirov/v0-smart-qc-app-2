@@ -8,10 +8,11 @@ import { SHOP_LINES } from '@/lib/shift-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { ChevronLeft, Upload, Trash2, Check, Lock } from 'lucide-react'
+import { ChevronLeft, Upload, Trash2, Check, Lock, Car } from 'lucide-react'
 import Link from 'next/link'
 
 type D10Shop = 'PRESS SHOP' | 'WELDING-1' | 'WELDING-2'
+type CarModel = 'DAMAS' | 'LABO'
 
 const LOCKED_ROLES = ['d10_inspector', 'cmm_inspector', 'ga_engineer', 'welding_engineer']
 
@@ -19,11 +20,12 @@ export default function D10AdminPage() {
   const { records, addRecord, deleteRecord } = useDRecords()
   const d10Records = records.filter((r) => r.type === 'd10')
 
+  const [carModel, setCarModel] = useState<CarModel | null>(null)
   const [showSuccess, setShowSuccess] = useState(false)
   const [sortBy, setSortBy] = useState<'date' | 'shop' | 'factor'>('date')
   const [filterShop, setFilterShop] = useState<string>('')
 
-  const [session, setSession] = useState<{ role: string; shop: string | null } | null>(null)
+  const [session, setSession] = useState<{ role: string; shop: string | null; shift: string | null } | null>(null)
   useEffect(() => {
     fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => { if (d) setSession(d) })
   }, [])
@@ -31,13 +33,14 @@ export default function D10AdminPage() {
   const lockedShop = (isLocked && session?.shop) ? session.shop as D10Shop : null
 
   const [formData, setFormData] = useState({
-    shop: 'PRESS SHOP' as D10Shop,
+    shop:   'PRESS SHOP' as D10Shop,
     sector: '',
-    code: '18',
+    pono:   '',
+    code:   '18',
     factor: 5,
-    count: 1,
-    notes: '',
-    image: null as File | null,
+    count:  1,
+    notes:  '',
+    image:  null as File | null,
   })
 
   useEffect(() => {
@@ -69,20 +72,23 @@ export default function D10AdminPage() {
         type:     'd10',
         shop:     formData.shop,
         sector:   formData.sector || null,
+        pono:     formData.pono   || null,
         code:     formData.code,
         codeName: selectedDefect.name,
         factor:   formData.factor,
         count:    formData.count,
-        notes:    formData.notes || undefined,
+        notes:    formData.notes  || undefined,
+        date:     new Date().toISOString().split('T')[0],
+        shift:    session?.shift || 'A',
       })
       setShowSuccess(true)
       setTimeout(() => setShowSuccess(false), 3000)
-      setFormData({ shop: 'PRESS SHOP', sector: '', code: '18', factor: 5, count: 1, notes: '', image: null })
+      setFormData({ shop: 'PRESS SHOP', sector: '', pono: '', code: '18', factor: 5, count: 1, notes: '', image: null })
     }
   }
 
   const handleClearForm = () => {
-    setFormData({ shop: 'PRESS SHOP', sector: '', code: '18', factor: 5, count: 1, notes: '', image: null })
+    setFormData({ shop: 'PRESS SHOP', sector: '', pono: '', code: '18', factor: 5, count: 1, notes: '', image: null })
   }
 
   const getRiskLevel = (factor: number) => {
@@ -134,10 +140,47 @@ export default function D10AdminPage() {
               <h2 className="text-lg font-bold text-foreground mb-6">Yangi D10 yozuv qo&apos;shish</h2>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                {/* 1. Shop */}
+                {/* 1. Avtomobil modeli */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                    Sexi *
+                    <Car className="w-4 h-4 text-primary" />
+                    Avtomobil modeli *
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['DAMAS', 'LABO'] as CarModel[]).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setCarModel(m)}
+                        className={`py-2.5 rounded-lg text-sm font-bold border transition-all ${
+                          carModel === m
+                            ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                            : 'bg-background border-border text-foreground hover:border-primary/50'
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 2. PONO */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">PONO raqami</label>
+                  <Input
+                    type="text"
+                    name="pono"
+                    value={formData.pono}
+                    onChange={handleInputChange}
+                    placeholder="P-2024-001"
+                    className="bg-background border-border font-mono"
+                  />
+                </div>
+
+                {/* 3. Shop */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
+                    Nuqson sexi *
                     {isLocked && lockedShop && <Lock className="w-3 h-3 text-muted-foreground" />}
                   </label>
                   {isLocked && lockedShop ? (
@@ -159,7 +202,7 @@ export default function D10AdminPage() {
                   )}
                 </div>
 
-                {/* 2. Sector */}
+                {/* 4. Sector */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Sektor</label>
                   <select
@@ -175,7 +218,7 @@ export default function D10AdminPage() {
                   </select>
                 </div>
 
-                {/* 3. Defect Code */}
+                {/* 4. Defect Code */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Nuqson kodi *</label>
                   <select
@@ -287,6 +330,7 @@ export default function D10AdminPage() {
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sana</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sexi</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sektor</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">PONO</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Kod</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nuqson nomi</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Soni</th>
@@ -299,7 +343,7 @@ export default function D10AdminPage() {
                   <tbody>
                     {filteredRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
+                        <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">
                           Hali D10 ma&apos;lumot yo&apos;q
                         </td>
                       </tr>
@@ -319,6 +363,7 @@ export default function D10AdminPage() {
                                 <span className="text-muted-foreground">—</span>
                               )}
                             </td>
+                            <td className="px-4 py-3 text-sm font-mono text-foreground">{record.pono || '—'}</td>
                             <td className="px-4 py-3 text-sm font-semibold text-foreground">{record.code}</td>
                             <td className="px-4 py-3 text-sm text-foreground">{record.codeName}</td>
                             <td className="px-4 py-3 text-sm text-foreground">{record.count}</td>

@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import sql from '@/lib/db'
+
+async function getSession() {
+  const cs = await cookies()
+  const raw = cs.get('qc_session')?.value
+  if (!raw) return null
+  try { return JSON.parse(raw) as { tabelNumber?: string; name: string; role: string } }
+  catch { return null }
+}
 
 interface CachedIncoming {
   id: string
@@ -17,7 +26,10 @@ interface CachedIncoming {
   created_by_name: string | null
 }
 
-const memCache: CachedIncoming[] = []
+// globalThis — HMR va server restart da yo'qolmasin
+declare global { var __qc_incoming_cache: CachedIncoming[] | undefined }
+if (!globalThis.__qc_incoming_cache) globalThis.__qc_incoming_cache = []
+const memCache = globalThis.__qc_incoming_cache
 
 function toClient(r: CachedIncoming) {
   return {
@@ -77,6 +89,9 @@ export async function GET() {
 
 // ─── POST ──────────────────────────────────────────────────────────────────────
 export async function POST(req: Request) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const body = await req.json()
   const {
     partNumber, warehouse, supplier, partName,
@@ -126,6 +141,9 @@ export async function POST(req: Request) {
 
 // ─── DELETE ────────────────────────────────────────────────────────────────────
 export async function DELETE(req: Request) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { searchParams } = new URL(req.url)
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })

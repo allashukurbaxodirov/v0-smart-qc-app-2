@@ -37,7 +37,8 @@ export function IncomingProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error,   setError]   = useState<string | null>(null)
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (background = false) => {
+    if (!background) setLoading(true)
     try {
       const res = await fetch('/api/incoming')
       if (res.ok) {
@@ -55,11 +56,23 @@ export function IncomingProvider({ children }: { children: React.ReactNode }) {
       } catch {}
       setError('Offline rejimda ishlamoqda')
     } finally {
-      setLoading(false)
+      if (!background) setLoading(false)
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    load()
+    const interval = setInterval(() => load(true), 60_000)
+    const onFocus = () => load(true)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) load(true)
+    })
+    window.addEventListener('focus', onFocus)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [load])
 
   const addRecord = useCallback(async (r: Omit<IncomingRecord, 'id'>) => {
     try {

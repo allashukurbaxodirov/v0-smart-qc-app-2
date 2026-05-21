@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import DrlEscalationPanel from '@/components/dashboard/drl-escalation-panel'
 
 // ─── Tip ──────────────────────────────────────────────────────────────────────
 type ResolutionStatus = 'ochiq' | 'jarayonda' | 'yopilgan' | 'uzatilgan'
@@ -61,6 +62,10 @@ function getStatusInfo(status: ResolutionStatus) {
 export default function GAEngineerPage() {
   const { records, loading, refresh } = useGCA()
   const [refreshing, setRefreshing] = useState(false)
+  const [userName, setUserName] = useState<string | null>(null)
+  useEffect(() => {
+    fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => { if (d?.name) setUserName(d.name) })
+  }, [])
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -108,7 +113,7 @@ export default function GAEngineerPage() {
   }
 
   // Filtirlar
-  const [filterShop, setFilterShop]     = useState('')
+  const [filterShop, setFilterShop]     = useState('GA')
   const [filterStatus, setFilterStatus] = useState('')
   const [filterFactor, setFilterFactor] = useState('')
   const [sortBy, setSortBy]             = useState<'date' | 'factor'>('factor')
@@ -241,6 +246,9 @@ export default function GAEngineerPage() {
 
       <div className="p-6 space-y-6">
 
+        {/* DRL Eskalatsiyalar */}
+        <DrlEscalationPanel role="ga_engineer" />
+
         {/* Muvaffaqiyat xabari */}
         {successMsg && (
           <div className="bg-success/10 border border-success/30 rounded-lg p-4 flex items-center gap-3">
@@ -292,16 +300,10 @@ export default function GAEngineerPage() {
           <div className="space-y-4">
             {/* Filtirlar */}
             <div className="flex flex-wrap gap-3">
-              <select
-                value={filterShop}
-                onChange={(e) => setFilterShop(e.target.value)}
-                className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground"
-              >
-                <option value="">Barcha sehlar</option>
-                {['PRESS SHOP', 'WELDING-1', 'WELDING-2', 'PAINT SHOP', 'GA'].map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+              <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 border border-orange-300 rounded-lg text-sm font-semibold text-orange-800">
+                <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+                GA sehi
+              </div>
 
               <select
                 value={filterFactor}
@@ -804,6 +806,7 @@ export default function GAEngineerPage() {
           </div>
         </div>
       )}
+
     </div>
   )
 }

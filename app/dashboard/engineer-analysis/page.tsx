@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import PageHeader from '@/components/dashboard/page-header'
 import { useGCA } from '@/lib/gca-context'
 import { useDRecords } from '@/lib/d-records-context'
@@ -15,6 +15,10 @@ import {
   ClipboardList,
   Activity,
   ChevronLeft,
+  Bell,
+  RefreshCw,
+  CheckCheck,
+  Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -33,6 +37,28 @@ interface Resolution {
   resolvedAt: string
 }
 
+interface EscalationRow {
+  id:            string
+  import_batch:  string | null
+  fault_code:    string
+  fault_name:    string
+  shop:          string
+  prod_team:     string | null
+  total_count:   number
+  drl_ratio:     number | null
+  model_damas:   number
+  model_labo:    number
+  assigned_role: string
+  assigned_name: string | null
+  priority:      string
+  status:        string
+  engineer_note: string | null
+  root_cause:    string | null
+  action_taken:  string | null
+  created_at:    string
+  resolved_at:   string | null
+}
+
 // ─── Yordamchi funksiyalar ────────────────────────────────────────────────────
 function getFactorBadge(factor: number) {
   if (factor === 50) return 'bg-critical text-white'
@@ -48,6 +74,32 @@ function getStatusInfo(status: ResolutionStatus) {
     case 'yopilgan':   return { label: 'Bartaraf etildi', cls: 'bg-success text-white',  icon: CheckCircle2  }
     case 'uzatilgan':  return { label: 'Uzatilgan',       cls: 'bg-primary text-white',  icon: ArrowRightLeft}
   }
+}
+
+const ESC_STATUS: Record<string, { label: string; cls: string }> = {
+  open:        { label: '🔴 Ochiq',      cls: 'bg-red-500/20 text-red-300 border border-red-500/30' },
+  in_progress: { label: '🟡 Jarayonda',  cls: 'bg-amber-500/20 text-amber-300 border border-amber-500/30' },
+  resolved:    { label: '✅ Yopildi',    cls: 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' },
+  cancelled:   { label: '⛔ Bekor',      cls: 'bg-muted/20 text-muted-foreground border border-border' },
+}
+
+const ESC_PRIORITY: Record<string, { label: string; cls: string }> = {
+  critical: { label: '🔴 Kritik',   cls: 'bg-red-500/20 text-red-300 border border-red-500/30' },
+  high:     { label: '🟠 Yuqori',   cls: 'bg-orange-500/20 text-orange-300 border border-orange-500/30' },
+  medium:   { label: '🟡 O\'rtacha',cls: 'bg-amber-500/20 text-amber-300 border border-amber-500/30' },
+  low:      { label: '🔵 Past',     cls: 'bg-blue-500/20 text-blue-300 border border-blue-500/30' },
+}
+
+const SHOP_CLS: Record<string, string> = {
+  'WELDING':    'bg-sky-600 text-white',
+  'PAINT SHOP': 'bg-violet-600 text-white',
+  'GA':         'bg-emerald-600 text-white',
+  'PRESS SHOP': 'bg-amber-600 text-white',
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  ga_engineer:      'GA Muhandis',
+  welding_engineer: 'Welding Muhandis',
 }
 
 // ─── KPI kartochka ────────────────────────────────────────────────────────────
@@ -99,7 +151,56 @@ export default function EngineerAnalysisPage() {
     } catch {}
   }, [])
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'ga' | 'welding' | 'history'>('overview')
+  // ── DRL Eskalatsiyalar (DB) ────────────────────────────────────────────────
+  const [escalations, setEscalations] = useState<EscalationRow[]>([])
+  const [escLoading,  setEscLoading]  = useState(false)
+  const [escFilter,   setEscFilter]   = useState<'all' | 'ga_engineer' | 'welding_engineer'>('all')
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [refreshing,  setRefreshing]  = useState(false)
+
+  const loadEscalations = useCallback(async (silent = false) => {
+    if (!silent) setEscLoading(true)
+    else setRefreshing(true)
+    try {
+      const res = await fetch('/api/drl-escalations')
+      if (res.ok) {
+        const data = await res.json()
+        setEscalations(Array.isArray(data) ? data : [])
+        setLastRefresh(new Date())
+      }
+    } catch {}
+    finally {
+      setEscLoading(false)
+      setRefreshing(false)
+    }
+  }, [])
+
+  useEffect(() => { loadEscalations() }, [loadEscalations])
+
+  // 30 soniyada bir marta avtomatik yangilash
+  useEffect(() => {
+    const id = setInterval(() => loadEscalations(true), 30_000)
+    return () => clearInterval(id)
+  }, [loadEscalations])
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'ga' | 'welding' | 'drl' | 'history'>('overview')
+
+  // ── Eskalatsiya statistikasi ───────────────────────────────────────────────
+  const escStats = useMemo(() => {
+    const all     = escalations
+    const open    = all.filter(e => e.status === 'open').length
+    const inProg  = all.filter(e => e.status === 'in_progress').length
+    const resolved= all.filter(e => e.status === 'resolved').length
+    const gaOpen  = all.filter(e => e.assigned_role === 'ga_engineer'      && e.status === 'open').length
+    const wOpen   = all.filter(e => e.assigned_role === 'welding_engineer'  && e.status === 'open').length
+    const critical= all.filter(e => e.priority === 'critical' && e.status !== 'resolved' && e.status !== 'cancelled').length
+    return { total: all.length, open, inProg, resolved, gaOpen, wOpen, critical }
+  }, [escalations])
+
+  const filteredEsc = useMemo(() => {
+    if (escFilter === 'all') return escalations
+    return escalations.filter(e => e.assigned_role === escFilter)
+  }, [escalations, escFilter])
 
   // ── GA engineer statistikasi ───────────────────────────────────────────────
   const gaStats = useMemo(() => {
@@ -168,15 +269,38 @@ export default function EngineerAnalysisPage() {
       />
 
       <div className="p-6 space-y-6">
-        <Link href="/dashboard/manager">
-          <button className="flex items-center gap-1 px-3 py-2 text-sm text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 transition-colors">
-            <ChevronLeft className="w-4 h-4" />
-            Rahbar paneliga qaytish
-          </button>
-        </Link>
+
+        {/* ── Tepki qator ───────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <Link href="/dashboard/manager">
+            <button className="flex items-center gap-1 px-3 py-2 text-sm text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 transition-colors">
+              <ChevronLeft className="w-4 h-4" />
+              Rahbar paneliga qaytish
+            </button>
+          </Link>
+          <div className="flex items-center gap-2 ml-auto">
+            {escStats.open > 0 && (
+              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500/15 border border-red-500/30 text-red-400 rounded-lg text-xs font-bold animate-pulse">
+                <Bell className="w-3.5 h-3.5" />
+                {escStats.open} ochiq eskalatsiya
+              </span>
+            )}
+            <span suppressHydrationWarning className="text-xs text-muted-foreground hidden sm:block">
+              {lastRefresh.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </span>
+            <button
+              onClick={() => loadEscalations(true)}
+              disabled={refreshing}
+              className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+              Yangilash
+            </button>
+          </div>
+        </div>
 
         {/* ── UMUMIY KPI ─────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
           <KpiCard
             label="Jami muammolar"
             value={gaStats.total + wStats.total}
@@ -195,7 +319,7 @@ export default function EngineerAnalysisPage() {
             value={gaStats.transferred + wStats.transferred}
             cls="text-primary"
             border="border-primary/40"
-            sub="Boshqa sehga o'tkazilgan"
+            sub="Boshqa sehga"
           />
           <KpiCard
             label="Jarayonda"
@@ -204,7 +328,7 @@ export default function EngineerAnalysisPage() {
             border="border-warning/40"
           />
           <KpiCard
-            label="Ochiq (hal qilinmagan)"
+            label="Hal qilinmagan"
             value={gaStats.open + wStats.open}
             cls="text-critical"
             border="border-critical/40"
@@ -214,8 +338,26 @@ export default function EngineerAnalysisPage() {
             value={gaStats.f50 + wStats.f50}
             cls="text-critical"
             border="border-critical/40"
-            sub={`${gaStats.f50resolved + wStats.f50resolved} ta bartaraf etildi`}
+            sub={`${gaStats.f50resolved + wStats.f50resolved} ta bartaraf`}
           />
+          {/* DRL Eskalatsiyalar */}
+          <div
+            className={`bg-card border-2 rounded-xl p-4 cursor-pointer transition-all hover:scale-[1.02] ${
+              escStats.open > 0 ? 'border-red-500/50 bg-red-500/5' : 'border-emerald-500/40'
+            }`}
+            onClick={() => setActiveTab('drl')}
+          >
+            <div className="flex items-center gap-1.5 mb-1">
+              <Bell className={`w-3.5 h-3.5 ${escStats.open > 0 ? 'text-red-400' : 'text-emerald-400'}`} />
+              <p className="text-xs text-muted-foreground">DRL Esc.</p>
+            </div>
+            <p className={`text-2xl font-bold ${escStats.open > 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+              {escStats.open}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {escStats.inProg > 0 ? `${escStats.inProg} jarayonda` : `${escStats.resolved} yopildi`}
+            </p>
+          </div>
         </div>
 
         {/* ── TAB BAR ───────────────────────────────────────────────────── */}
@@ -224,21 +366,30 @@ export default function EngineerAnalysisPage() {
             { key: 'overview', label: "Umumiy ko'rinish", icon: Activity       },
             { key: 'ga',       label: 'GA Engineer',      icon: TrendingUp     },
             { key: 'welding',  label: 'Welding Engineer', icon: BarChart2      },
+            { key: 'drl',      label: 'DRL Eskalatsiyalar', icon: Bell,
+              badge: escStats.open > 0 ? escStats.open : undefined },
             { key: 'history',  label: 'Tarix',            icon: ClipboardList  },
-          ] as { key: typeof activeTab; label: string; icon: React.ElementType }[]).map(({ key, label, icon: Icon }) => (
+          ] as { key: typeof activeTab; label: string; icon: React.ElementType; badge?: number }[]).map(({ key, label, icon: Icon, badge }) => {
+            const Ic = Icon as React.FC<{ className?: string }>
+            return (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              className={`relative flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
                 activeTab === key
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:text-foreground'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Ic className="w-4 h-4" />
               {label}
+              {badge && badge > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {badge > 9 ? '9+' : badge}
+                </span>
+              )}
             </button>
-          ))}
+          )})}
         </div>
 
         {/* ── UMUMIY KO'RINISH ──────────────────────────────────────────── */}
@@ -277,7 +428,7 @@ export default function EngineerAnalysisPage() {
 
               {/* Sehlar bo'yicha mini */}
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sehlar bo'yicha</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sehlar bo&apos;yicha</p>
                 {gaShops.map((shop) => {
                   const shopR = gcaRecords.filter((r) => r.shop === shop)
                   const done  = shopR.filter((r) => gaRes[r.id]?.status === 'yopilgan' || gaRes[r.id]?.status === 'uzatilgan').length
@@ -332,7 +483,7 @@ export default function EngineerAnalysisPage() {
 
               {/* Sehlar bo'yicha mini */}
               <div className="space-y-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sehlar bo'yicha</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sehlar bo&apos;yicha</p>
                 {wShops.map((shop) => {
                   const shopR = weldingDRecs.filter((r) => r.shop === shop)
                   const done  = shopR.filter((r) => weldingRes[r.id]?.status === 'yopilgan' || weldingRes[r.id]?.status === 'uzatilgan').length
@@ -352,6 +503,52 @@ export default function EngineerAnalysisPage() {
                   )
                 })}
               </div>
+            </div>
+
+            {/* DRL Eskalatsiyalar umumiy karta */}
+            <div className="md:col-span-2 bg-card border border-border rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-red-400" />
+                  <h3 className="text-base font-bold text-foreground">DRL Eskalatsiyalar (GSIP)</h3>
+                  {escStats.open > 0 && (
+                    <span className="px-2 py-0.5 bg-red-500 text-white rounded-full text-xs font-bold animate-pulse">
+                      {escStats.open} yangi
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setActiveTab('drl')}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Barchasini ko&apos;rish →
+                </button>
+              </div>
+              {escLoading ? (
+                <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Yuklanmoqda...
+                </div>
+              ) : escalations.length === 0 ? (
+                <div className="flex items-center gap-2 py-4 text-muted-foreground text-sm">
+                  <CheckCheck className="w-4 h-4 text-success" />
+                  Hozircha eskalatsiyalar yo&apos;q
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {[
+                    { label: 'Jami',       value: escStats.total,    cls: 'text-foreground', bg: 'bg-muted/30' },
+                    { label: 'Ochiq',      value: escStats.open,     cls: 'text-red-400',    bg: 'bg-red-500/10' },
+                    { label: 'Jarayonda',  value: escStats.inProg,   cls: 'text-amber-400',  bg: 'bg-amber-500/10' },
+                    { label: 'Yopildi',    value: escStats.resolved, cls: 'text-emerald-400',bg: 'bg-emerald-500/10' },
+                  ].map(s => (
+                    <div key={s.label} className={`${s.bg} rounded-xl p-4`}>
+                      <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
+                      <p className={`text-2xl font-bold ${s.cls}`}>{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Oxirgi 5 ta hal qilingan */}
@@ -415,7 +612,7 @@ export default function EngineerAnalysisPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Sehlar bo'yicha */}
             <div className="bg-card border border-border rounded-xl p-6">
-              <h3 className="text-base font-bold text-foreground mb-4">Sehlar bo'yicha holat</h3>
+              <h3 className="text-base font-bold text-foreground mb-4">Sehlar bo&apos;yicha holat</h3>
               <div className="space-y-4">
                 {gaShops.map((shop) => {
                   const shopR   = gcaRecords.filter((r) => r.shop === shop)
@@ -442,7 +639,7 @@ export default function EngineerAnalysisPage() {
 
             {/* Faktor bo'yicha */}
             <div className="bg-card border border-border rounded-xl p-6">
-              <h3 className="text-base font-bold text-foreground mb-4">Faktor bo'yicha holat</h3>
+              <h3 className="text-base font-bold text-foreground mb-4">Faktor bo&apos;yicha holat</h3>
               <div className="space-y-4">
                 {[
                   { factor: 50, cls: 'bg-critical', text: 'text-critical' },
@@ -476,7 +673,7 @@ export default function EngineerAnalysisPage() {
             <div className="md:col-span-2 bg-card border border-border rounded-xl p-6">
               <h3 className="text-base font-bold text-foreground mb-4">GA — Bartaraf etilgan nuqsonlar</h3>
               {Object.keys(gaRes).length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">Hali ma'lumot yo'q</p>
+                <p className="text-sm text-muted-foreground py-4 text-center">Hali ma&apos;lumot yo&apos;q</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -538,7 +735,7 @@ export default function EngineerAnalysisPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Sehlar bo'yicha */}
             <div className="bg-card border border-border rounded-xl p-6">
-              <h3 className="text-base font-bold text-foreground mb-4">Sehlar bo'yicha holat</h3>
+              <h3 className="text-base font-bold text-foreground mb-4">Sehlar bo&apos;yicha holat</h3>
               <div className="space-y-4">
                 {wShops.map((shop) => {
                   const shopR  = weldingDRecs.filter((r) => r.shop === shop)
@@ -565,7 +762,7 @@ export default function EngineerAnalysisPage() {
 
             {/* Faktor bo'yicha */}
             <div className="bg-card border border-border rounded-xl p-6">
-              <h3 className="text-base font-bold text-foreground mb-4">Faktor bo'yicha holat</h3>
+              <h3 className="text-base font-bold text-foreground mb-4">Faktor bo&apos;yicha holat</h3>
               <div className="space-y-4">
                 {[
                   { factor: 50, cls: 'bg-critical', text: 'text-critical' },
@@ -599,7 +796,7 @@ export default function EngineerAnalysisPage() {
             <div className="md:col-span-2 bg-card border border-border rounded-xl p-6">
               <h3 className="text-base font-bold text-foreground mb-4">Welding — Bartaraf etilgan nuqsonlar</h3>
               {Object.keys(weldingRes).length === 0 ? (
-                <p className="text-sm text-muted-foreground py-4 text-center">Hali ma'lumot yo'q</p>
+                <p className="text-sm text-muted-foreground py-4 text-center">Hali ma&apos;lumot yo&apos;q</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -656,6 +853,187 @@ export default function EngineerAnalysisPage() {
           </div>
         )}
 
+        {/* ── DRL ESKALATSIYALAR TAB ────────────────────────────────────── */}
+        {activeTab === 'drl' && (
+          <div className="space-y-5">
+
+            {/* KPI satri */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
+              {[
+                { label: 'Jami',          value: escStats.total,    cls: 'text-foreground',   bg: 'bg-card border-border' },
+                { label: 'Ochiq',         value: escStats.open,     cls: 'text-red-400',      bg: 'bg-card border-red-500/30' },
+                { label: 'Jarayonda',     value: escStats.inProg,   cls: 'text-amber-400',    bg: 'bg-card border-amber-500/30' },
+                { label: 'Yopildi',       value: escStats.resolved, cls: 'text-emerald-400',  bg: 'bg-card border-emerald-500/30' },
+                { label: 'GA Ochiq',      value: escStats.gaOpen,   cls: 'text-primary',      bg: 'bg-card border-primary/30' },
+                { label: 'Welding Ochiq', value: escStats.wOpen,    cls: 'text-warning',      bg: 'bg-card border-warning/30' },
+              ].map(s => (
+                <div key={s.label} className={`border-2 ${s.bg} rounded-xl p-4`}>
+                  <p className="text-xs text-muted-foreground mb-1">{s.label}</p>
+                  <p className={`text-2xl font-bold ${s.cls}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Filter tugmalari */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground font-medium">Filtr:</span>
+              {([
+                { key: 'all',              label: 'Hammasi'         },
+                { key: 'ga_engineer',      label: 'GA Muhandis'     },
+                { key: 'welding_engineer', label: 'Welding Muhandis'},
+              ] as { key: typeof escFilter; label: string }[]).map(f => (
+                <button key={f.key} onClick={() => setEscFilter(f.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                    escFilter === f.key
+                      ? 'bg-primary text-primary-foreground border-primary'
+                      : 'bg-card border-border text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {f.label}
+                  {f.key === 'all'              && <span className="ml-1.5 opacity-70">({escStats.total})</span>}
+                  {f.key === 'ga_engineer'      && <span className="ml-1.5 opacity-70">({escalations.filter(e=>e.assigned_role==='ga_engineer').length})</span>}
+                  {f.key === 'welding_engineer' && <span className="ml-1.5 opacity-70">({escalations.filter(e=>e.assigned_role==='welding_engineer').length})</span>}
+                </button>
+              ))}
+              <button onClick={() => loadEscalations(true)} disabled={refreshing}
+                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground transition-all disabled:opacity-50">
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                Yangilash
+              </button>
+            </div>
+
+            {/* Jadval */}
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
+              {escLoading ? (
+                <div className="flex items-center justify-center py-16 gap-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">Yuklanmoqda...</span>
+                </div>
+              ) : filteredEsc.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <CheckCheck className="w-10 h-10 text-emerald-400 opacity-50" />
+                  <p className="text-sm text-muted-foreground">
+                    {escFilter === 'all' ? 'Hozircha eskalatsiyalar yo\'q' : `${ROLE_LABEL[escFilter]} uchun eskalatsiya topilmadi`}
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[900px]">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/10">
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">#</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nuqson</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sehi</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Soni</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Muhandis</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Ustuvorlik</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Holat</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Ildiz sabab</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Ko'rilgan chora</th>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sana</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/60">
+                      {filteredEsc.map((e, i) => (
+                        <tr key={e.id}
+                          className={`transition-colors hover:bg-muted/15 ${
+                            e.status === 'open' ? 'bg-red-500/5' : ''
+                          }`}
+                        >
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{i + 1}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1.5">
+                              {e.fault_code !== '—' && (
+                                <span className="font-mono text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded flex-shrink-0">
+                                  {e.fault_code}
+                                </span>
+                              )}
+                              <span className="text-sm font-medium text-foreground">{e.fault_name}</span>
+                            </div>
+                            {(e.model_damas > 0 || e.model_labo > 0) && (
+                              <div className="flex gap-2 mt-0.5">
+                                {e.model_damas > 0 && <span className="text-xs text-sky-400">D:{e.model_damas}</span>}
+                                {e.model_labo  > 0 && <span className="text-xs text-emerald-400">L:{e.model_labo}</span>}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`px-2 py-0.5 rounded text-xs font-semibold ${SHOP_CLS[e.shop] ?? 'bg-muted/30 text-muted-foreground'}`}>
+                              {e.shop}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center text-base font-bold text-foreground">
+                            {e.total_count.toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded border ${
+                              e.assigned_role === 'ga_engineer'
+                                ? 'bg-primary/10 text-primary border-primary/20'
+                                : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                            }`}>
+                              {ROLE_LABEL[e.assigned_role] ?? e.assigned_role}
+                            </span>
+                            {e.assigned_name && (
+                              <p className="text-xs text-muted-foreground mt-0.5">{e.assigned_name}</p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                              ESC_PRIORITY[e.priority]?.cls ?? 'bg-muted/20 text-muted-foreground border border-border'
+                            }`}>
+                              {ESC_PRIORITY[e.priority]?.label ?? e.priority}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className={`text-xs px-2 py-0.5 rounded font-medium ${
+                              ESC_STATUS[e.status]?.cls ?? 'bg-muted/20 text-muted-foreground'
+                            }`}>
+                              {ESC_STATUS[e.status]?.label ?? e.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 max-w-[150px]">
+                            <p className="text-xs text-foreground truncate" title={e.root_cause ?? ''}>
+                              {e.root_cause || <span className="text-muted-foreground/50 italic">Kiritilmagan</span>}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 max-w-[150px]">
+                            <p className="text-xs text-foreground truncate" title={e.action_taken ?? ''}>
+                              {e.action_taken || <span className="text-muted-foreground/50 italic">Kiritilmagan</span>}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(e.created_at).toLocaleDateString('uz-UZ')}
+                            {e.resolved_at && (
+                              <p className="text-emerald-400">
+                                ✅ {new Date(e.resolved_at).toLocaleDateString('uz-UZ')}
+                              </p>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* DRL Dashboard havola */}
+            <div className="flex items-center justify-center gap-3">
+              <Link href="/dashboard/drl">
+                <button className="flex items-center gap-2 px-5 py-2.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 rounded-xl text-sm font-semibold hover:bg-yellow-500/20 transition-all">
+                  <TrendingUp className="w-4 h-4" />
+                  To'liq DRL Dashboard →
+                </button>
+              </Link>
+              <Link href="/dashboard/drl-admin">
+                <button className="flex items-center gap-2 px-5 py-2.5 bg-card border border-border text-muted-foreground rounded-xl text-sm font-medium hover:text-foreground hover:border-primary/40 transition-all">
+                  GSIP Excel yuklash →
+                </button>
+              </Link>
+            </div>
+          </div>
+        )}
+
         {/* ── TO'LIQ TARIX ──────────────────────────────────────────────── */}
         {activeTab === 'history' && (
           <div className="bg-card border border-border rounded-xl p-6">
@@ -668,7 +1046,7 @@ export default function EngineerAnalysisPage() {
                 <CheckCircle2 className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-30" />
                 <p className="text-muted-foreground text-sm">Hali hal qilingan muammo mavjud emas</p>
                 <p className="text-muted-foreground text-xs mt-1">
-                  GA yoki Welding muhandisi nuqsonlarni bartaraf etgach bu yerda ko'rinadi
+                  GA yoki Welding muhandisi nuqsonlarni bartaraf etgach bu yerda ko&apos;rinadi
                 </p>
               </div>
             ) : (
@@ -742,6 +1120,7 @@ export default function EngineerAnalysisPage() {
             )}
           </div>
         )}
+
       </div>
     </div>
   )

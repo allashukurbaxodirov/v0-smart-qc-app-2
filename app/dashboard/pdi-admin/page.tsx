@@ -1,12 +1,15 @@
 'use client'
-import { QAdminTemplate } from '../_components/q-admin-template'
+import { QcDashboardPage } from '../_components/qc-dashboard-page'
 
-export default function PDIAdminPage() {
+export default function PDIDashboardPage() {
   return (
-    <QAdminTemplate
-      type="pdi"
-      title="PDI — Yetkazish tekshiruvi paneli"
-      description="Pre-Delivery Inspection — yakkuniy sifat tekshiruvida aniqlangan nuqsonlarni qayd etish"
-    />
+    <QcDashboardPage cfg={{
+      type:        'pdi',
+      title:       'PDI — Yetkazish Tekshiruvi Dashboard',
+      description: "Pre-Delivery Inspection — yakkuniy sifat tekshiruvi natijalari tahlili",
+      entryHref:   '/dashboard/pdi-admin/entry',
+      entryLabel:  'Nuqson kiritish',
+      breadParent: 'PDI Dashboard',
+    }} />
   )
 }

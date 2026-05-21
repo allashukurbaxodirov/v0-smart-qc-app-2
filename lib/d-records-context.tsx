@@ -8,12 +8,14 @@ export interface DRecord {
   image_url?: string
   shop: 'PRESS SHOP' | 'WELDING-1' | 'WELDING-2'
   sector?: string | null
+  pono?: string | null
   code: string
   codeName: string
   factor: number
   count: number
   notes?: string
   date: string
+  shift?: string | null
   created_by_name?: string | null
 }
 
@@ -21,7 +23,7 @@ interface DRecordsContextType {
   records: DRecord[]
   loading: boolean
   error: string | null
-  addRecord: (record: Omit<DRecord, 'id' | 'date'>) => Promise<void>
+  addRecord: (record: Omit<DRecord, 'id'>) => Promise<void>
   deleteRecord: (id: string) => Promise<void>
   refresh: () => Promise<void>
   getTotalDefects: () => number
@@ -30,7 +32,7 @@ interface DRecordsContextType {
 
 const DRecordsContext = createContext<DRecordsContextType | undefined>(undefined)
 
-const LS_KEY = 'd_records_local'
+const LS_KEY = 'd_records_local_v2'
 
 function lsLoad(): DRecord[] {
   try {
@@ -47,13 +49,6 @@ function lsSave(records: DRecord[]) {
   } catch {}
 }
 
-function lsAdd(record: DRecord) {
-  const current = lsLoad()
-  if (!current.find((r) => r.id === record.id)) {
-    lsSave([record, ...current])
-  }
-}
-
 function lsRemove(id: string) {
   lsSave(lsLoad().filter((r) => r.id !== id))
 }
@@ -63,8 +58,8 @@ export function DRecordsProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const loadRecords = async () => {
-    setLoading(true)
+  const loadRecords = async (background = false) => {
+    if (!background) setLoading(true)
     try {
       const r = await fetch('/api/d-records')
       if (!r.ok) throw new Error(`Server xatosi: ${r.status}`)
@@ -72,18 +67,20 @@ export function DRecordsProvider({ children }: { children: ReactNode }) {
 
       if (Array.isArray(data)) {
         const dbRecords: DRecord[] = data.map((r: any) => ({
-          id:        r.id,
-          type:      r.type,
-          shop:      r.shop,
-          sector:    r.sector ?? null,
-          code:      r.code,
-          codeName:  r.code_name,
-          factor:    r.factor,
-          count:     r.count,
-          notes:     r.notes,
-          image_url: r.image_url,
-          date:      r.date,
-          created_by_name: r.created_by_name,
+          id:              r.id,
+          type:            r.type,
+          shop:            r.shop,
+          sector:          r.sector  ?? null,
+          pono:            r.pono    ?? null,
+          code:            r.code,
+          codeName:        r.code_name,
+          factor:          Number(r.factor),
+          count:           Number(r.count),
+          notes:           r.notes   ?? undefined,
+          image_url:       r.image_url ?? undefined,
+          date:            r.date,
+          shift:           r.shift   ?? null,
+          created_by_name: r.created_by_name ?? null,
         }))
 
         const localOnly = lsLoad().filter(
@@ -97,35 +94,56 @@ export function DRecordsProvider({ children }: { children: ReactNode }) {
         )
         setRecords(merged)
         lsSave(merged)
+        setError(null)
       }
     } catch {
       const cached = lsLoad()
       if (cached.length > 0) setRecords(cached)
+      setError('Offline rejimda — DB ga ulanib bo\'lmadi')
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { loadRecords() }, [])
+  useEffect(() => {
+    loadRecords()
+    const interval = setInterval(() => loadRecords(true), 60_000)
+    const onFocus = () => loadRecords(true)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) loadRecords(true)
+    })
+    window.addEventListener('focus', onFocus)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [])
 
   const refresh = () => loadRecords()
 
-  const addRecord = async (record: Omit<DRecord, 'id' | 'date'>) => {
+  // ─── addRecord: date, shift, pono — hammasini yuboradi ───────────────────────
+  const addRecord = async (record: Omit<DRecord, 'id'>) => {
+    const today = new Date().toISOString().split('T')[0]
+    const payload = {
+      type:     record.type,
+      shop:     record.shop,
+      sector:   record.sector  ?? null,
+      pono:     record.pono    ?? null,
+      code:     record.code,
+      codeName: record.codeName,
+      factor:   record.factor,
+      count:    record.count,
+      notes:    record.notes   ?? null,
+      imageUrl: record.image_url ?? null,
+      date:     record.date    || today,
+      shift:    record.shift   || 'A',
+    }
+
     try {
       const res = await fetch('/api/d-records', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type:     record.type,
-          shop:     record.shop,
-          sector:   record.sector ?? null,
-          code:     record.code,
-          codeName: record.codeName,
-          factor:   record.factor,
-          count:    record.count,
-          notes:    record.notes,
-          imageUrl: record.image_url,
-        }),
+        body: JSON.stringify(payload),
       })
 
       const text = await res.text()
@@ -133,17 +151,20 @@ export function DRecordsProvider({ children }: { children: ReactNode }) {
 
       if (res.ok && newRecord) {
         const mapped: DRecord = {
-          id:       newRecord.id,
-          type:     newRecord.type,
-          shop:     newRecord.shop,
-          sector:   newRecord.sector ?? null,
-          code:     newRecord.code,
-          codeName: newRecord.code_name,
-          factor:   newRecord.factor,
-          count:    newRecord.count,
-          notes:    newRecord.notes,
-          image_url:newRecord.image_url,
-          date:     newRecord.date,
+          id:              newRecord.id,
+          type:            newRecord.type,
+          shop:            newRecord.shop,
+          sector:          newRecord.sector   ?? null,
+          pono:            newRecord.pono     ?? null,
+          code:            newRecord.code,
+          codeName:        newRecord.code_name,
+          factor:          Number(newRecord.factor),
+          count:           Number(newRecord.count),
+          notes:           newRecord.notes    ?? undefined,
+          image_url:       newRecord.image_url ?? undefined,
+          date:            newRecord.date     || payload.date,
+          shift:           newRecord.shift    ?? payload.shift,
+          created_by_name: newRecord.created_by_name ?? null,
         }
         setRecords((prev) => {
           const updated = [mapped, ...prev]
@@ -151,64 +172,48 @@ export function DRecordsProvider({ children }: { children: ReactNode }) {
           return updated
         })
       } else {
-        const localRecord: DRecord = {
-          id:       `local-${Date.now()}`,
-          type:     record.type,
-          shop:     record.shop,
-          sector:   record.sector ?? null,
-          code:     record.code,
-          codeName: record.codeName,
-          factor:   record.factor,
-          count:    record.count,
-          notes:    record.notes,
-          image_url:record.image_url,
-          date:     new Date().toISOString().split('T')[0],
-        }
-        setRecords((prev) => {
-          const updated = [localRecord, ...prev]
-          lsSave(updated)
-          return updated
-        })
+        _saveLocal(payload, today)
       }
     } catch {
-      const localRecord: DRecord = {
-        id:       `local-${Date.now()}`,
-        type:     record.type,
-        shop:     record.shop,
-        code:     record.code,
-        codeName: record.codeName,
-        factor:   record.factor,
-        count:    record.count,
-        notes:    record.notes,
-        image_url:record.image_url,
-        date:     new Date().toISOString().split('T')[0],
-      }
-      setRecords((prev) => {
-        const updated = [localRecord, ...prev]
-        lsSave(updated)
-        return updated
-      })
+      _saveLocal(payload, today)
     }
+  }
+
+  function _saveLocal(payload: any, today: string) {
+    const localRecord: DRecord = {
+      id:       `local-${Date.now()}`,
+      type:     payload.type,
+      shop:     payload.shop,
+      sector:   payload.sector  ?? null,
+      pono:     payload.pono    ?? null,
+      code:     payload.code,
+      codeName: payload.codeName,
+      factor:   Number(payload.factor),
+      count:    Number(payload.count),
+      notes:    payload.notes   ?? undefined,
+      image_url:payload.imageUrl ?? undefined,
+      date:     payload.date    || today,
+      shift:    payload.shift   || 'A',
+    }
+    setRecords((prev) => {
+      const updated = [localRecord, ...prev]
+      lsSave(updated)
+      return updated
+    })
   }
 
   const deleteRecord = async (id: string) => {
     lsRemove(id)
     setRecords((prev) => prev.filter((r) => r.id !== id))
-
     if (!id.startsWith('local-') && !id.startsWith('mem-')) {
-      try {
-        await fetch(`/api/d-records?id=${id}`, { method: 'DELETE' })
-      } catch {}
+      try { await fetch(`/api/d-records?id=${id}`, { method: 'DELETE' }) } catch {}
     }
   }
 
   const getTotalDefects  = () => records.reduce((sum, r) => sum + r.count, 0)
-
   const getDefectsByShop = () => {
     const byShop: Record<string, number> = {}
-    records.forEach((r) => {
-      byShop[r.shop] = (byShop[r.shop] || 0) + r.count
-    })
+    records.forEach((r) => { byShop[r.shop] = (byShop[r.shop] || 0) + r.count })
     return byShop
   }
 

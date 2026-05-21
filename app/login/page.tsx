@@ -34,8 +34,8 @@ export default function LoginPage() {
         return
       }
 
-      // Hard navigation — kontextlar yangi cookie bilan qayta yuklanadi
-      window.location.href = data.redirect
+      // replace() — /login ni historydan olib tashlaydi, "orqaga" bosganda login ko'rinmaydi
+      router.replace(data.redirect)
     } catch {
       setError("Tarmoq xatosi. Qayta urinib ko'ring.")
     } finally {

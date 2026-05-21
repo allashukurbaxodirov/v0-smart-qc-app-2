@@ -21,9 +21,54 @@ import {
 import {
   AlertTriangle, CheckCircle, ChevronDown, ChevronRight,
   Activity, TrendingDown, TrendingUp, Layers,
-  RefreshCw, Package, Eye,
+  RefreshCw, Package, Eye, X, ExternalLink, Car,
 } from 'lucide-react'
 import Link from 'next/link'
+
+// ─── DRL GSIP Types ────────────────────────────────────────────────────────────
+interface DrlTotals {
+  row_count: number; total_count: number; damas_count: number; labo_count: number
+  date_from: string; date_to: string; shift_from: string; shift_to: string; file_name: string
+}
+interface DrlShop  { shop: string;  total: number }
+interface DrlFault {
+  fault_code: string; fault_name: string; total_count: number; drl_ratio_sum: number
+  model_damas: number; model_labo: number; top_shop: string; top_prod_team: string
+}
+interface DrlStats {
+  batchId:   string
+  totals:    DrlTotals
+  byShop:    DrlShop[]
+  byPartLv1: { part_lv1: string; total: number }[]
+  top10:     DrlFault[]
+}
+
+// ─── DRR GSIP Types ────────────────────────────────────────────────────────────
+interface DrrTotals {
+  row_count: number; total_count: number; total_veh: number
+  damas_count: number; labo_count: number
+  date_from: string; date_to: string; shift_from: string; shift_to: string
+}
+interface DrrShop { shop: string; total: number; veh_total: number }
+interface DrrStats {
+  batchId: string
+  totals:  DrrTotals
+  byShop:  DrrShop[]
+}
+
+// ─── GCA GSIP Types ────────────────────────────────────────────────────────────
+interface GcaGsipShop {
+  shop: string; wdpv: number; total_weight: number; veh_count: number
+}
+interface GcaGsipTotals {
+  wdpv: number; total_weight: number; veh_count: number
+  date_from: string; date_to: string
+}
+interface GcaGsipStats {
+  batchId: string
+  totals:  GcaGsipTotals
+  byShop:  GcaGsipShop[]
+}
 
 // ─── Config ────────────────────────────────────────────────────────────────────
 const DEFAULT_GCA_TARGETS: Record<string, number> = {
@@ -32,22 +77,6 @@ const DEFAULT_GCA_TARGETS: Record<string, number> = {
 }
 const DEFAULT_PLANT_TARGET = 2.5
 const DEFAULT_VEHICLES     = 50
-const LS_TARGETS_KEY  = 'gca_wdpv_targets_v1'
-const LS_VEHICLES_KEY = 'gca_vehicles_v1'
-
-function loadDynTargets() {
-  if (typeof window === 'undefined') return { targets: { ...DEFAULT_GCA_TARGETS }, plant: DEFAULT_PLANT_TARGET, vehicles: DEFAULT_VEHICLES }
-  try {
-    const t = localStorage.getItem(LS_TARGETS_KEY)
-    const v = localStorage.getItem(LS_VEHICLES_KEY)
-    const parsed = t ? JSON.parse(t) : {}
-    return {
-      targets:  { ...DEFAULT_GCA_TARGETS, ...parsed },
-      plant:    parsed?.PLANT   ?? DEFAULT_PLANT_TARGET,
-      vehicles: v ? Number(v)   : DEFAULT_VEHICLES,
-    }
-  } catch { return { targets: { ...DEFAULT_GCA_TARGETS }, plant: DEFAULT_PLANT_TARGET, vehicles: DEFAULT_VEHICLES } }
-}
 
 // Mutable module-level refs (updated by useEffect, trigger re-render via targetsVer)
 let GCA_TARGETS   = { ...DEFAULT_GCA_TARGETS }
@@ -103,6 +132,19 @@ const ST: Record<Status, {
   },
 }
 
+// GSIP shop name mapping: WELDING-1 / WELDING-2 → WELDING
+function gsipShopName(shop: string): string {
+  return shop.startsWith('WELDING') ? 'WELDING' : shop
+}
+
+// ─── Shift label ──────────────────────────────────────────────────────────────
+function shiftLbl(s: string) {
+  if (s === 'E') return 'Erta'
+  if (s === 'N') return 'Tun'
+  if (s === 'L') return 'Kech'
+  return s
+}
+
 // ─── Jadval katagi ─────────────────────────────────────────────────────────────
 function MCell({ v, st, f2 }: { v: number; st: Status; f2?: boolean }) {
   const disp = f2 ? v.toFixed(2) : String(v)
@@ -112,6 +154,22 @@ function MCell({ v, st, f2 }: { v: number; st: Status; f2?: boolean }) {
         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ST[st].dot}`} />
         {disp}
       </span>
+    </td>
+  )
+}
+
+// ─── DRL kliklanadigan katak ──────────────────────────────────────────────────
+function DrlCell({ v, st, onClick }: { v: number; st: Status; onClick: () => void }) {
+  return (
+    <td className="px-3 py-3.5 text-center">
+      <button
+        onClick={onClick}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm font-semibold border transition-all cursor-pointer hover:scale-105 hover:shadow-md ${ST[st].pill} hover:ring-1 hover:ring-yellow-400/50`}
+        title="DRL drilldown ko'rish"
+      >
+        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ST[st].dot}`} />
+        {v}
+      </button>
     </td>
   )
 }
@@ -139,19 +197,114 @@ function ChartTip({ active, payload, label }: any) {
 export default function ManagerPage() {
   const [activeShift,  setActiveShift]  = useState<Shift>('A')
   const [activeDate,   setActiveDate]   = useState(() => new Date().toISOString().split('T')[0])
-  // Dynamic GCA targets (updated by SuperAdmin panel)
+
+  // ── DRL GSIP drilldown ────────────────────────────────────────────────────
+  const [drlOpen,      setDrlOpen]      = useState(false)
+  const [drlShopFilter,setDrlShopFilter]= useState<string>('')
+  const [drlStats,     setDrlStats]     = useState<DrlStats | null>(null)
+  const [drlLoading,   setDrlLoading]   = useState(false)
+  const [drlEmpty,     setDrlEmpty]     = useState(false)
+  const [openEscCount, setOpenEscCount] = useState(0)
+
+  const loadDrlStats = useCallback(async () => {
+    setDrlLoading(true)
+    setDrlEmpty(false)
+    try {
+      const res  = await fetch('/api/drl-import/stats')
+      const data = await res.json()
+      if (data.empty || !data.totals) { setDrlEmpty(true); setDrlStats(null) }
+      else setDrlStats(data)
+    } catch { setDrlEmpty(true) }
+    finally  { setDrlLoading(false) }
+  }, [])
+
+  // ── DRR GSIP ─────────────────────────────────────────────────────────────
+  const [drrStats,   setDrrStats]   = useState<DrrStats | null>(null)
+  const [drrLoading, setDrrLoading] = useState(false)
+  const [drrEmpty,   setDrrEmpty]   = useState(false)
+
+  const loadDrrStats = useCallback(async () => {
+    setDrrLoading(true)
+    setDrrEmpty(false)
+    try {
+      const res  = await fetch('/api/drr-import/stats')
+      const data = await res.json()
+      if (data.empty || !data.totals) { setDrrEmpty(true); setDrrStats(null) }
+      else setDrrStats(data)
+    } catch { setDrrEmpty(true) }
+    finally  { setDrrLoading(false) }
+  }, [])
+
+  // ── GCA GSIP ──────────────────────────────────────────────────────────────
+  const [gcaGsipStats,   setGcaGsipStats]   = useState<GcaGsipStats | null>(null)
+  const [gcaGsipEmpty,   setGcaGsipEmpty]   = useState(false)
+
+  const loadGcaGsipStats = useCallback(async () => {
+    try {
+      const res  = await fetch('/api/gca-import/stats')
+      const data = await res.json()
+      if (data.empty || !data.totals) { setGcaGsipEmpty(true); setGcaGsipStats(null) }
+      else { setGcaGsipStats(data); setGcaGsipEmpty(false) }
+    } catch { setGcaGsipEmpty(true) }
+  }, [])
+
+  const loadEscCount = useCallback(async () => {
+    try {
+      const res = await fetch('/api/drl-escalations?status=open')
+      if (res.ok) {
+        const data = await res.json()
+        setOpenEscCount(Array.isArray(data) ? data.length : 0)
+      }
+    } catch {}
+  }, [])
+
+  useEffect(() => { loadDrlStats(); loadDrrStats(); loadGcaGsipStats(); loadEscCount() }, [loadDrlStats, loadDrrStats, loadGcaGsipStats, loadEscCount])
+
+  // Har 30 soniyada eskalatsiya sonini yangilash
+  useEffect(() => {
+    const id = setInterval(loadEscCount, 30_000)
+    return () => clearInterval(id)
+  }, [loadEscCount])
+
+  const openDrl = (shop?: string) => {
+    setDrlShopFilter(shop ?? '')
+    setDrlOpen(true)
+    if (!drlStats && !drlLoading) loadDrlStats()
+  }
+  // Dynamic GCA targets — DB dan yuklash (SuperAdmin panel o'zgartiradi)
   const [targetsVer, setTargetsVer] = useState(0)
   useEffect(() => {
-    const apply = () => {
-      const { targets, plant, vehicles } = loadDynTargets()
-      Object.assign(GCA_TARGETS, targets)
-      PLANT_TARGET = plant
-      VEHICLES     = vehicles
+    const apply = async () => {
+      try {
+        const res  = await fetch('/api/wdpv-settings')
+        const data = res.ok ? await res.json() : null
+        if (data?.targets) {
+          Object.assign(GCA_TARGETS, data.targets)
+          PLANT_TARGET = data.targets['PLANT'] ?? DEFAULT_PLANT_TARGET
+          VEHICLES     = Number(data.vehicles)  || DEFAULT_VEHICLES
+        } else {
+          // fallback localStorage
+          try {
+            const t = localStorage.getItem('gca_wdpv_targets_v1')
+            const v = localStorage.getItem('gca_vehicles_v1')
+            if (t) { const p = JSON.parse(t); Object.assign(GCA_TARGETS, p); PLANT_TARGET = p.PLANT ?? DEFAULT_PLANT_TARGET }
+            if (v) VEHICLES = Number(v) || DEFAULT_VEHICLES
+          } catch {}
+        }
+      } catch {
+        try {
+          const t = localStorage.getItem('gca_wdpv_targets_v1')
+          const v = localStorage.getItem('gca_vehicles_v1')
+          if (t) { const p = JSON.parse(t); Object.assign(GCA_TARGETS, p); PLANT_TARGET = p.PLANT ?? DEFAULT_PLANT_TARGET }
+          if (v) VEHICLES = Number(v) || DEFAULT_VEHICLES
+        } catch {}
+      }
       setTargetsVer(v => v + 1)
     }
     apply()
-    window.addEventListener('gca_targets_updated', apply)
-    return () => window.removeEventListener('gca_targets_updated', apply)
+    // Har 60 soniyada qayta yuklash
+    const interval = setInterval(apply, 60_000)
+    return () => clearInterval(interval)
   }, [])
   const [expandedShop, setExpandedShop] = useState<ShopType | null>(null)
 
@@ -166,10 +319,10 @@ export default function ManagerPage() {
 
   const refreshAll = useCallback(async () => {
     setRefreshing(true)
-    await Promise.all([gcaRefresh(), dRefresh(), qRefresh(), incomingRefresh()])
+    await Promise.all([gcaRefresh(), dRefresh(), qRefresh(), incomingRefresh(), loadEscCount(), loadGcaGsipStats(), loadDrrStats(), loadDrlStats()])
     setLastUpdated(new Date())
     setRefreshing(false)
-  }, [gcaRefresh, dRefresh, qRefresh])
+  }, [gcaRefresh, dRefresh, qRefresh, incomingRefresh, loadEscCount, loadGcaGsipStats, loadDrrStats, loadDrlStats])
 
   useEffect(() => {
     const id = setInterval(refreshAll, 30_000)
@@ -201,22 +354,33 @@ export default function ManagerPage() {
   )
 
   const shopMetrics = useMemo(() => SHOPS_ALL.map(shop => {
-    const gcaCnt = filteredGcaRecs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
-    const wdpv   = VEHICLES > 0 ? gcaCnt / VEHICLES : 0
-    const gs     = gcaSt(wdpv, shop)
-    const d10cnt = filteredD10Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
-    const d20cnt = filteredD20Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
-    const shopQR = filteredQRecs.filter(r => r.shop === shop)
-    const drr    = shopQR.filter(r => r.type === 'drr').reduce((s, r) => s + r.count, 0)
-    const drl    = shopQR.filter(r => r.type === 'drl').reduce((s, r) => s + r.count, 0)
-    const pdi    = shopQR.filter(r => r.type === 'pdi').reduce((s, r) => s + r.count, 0)
-    const inc    = shiftEntries.filter(e => e.shop === shop).reduce((s, e) => s + e.incoming, 0)
-    const ov     = overall(gs, dCntSt(d10cnt), dCntSt(d20cnt), drrSt(drr), drlSt(drl), incSt(inc), pdiSt(pdi))
-    return { shop, wdpv, gs, d10cnt, d20cnt, drr, drl, inc, pdi, ov }
-  }), [filteredGcaRecs, filteredD10Recs, filteredD20Recs, filteredQRecs, shiftEntries, targetsVer])
+    // GCA WDPV: GSIP import dan (agar mavjud) → fallback: qo'lda kiritilgan
+    const gsipKey     = gsipShopName(shop)  // WELDING-1/WELDING-2 → WELDING
+    const gsipGcaRow  = gcaGsipStats?.byShop.find(s => s.shop === gsipKey)
+    const gcaCnt      = filteredGcaRecs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
+    const wdpv        = gsipGcaRow
+      ? Number(gsipGcaRow.wdpv)
+      : (VEHICLES > 0 ? gcaCnt / VEHICLES : 0)
+    const gs      = gcaSt(wdpv, shop)
+    const d10cnt  = filteredD10Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
+    const d20cnt  = filteredD20Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
+    const shopQR  = filteredQRecs.filter(r => r.shop === shop)
+    const drr     = shopQR.filter(r => r.type === 'drr').reduce((s, r) => s + r.count, 0)
+    const drl     = shopQR.filter(r => r.type === 'drl').reduce((s, r) => s + r.count, 0)
+    const pdi     = shopQR.filter(r => r.type === 'pdi').reduce((s, r) => s + r.count, 0)
+    const inc     = shiftEntries.filter(e => e.shop === shop).reduce((s, e) => s + e.incoming, 0)
+    // GSIP DRR/DRL
+    const gsipDrr = drrStats?.byShop.find(s => s.shop === gsipKey)?.total ?? 0
+    const gsipDrl = drlStats?.byShop.find(s => s.shop === gsipKey)?.total ?? 0
+    // Umumiy holat
+    const ov = overall(gs, drrSt(gsipDrr), drlSt(gsipDrl), pdiSt(pdi))
+    return { shop, wdpv, gs, d10cnt, d20cnt, drr, drl, inc, pdi, gsipDrr, gsipDrl, ov }
+  }), [filteredGcaRecs, filteredD10Recs, filteredD20Recs, filteredQRecs, shiftEntries, targetsVer, drrStats, drlStats, gcaGsipStats])
 
   const plant = useMemo(() => ({
-    wdpv:          VEHICLES > 0 ? filteredGcaRecs.reduce((s, r) => s + r.count, 0) / VEHICLES : 0,
+    wdpv: gcaGsipStats
+      ? Number(gcaGsipStats.totals.wdpv)
+      : (VEHICLES > 0 ? filteredGcaRecs.reduce((s, r) => s + r.count, 0) / VEHICLES : 0),
     d10:           filteredD10Recs.reduce((s, r) => s + r.count, 0),
     d20:           filteredD20Recs.reduce((s, r) => s + r.count, 0),
     drr:           filteredQRecs.filter(r => r.type === 'drr').reduce((s, r) => s + r.count, 0),
@@ -224,7 +388,7 @@ export default function ManagerPage() {
     pdi:           filteredQRecs.filter(r => r.type === 'pdi').reduce((s, r) => s + r.count, 0),
     incomingTotal: filteredIncoming.reduce((s, r) => s + r.totalCount,  0),
     incomingDefect:filteredIncoming.reduce((s, r) => s + r.defectCount, 0),
-  }), [filteredGcaRecs, filteredD10Recs, filteredD20Recs, filteredQRecs, filteredIncoming, targetsVer])
+  }), [filteredGcaRecs, filteredD10Recs, filteredD20Recs, filteredQRecs, filteredIncoming, targetsVer, gcaGsipStats])
 
   const gcaChart = useMemo(() => SHOPS_ALL.map(shop => ({
     shop:   shop.replace(' SHOP', '').replace('WELDING-', 'W-'),
@@ -277,8 +441,8 @@ export default function ManagerPage() {
     { label: 'GCA WDPV',         value: plant.wdpv.toFixed(2), st: (plant.wdpv <= PLANT_TARGET ? 'ok' : plant.wdpv <= PLANT_TARGET * 1.5 ? 'warn' : 'crit') as Status, sub: `Maqsad ≤ ${PLANT_TARGET}`,  icon: <Activity className="w-5 h-5" /> },
     { label: 'D10',               value: String(plant.d10),     st: dCntSt(plant.d10),   sub: 'Nuqsonlar soni',       icon: <Layers className="w-5 h-5" /> },
     { label: 'D20',               value: String(plant.d20),     st: dCntSt(plant.d20),   sub: 'Nuqsonlar soni',       icon: <Layers className="w-5 h-5" /> },
-    { label: 'DRR',               value: String(plant.drr),     st: drrSt(plant.drr),    sub: 'Rad etilgan',          icon: <TrendingDown className="w-5 h-5" /> },
-    { label: 'DRL',               value: String(plant.drl),     st: drlSt(plant.drl),    sub: 'Qayta ishlangan',      icon: <TrendingUp className="w-5 h-5" /> },
+    { label: 'DRR',               value: drrStats ? String(drrStats.totals.total_count) : String(plant.drr), st: drrSt(drrStats?.totals.total_count ?? plant.drr), sub: drrStats ? `GSIP: ${drrStats.totals.date_from}` : 'Rad etilgan', icon: <TrendingDown className="w-5 h-5" /> },
+    { label: 'DRL',               value: drlStats ? String(drlStats.totals.total_count) : String(plant.drl), st: drlSt(plant.drl), sub: drlStats ? `GSIP: ${drlStats.totals.date_from}` : 'Qayta ishlangan', icon: <TrendingUp className="w-5 h-5" />, clickable: true },
     { label: 'Kiruvchi nazorat',  value: String(plant.incomingDefect), st: incSt(plant.incomingDefect), sub: `Jami: ${plant.incomingTotal} ta detal`, icon: <Package className="w-5 h-5" /> },
     { label: 'PDI',               value: String(plant.pdi),     st: pdiSt(plant.pdi),    sub: 'Yetkazish nazorati',   icon: <CheckCircle className="w-5 h-5" /> },
   ]
@@ -361,10 +525,15 @@ export default function ManagerPage() {
 
         {/* ── 2. KPI KARTOCHKALAR ───────────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-          {kpiCards.map(({ label, value, st, sub, icon }) => (
+          {kpiCards.map(({ label, value, st, sub, icon, clickable }: { label: string; value: string; st: Status; sub: string; icon: React.ReactNode; clickable?: boolean }) => (
             <div
               key={label}
-              className={`relative bg-card border rounded-xl p-4 overflow-hidden ${ST[st].border}`}
+              onClick={clickable ? () => openDrl() : undefined}
+              className={`relative bg-card border rounded-xl p-4 overflow-hidden transition-all
+                ${ST[st].border}
+                ${clickable ? 'cursor-pointer hover:scale-[1.03] hover:shadow-lg hover:border-yellow-400/60 group' : ''}
+                ${clickable && drlOpen && !drlShopFilter ? 'ring-2 ring-yellow-400/50' : ''}
+              `}
             >
               {/* Chap chiziq */}
               <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${ST[st].dot}`} />
@@ -372,9 +541,244 @@ export default function ManagerPage() {
               <p className="text-xs text-muted-foreground mb-0.5 font-medium">{label}</p>
               <p className={`text-2xl font-bold ${ST[st].text}`}>{value}</p>
               <p className="text-xs text-muted-foreground mt-1">{sub}</p>
+              {clickable && (
+                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <ChevronDown className="w-3.5 h-3.5 text-yellow-400" />
+                </div>
+              )}
             </div>
           ))}
         </div>
+
+        {/* ── DRL GSIP DRILLDOWN PANEL ─────────────────────────────────────── */}
+        {drlOpen && (
+          <div className="bg-card border border-yellow-500/30 rounded-2xl overflow-hidden shadow-2xl">
+            {/* Panel header */}
+            <div className="flex items-center justify-between px-5 py-4 bg-yellow-500/5 border-b border-yellow-500/20">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-yellow-500/20 border border-yellow-500/30 flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-yellow-400" />
+                </div>
+                <div>
+                  <h2 className="font-bold text-foreground">DRL — Direct Run Loss</h2>
+                  <p className="text-xs text-muted-foreground">
+                    {drlStats
+                      ? `GSIP import: ${drlStats.totals.date_from} · ${shiftLbl(drlStats.totals.shift_from)}→${shiftLbl(drlStats.totals.shift_to)} smena`
+                      : 'GSIP ma\'lumotlari'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* Shop filter chips */}
+                {drlStats && (
+                  <div className="hidden sm:flex items-center gap-1">
+                    <button
+                      onClick={() => setDrlShopFilter('')}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                        !drlShopFilter ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' : 'bg-card border-border text-muted-foreground hover:text-foreground'
+                      }`}
+                    >Hammasi</button>
+                    {drlStats.byShop.map(s => (
+                      <button key={s.shop}
+                        onClick={() => setDrlShopFilter(drlShopFilter === s.shop ? '' : s.shop)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                          drlShopFilter === s.shop ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' : 'bg-card border-border text-muted-foreground hover:text-foreground'
+                        }`}
+                      >{s.shop} ({s.total})</button>
+                    ))}
+                  </div>
+                )}
+                <Link href="/dashboard/drl">
+                  <button className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 rounded-lg text-xs font-semibold hover:bg-yellow-500/20 transition-all">
+                    <ExternalLink className="w-3 h-3" /> To'liq
+                  </button>
+                </Link>
+                <button onClick={() => setDrlOpen(false)}
+                  className="p-1.5 hover:bg-muted rounded-lg transition-colors">
+                  <X className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            {drlLoading && (
+              <div className="flex items-center justify-center py-12 gap-3">
+                <RefreshCw className="w-5 h-5 animate-spin text-yellow-400" />
+                <span className="text-sm text-muted-foreground">GSIP ma'lumotlari yuklanmoqda...</span>
+              </div>
+            )}
+
+            {drlEmpty && !drlLoading && (
+              <div className="flex flex-col items-center justify-center py-12 gap-3">
+                <TrendingUp className="w-10 h-10 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">Hali GSIP import qilinmagan</p>
+                <Link href="/dashboard/drl-admin">
+                  <button className="px-4 py-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-300 rounded-lg text-xs font-semibold hover:bg-yellow-500/20 transition-all">
+                    Excel yuklash →
+                  </button>
+                </Link>
+              </div>
+            )}
+
+            {drlStats && !drlLoading && (() => {
+              const filtTop10 = drlShopFilter
+                ? drlStats.top10.filter(f => f.top_shop === drlShopFilter)
+                : drlStats.top10
+              const filtShops = drlShopFilter
+                ? drlStats.byShop.filter(s => s.shop === drlShopFilter)
+                : drlStats.byShop
+              const filtTotal = drlShopFilter
+                ? (drlStats.byShop.find(s => s.shop === drlShopFilter)?.total ?? 0)
+                : drlStats.totals.total_count
+              const maxCount = filtTop10[0]?.total_count ?? 1
+
+              return (
+                <div className="p-5 space-y-5">
+                  {/* KPI row */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Jami nuqsonlar', value: filtTotal.toLocaleString(),                      color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20' },
+                      { label: 'DAMAS (R7)',      value: drlStats.totals.damas_count.toLocaleString(),    color: 'text-blue-300',   bg: 'bg-blue-500/10 border-blue-500/20' },
+                      { label: 'LABO (R7A)',       value: drlStats.totals.labo_count.toLocaleString(),    color: 'text-green-300',  bg: 'bg-green-500/10 border-green-500/20' },
+                      { label: 'Qatorlar',         value: drlStats.totals.row_count.toLocaleString(),     color: 'text-slate-300',  bg: 'bg-muted/30 border-border' },
+                    ].map(({ label, value, color, bg }) => (
+                      <div key={label} className={`rounded-xl border px-4 py-3 ${bg}`}>
+                        <p className="text-xs text-muted-foreground mb-0.5">{label}</p>
+                        <p className={`text-xl font-bold ${color}`}>{value}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+                    {/* Top 10 table — wider */}
+                    <div className="lg:col-span-3 space-y-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-bold text-foreground">
+                          Top {filtTop10.length} Ko&apos;p Takrorlangan Nuqsonlar
+                        </p>
+                        {drlShopFilter && (
+                          <span className="px-2 py-0.5 bg-yellow-500/10 text-yellow-300 border border-yellow-500/30 rounded text-xs">
+                            {drlShopFilter}
+                          </span>
+                        )}
+                      </div>
+                      {filtTop10.length === 0 ? (
+                        <p className="text-sm text-muted-foreground py-4 text-center">Bu seh uchun top nuqsonlar yo'q</p>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {filtTop10.map((f, i) => {
+                            const barW = Math.round((f.total_count / maxCount) * 100)
+                            const rankBg = i === 0 ? 'bg-red-600' : i === 1 ? 'bg-red-500' : i === 2 ? 'bg-orange-500' : i < 6 ? 'bg-amber-500' : 'bg-blue-500'
+                            const shopColors: Record<string,string> = {
+                              'WELDING': 'bg-sky-600 text-white', 'PAINT SHOP': 'bg-violet-600 text-white',
+                              'GA': 'bg-emerald-600 text-white', 'PRESS SHOP': 'bg-amber-600 text-white'
+                            }
+                            return (
+                              <div key={f.fault_code+i} className="flex items-center gap-2 bg-muted/20 hover:bg-muted/30 rounded-lg px-3 py-2 transition-colors">
+                                <span className={`w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white ${rankBg}`}>{i+1}</span>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1.5 mb-1">
+                                    {f.fault_code !== '—' && (
+                                      <span className="font-mono text-xs text-primary">{f.fault_code}</span>
+                                    )}
+                                    <span className="text-xs text-foreground truncate">{f.fault_name}</span>
+                                    <span className={`ml-auto px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${shopColors[f.top_shop] ?? 'bg-muted/30 text-muted-foreground'}`}>
+                                      {f.top_shop}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                      <div className={`h-full rounded-full ${rankBg} opacity-70`} style={{ width: `${barW}%` }} />
+                                    </div>
+                                    <span className="text-xs font-bold text-foreground flex-shrink-0">{f.total_count}</span>
+                                    <span className="text-xs text-blue-300 flex-shrink-0 hidden sm:block">{f.model_damas}D</span>
+                                    <span className="text-xs text-green-300 flex-shrink-0 hidden sm:block">{f.model_labo}L</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right: shop + model breakdown */}
+                    <div className="lg:col-span-2 space-y-4">
+                      {/* Shop breakdown */}
+                      <div>
+                        <p className="text-sm font-bold text-foreground mb-2">Sexlar bo&apos;yicha</p>
+                        <div className="space-y-2">
+                          {drlStats.byShop.map(s => {
+                            const pct = drlStats.totals.total_count > 0
+                              ? Math.round((s.total / drlStats.totals.total_count) * 100) : 0
+                            const dotMap: Record<string,string> = {
+                              'WELDING':'bg-sky-400','PAINT SHOP':'bg-violet-400','GA':'bg-emerald-400','PRESS SHOP':'bg-amber-400'
+                            }
+                            const dot = dotMap[s.shop] ?? 'bg-slate-400'
+                            const isActive = drlShopFilter === s.shop
+                            return (
+                              <button key={s.shop}
+                                onClick={() => setDrlShopFilter(isActive ? '' : s.shop)}
+                                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-all text-left ${
+                                  isActive ? 'border-yellow-500/40 bg-yellow-500/5' : 'border-border bg-muted/10 hover:bg-muted/20'
+                                }`}
+                              >
+                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${dot}`} />
+                                <span className="text-xs font-semibold text-foreground flex-1">{s.shop}</span>
+                                <span className="text-xs font-bold text-foreground">{s.total.toLocaleString()}</span>
+                                <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden flex-shrink-0">
+                                  <div className={`h-full rounded-full ${dot}`} style={{ width: `${pct}%` }} />
+                                </div>
+                                <span className="text-xs text-muted-foreground w-8 text-right">{pct}%</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Model breakdown */}
+                      <div>
+                        <p className="text-sm font-bold text-foreground mb-2">Model bo&apos;yicha</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-center">
+                            <Car className="w-4 h-4 text-blue-300 mx-auto mb-1" />
+                            <p className="text-lg font-bold text-blue-300">{drlStats.totals.damas_count.toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">DAMAS (R7)</p>
+                          </div>
+                          <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-3 text-center">
+                            <Car className="w-4 h-4 text-green-300 mx-auto mb-1" />
+                            <p className="text-lg font-bold text-green-300">{drlStats.totals.labo_count.toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">LABO (R7A)</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Top part categories */}
+                      <div>
+                        <p className="text-sm font-bold text-foreground mb-2">Qism kategoriyalari</p>
+                        <div className="space-y-1.5">
+                          {drlStats.byPartLv1.slice(0, 5).map(p => {
+                            const pct = drlStats.totals.total_count > 0
+                              ? Math.round((p.total / drlStats.totals.total_count) * 100) : 0
+                            return (
+                              <div key={p.part_lv1} className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground truncate flex-1 min-w-0">{p.part_lv1}</span>
+                                <div className="w-20 h-1 bg-muted rounded-full overflow-hidden flex-shrink-0">
+                                  <div className="h-full bg-yellow-500/70 rounded-full" style={{ width: `${pct}%` }} />
+                                </div>
+                                <span className="text-xs font-semibold text-foreground w-8 text-right">{p.total}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+        )}
 
         {/* ── 3. SEHLAR HOLATI + INCOMING ──────────────────────────────────── */}
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
@@ -394,7 +798,7 @@ export default function ManagerPage() {
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[620px]">
+              <table className="w-full min-w-[480px]">
                 <thead>
                   <tr className="border-b border-border bg-muted/10">
                     <th className="px-5 py-3 text-left text-sm font-semibold text-muted-foreground w-40">Seh nomi</th>
@@ -403,20 +807,12 @@ export default function ManagerPage() {
                       <span className="block text-xs text-muted-foreground font-normal">WDPV</span>
                     </th>
                     <th className="px-3 py-3 text-center">
-                      <span className="text-sm font-semibold text-violet-400">D10</span>
-                      <span className="block text-xs text-muted-foreground font-normal">soni</span>
-                    </th>
-                    <th className="px-3 py-3 text-center">
-                      <span className="text-sm font-semibold text-indigo-400">D20</span>
-                      <span className="block text-xs text-muted-foreground font-normal">soni</span>
-                    </th>
-                    <th className="px-3 py-3 text-center">
                       <span className="text-sm font-semibold text-orange-400">DRR</span>
-                      <span className="block text-xs text-muted-foreground font-normal">rad etil.</span>
+                      <span className="block text-xs text-orange-500/60 font-normal">GSIP</span>
                     </th>
-                    <th className="px-3 py-3 text-center">
-                      <span className="text-sm font-semibold text-yellow-400">DRL</span>
-                      <span className="block text-xs text-muted-foreground font-normal">qayta isl.</span>
+                    <th className="px-3 py-3 text-center cursor-pointer group" onClick={() => openDrl()}>
+                      <span className="text-sm font-semibold text-yellow-400 group-hover:underline">DRL</span>
+                      <span className="block text-xs text-yellow-500/60 font-normal">↗ GSIP</span>
                     </th>
                     <th className="px-3 py-3 text-center">
                       <span className="text-sm font-semibold text-purple-400">PDI</span>
@@ -444,10 +840,8 @@ export default function ManagerPage() {
                           </div>
                         </td>
                         <MCell v={parseFloat(m.wdpv.toFixed(2))} st={m.gs} f2 />
-                        <MCell v={m.d10cnt} st={dCntSt(m.d10cnt)} />
-                        <MCell v={m.d20cnt} st={dCntSt(m.d20cnt)} />
-                        <MCell v={m.drr} st={drrSt(m.drr)} />
-                        <MCell v={m.drl} st={drlSt(m.drl)} />
+                        <MCell v={m.gsipDrr} st={drrSt(m.gsipDrr)} />
+                        <DrlCell v={m.gsipDrl} st={drlSt(m.gsipDrl)} onClick={() => openDrl(gsipShopName(m.shop))} />
                         <MCell v={m.pdi} st={pdiSt(m.pdi)} />
                         <td className="px-4 py-3.5 text-center">
                           <span className={`px-3 py-1 rounded-md text-sm font-semibold border ${ST[m.ov].pill}`}>
@@ -456,7 +850,7 @@ export default function ManagerPage() {
                         </td>
                       </tr>
 
-                      {expandedShop === m.shop && lineDetail.map(({ line, wdpv, gs, d10cnt, d20cnt, drr, drl, pdi }) => (
+                      {expandedShop === m.shop && lineDetail.map(({ line, wdpv, gs, drr, drl, pdi }) => (
                         <tr key={line} className="bg-muted/5 hover:bg-muted/15 transition-colors">
                           <td className="px-5 py-2.5 pl-12">
                             <div className="flex items-center gap-2">
@@ -465,8 +859,6 @@ export default function ManagerPage() {
                             </div>
                           </td>
                           <MCell v={parseFloat(wdpv.toFixed(2))} st={gs} f2 />
-                          <MCell v={d10cnt} st={dCntSt(d10cnt)} />
-                          <MCell v={d20cnt} st={dCntSt(d20cnt)} />
                           <MCell v={drr} st={drrSt(drr)} />
                           <MCell v={drl} st={drlSt(drl)} />
                           <MCell v={pdi} st={pdiSt(pdi)} />
@@ -480,7 +872,7 @@ export default function ManagerPage() {
             </div>
 
             <div className="px-5 py-2.5 border-t border-border bg-muted/10 text-xs text-muted-foreground">
-              Sehni bosing — sektorlar bo'yicha GCA, D10, D20, DRR, DRL, PDI ko'rsatkichlari ochiladi
+              DRR / DRL — GSIP import ma'lumotlari · Sehni bosing — sektorlar bo'yicha ko'rsatkichlar ochiladi
             </div>
           </div>
 
@@ -589,6 +981,78 @@ export default function ManagerPage() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          </div>
+        </div>
+
+        {/* ── 3.5 D10 / D20 ALOHIDA PANEL ─────────────────────────────────── */}
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-border bg-muted/20 flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-bold text-foreground">D10 / D20 — Nuqsonlar</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Press Shop · Welding-1 · Welding-2 · Smena {activeShift} · {activeDate}</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <Link href="/dashboard/d10" className="text-xs text-violet-400 hover:underline">D10 →</Link>
+              <Link href="/dashboard/d20" className="text-xs text-indigo-400 hover:underline">D20 →</Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-border">
+            {D_SHOPS.map(shop => {
+              const d10 = filteredD10Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
+              const d20 = filteredD20Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
+              const d10s = dCntSt(d10)
+              const d20s = dCntSt(d20)
+              // Faktor taqsimoti
+              const d10F50 = filteredD10Recs.filter(r => r.shop === shop && r.factor === 50).reduce((s,r)=>s+r.count,0)
+              const d10F20 = filteredD10Recs.filter(r => r.shop === shop && r.factor === 20).reduce((s,r)=>s+r.count,0)
+              const d10F10 = filteredD10Recs.filter(r => r.shop === shop && r.factor === 10).reduce((s,r)=>s+r.count,0)
+              const d10F5  = filteredD10Recs.filter(r => r.shop === shop && r.factor === 5).reduce((s,r)=>s+r.count,0)
+              const d20F50 = filteredD20Recs.filter(r => r.shop === shop && r.factor === 50).reduce((s,r)=>s+r.count,0)
+              const d20F20 = filteredD20Recs.filter(r => r.shop === shop && r.factor === 20).reduce((s,r)=>s+r.count,0)
+              const d20F10 = filteredD20Recs.filter(r => r.shop === shop && r.factor === 10).reduce((s,r)=>s+r.count,0)
+              const d20F5  = filteredD20Recs.filter(r => r.shop === shop && r.factor === 5).reduce((s,r)=>s+r.count,0)
+              return (
+                <div key={shop} className="p-5">
+                  <p className="text-sm font-bold text-foreground mb-4">
+                    {shop.replace(' SHOP', '').replace('WELDING-', 'WELDING ')}
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    {/* D10 */}
+                    <div className={`rounded-xl border px-4 py-3 ${ST[d10s].border} ${ST[d10s].bg}`}>
+                      <p className="text-xs text-muted-foreground mb-0.5 font-medium">D10</p>
+                      <p className={`text-2xl font-bold ${ST[d10s].text}`}>{d10}</p>
+                    </div>
+                    {/* D20 */}
+                    <div className={`rounded-xl border px-4 py-3 ${ST[d20s].border} ${ST[d20s].bg}`}>
+                      <p className="text-xs text-muted-foreground mb-0.5 font-medium">D20</p>
+                      <p className={`text-2xl font-bold ${ST[d20s].text}`}>{d20}</p>
+                    </div>
+                  </div>
+                  {/* Faktor breakdown */}
+                  {(d10 > 0 || d20 > 0) && (
+                    <div className="space-y-1.5">
+                      {[
+                        { label: 'F-50', d10: d10F50, d20: d20F50, color: 'bg-rose-500' },
+                        { label: 'F-20', d10: d10F20, d20: d20F20, color: 'bg-orange-500' },
+                        { label: 'F-10', d10: d10F10, d20: d20F10, color: 'bg-amber-500' },
+                        { label: 'F-5',  d10: d10F5,  d20: d20F5,  color: 'bg-emerald-500' },
+                      ].filter(f => f.d10 > 0 || f.d20 > 0).map(f => (
+                        <div key={f.label} className="flex items-center gap-2 text-xs">
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${f.color}`} />
+                          <span className="text-muted-foreground w-8">{f.label}</span>
+                          <span className="text-violet-300 w-10">D10: {f.d10}</span>
+                          <span className="text-indigo-300">D20: {f.d20}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {d10 === 0 && d20 === 0 && (
+                    <p className="text-xs text-muted-foreground/50 italic">Bu smena uchun ma'lumot yo'q</p>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
 
@@ -801,7 +1265,6 @@ export default function ManagerPage() {
                     <th className="px-4 py-3 text-center text-sm font-semibold text-purple-400">PDI</th>
                     <th className="px-4 py-3 text-center text-sm font-semibold text-foreground">Jami</th>
                     <th className="px-4 py-3 text-center text-sm font-semibold text-rose-400">F-50</th>
-                    <th className="px-4 py-3 text-center text-sm font-semibold text-muted-foreground">Og'irlik</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/60">
@@ -823,7 +1286,6 @@ export default function ManagerPage() {
                             <td className="px-4 py-3 text-center text-sm text-muted-foreground">{ua.filter(r=>r.type==='pdi').reduce((s,r)=>s+r.count,0)||'—'}</td>
                             <td className="px-4 py-3 text-center text-sm font-bold text-foreground">{ua.reduce((s,r)=>s+r.count,0)}</td>
                             <td className="px-4 py-3 text-center text-sm font-bold text-rose-400">{ua.filter(r=>r.factor===50).reduce((s,r)=>s+r.count,0)||'—'}</td>
-                            <td className="px-4 py-3 text-center text-sm text-muted-foreground">{ua.reduce((s,r)=>s+r.count*r.factor,0)}</td>
                           </tr>
                         )
                       }
@@ -832,7 +1294,6 @@ export default function ManagerPage() {
                       const pdi  = secRecs.filter(r=>r.type==='pdi').reduce((s,r)=>s+r.count,0)
                       const tot  = secRecs.reduce((s,r)=>s+r.count,0)
                       const f50  = secRecs.filter(r=>r.factor===50).reduce((s,r)=>s+r.count,0)
-                      const ogir = secRecs.reduce((s,r)=>s+r.count*r.factor,0)
                       return (
                         <tr key={`${shop}-${sector}`} className="hover:bg-muted/15">
                           <td className="px-5 py-3 text-sm font-semibold text-foreground">{shop.replace(' SHOP','')}</td>
@@ -849,7 +1310,6 @@ export default function ManagerPage() {
                               : <span className="text-sm text-muted-foreground/50">—</span>
                             }
                           </td>
-                          <td className="px-4 py-3 text-center text-sm text-muted-foreground font-medium">{ogir}</td>
                         </tr>
                       )
                     }).filter(Boolean)
@@ -863,21 +1323,26 @@ export default function ManagerPage() {
         {/* ── 8. TEZKOR HAVOLALAR ─────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { href: '/dashboard/gca',               label: 'GCA Dashboard',       color: 'border-blue-700/60   hover:border-blue-500',    dot: 'bg-blue-500'    },
-            { href: '/dashboard/d10',               label: 'D10 Dashboard',       color: 'border-violet-700/60 hover:border-violet-500',  dot: 'bg-violet-500'  },
-            { href: '/dashboard/d20',               label: 'D20 Dashboard',       color: 'border-indigo-700/60 hover:border-indigo-500',  dot: 'bg-indigo-500'  },
-            { href: '/dashboard/engineer-analysis', label: "Muhandislar tahlili", color: 'border-emerald-700/60 hover:border-emerald-500', dot: 'bg-emerald-500' },
-          ].map(({ href, label, color, dot }) => (
+            { href: '/dashboard/gca',               label: 'GCA Dashboard',       color: 'border-blue-700/60   hover:border-blue-500',    dot: 'bg-blue-500',    badge: null },
+            { href: '/dashboard/d10',               label: 'D10 Dashboard',       color: 'border-violet-700/60 hover:border-violet-500',  dot: 'bg-violet-500',  badge: null },
+            { href: '/dashboard/d20',               label: 'D20 Dashboard',       color: 'border-indigo-700/60 hover:border-indigo-500',  dot: 'bg-indigo-500',  badge: null },
+            { href: '/dashboard/engineer-analysis', label: "Muhandislar tahlili", color: openEscCount > 0 ? 'border-red-600/70 hover:border-red-500' : 'border-emerald-700/60 hover:border-emerald-500', dot: openEscCount > 0 ? 'bg-red-500 animate-pulse' : 'bg-emerald-500', badge: openEscCount > 0 ? openEscCount : null },
+          ].map(({ href, label, color, dot, badge }) => (
             <Link
               key={href}
               href={href}
-              className={`bg-card border ${color} rounded-xl p-4 flex items-center gap-3 transition-all hover:bg-muted/20 group`}
+              className={`relative bg-card border ${color} rounded-xl p-4 flex items-center gap-3 transition-all hover:bg-muted/20 group`}
             >
               <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${dot}`} />
-              <div>
+              <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-foreground">{label}</p>
-                <p className="text-xs text-muted-foreground group-hover:text-primary transition-colors">Ko'rish →</p>
+                <p className="text-xs text-muted-foreground group-hover:text-primary transition-colors">Ko&apos;rish →</p>
               </div>
+              {badge !== null && (
+                <span className="flex-shrink-0 px-1.5 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] text-center">
+                  {badge}
+                </span>
+              )}
             </Link>
           ))}
         </div>

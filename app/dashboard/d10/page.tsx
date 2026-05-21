@@ -188,14 +188,13 @@ export default function D10Page() {
                     <th className="px-5 py-3 text-left  text-xs font-semibold text-muted-foreground">Nuqson nomi</th>
                     <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground">Soni</th>
                     <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground">Faktor</th>
-                    <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground">Og&apos;irlik (S×F)</th>
                     <th className="px-5 py-3 text-right text-xs font-semibold text-muted-foreground">Xavflilik</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {defects.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground">
+                      <td colSpan={5} className="px-5 py-10 text-center text-muted-foreground">
                         Bu sehda hali D10 nuqsoni kiritilmagan
                       </td>
                     </tr>
@@ -211,7 +210,6 @@ export default function D10Page() {
                         <td className="px-5 py-3 text-sm text-foreground">{d.name}</td>
                         <td className="px-5 py-3 text-right font-semibold text-foreground">{d.count}</td>
                         <td className="px-5 py-3 text-right font-bold text-lg text-foreground">{d.factor}</td>
-                        <td className="px-5 py-3 text-right font-semibold text-primary">{d.count * d.factor}</td>
                         <td className="px-5 py-3 text-right">
                           <Badge className={getRiskBadgeClass(d.factor)}>{getRiskLabel(d.factor)}</Badge>
                         </td>
@@ -388,7 +386,6 @@ export default function D10Page() {
                     <th className="px-5 py-3 text-center text-xs font-semibold text-blue-400">Faktor 10</th>
                     <th className="px-5 py-3 text-center text-xs font-semibold text-success">Faktor 5</th>
                     <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Jami</th>
-                    <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Og&apos;irlik</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -399,7 +396,6 @@ export default function D10Page() {
                     const f10 = sr.filter((r) => r.factor === 10).reduce((s, r) => s + r.count, 0)
                     const f5  = sr.filter((r) => r.factor === 5).reduce((s, r)  => s + r.count, 0)
                     const tot = sr.reduce((s, r) => s + r.count, 0)
-                    const ogirlik = sr.reduce((s, r) => s + r.count * r.factor, 0)
 
                     return (
                       <tr
@@ -421,7 +417,6 @@ export default function D10Page() {
                           {f5  > 0 ? <span className="font-bold text-success">{f5}</span>   : <span className="text-muted-foreground">—</span>}
                         </td>
                         <td className="px-5 py-3 text-center font-semibold text-foreground">{tot}</td>
-                        <td className="px-5 py-3 text-center font-bold text-primary">{ogirlik}</td>
                       </tr>
                     )
                   })}
@@ -433,9 +428,6 @@ export default function D10Page() {
                     <td className="px-5 py-3 text-center text-blue-400">{f10All || '—'}</td>
                     <td className="px-5 py-3 text-center text-success">{f5All || '—'}</td>
                     <td className="px-5 py-3 text-center text-foreground">{totalAll}</td>
-                    <td className="px-5 py-3 text-center text-primary">
-                      {records.reduce((s, r) => s + r.count * r.factor, 0)}
-                    </td>
                   </tr>
                 </tbody>
               </table>

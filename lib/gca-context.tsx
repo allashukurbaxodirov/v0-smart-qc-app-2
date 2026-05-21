@@ -7,19 +7,22 @@ export interface GCARecord {
   image_url?: string
   shop: 'PRESS SHOP' | 'WELDING-1' | 'WELDING-2' | 'PAINT SHOP' | 'GA'
   sector?: string | null
+  pono?: string | null
   code: string
   codeName: string
   factor: number
   count: number
   notes?: string
   date: string
+  shift?: string | null
+  created_by_name?: string | null
 }
 
 interface GCAContextType {
   records: GCARecord[]
   loading: boolean
   error: string | null
-  addRecord: (record: Omit<GCARecord, 'id' | 'date'>) => Promise<void>
+  addRecord: (record: Omit<GCARecord, 'id'>) => Promise<void>
   deleteRecord: (id: string) => Promise<void>
   refresh: () => Promise<void>
   getTotalDefects: () => number
@@ -28,9 +31,8 @@ interface GCAContextType {
 
 const GCAContext = createContext<GCAContextType | undefined>(undefined)
 
-const LS_KEY = 'gca_records_local'
+const LS_KEY = 'gca_records_local_v2'
 
-// localStorage yordamchilari
 function lsLoad(): GCARecord[] {
   try {
     const raw = localStorage.getItem(LS_KEY)
@@ -46,14 +48,6 @@ function lsSave(records: GCARecord[]) {
   } catch {}
 }
 
-function lsAdd(record: GCARecord) {
-  const current = lsLoad()
-  // Bir xil id bo'lsa qo'shmaydi
-  if (!current.find((r) => r.id === record.id)) {
-    lsSave([record, ...current])
-  }
-}
-
 function lsRemove(id: string) {
   lsSave(lsLoad().filter((r) => r.id !== id))
 }
@@ -63,9 +57,8 @@ export function GCAProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Yuk funksiyasi — useEffect va refresh() ikkisi ham ishlatadi
-  const loadRecords = async () => {
-    setLoading(true)
+  const loadRecords = async (background = false) => {
+    if (!background) setLoading(true)
     try {
       const r = await fetch('/api/gca')
       if (!r.ok) throw new Error(`Server xatosi: ${r.status}`)
@@ -73,19 +66,22 @@ export function GCAProvider({ children }: { children: ReactNode }) {
 
       if (Array.isArray(data)) {
         const dbRecords: GCARecord[] = data.map((r: any) => ({
-          id:        r.id,
-          shop:      r.shop,
-          sector:    r.sector ?? null,
-          code:      r.code,
-          codeName:  r.code_name,
-          factor:    r.factor,
-          count:     r.count,
-          notes:     r.notes,
-          image_url: r.image_url,
-          date:      r.date,
+          id:              r.id,
+          shop:            r.shop,
+          sector:          r.sector ?? null,
+          pono:            r.pono   ?? null,
+          code:            r.code,
+          codeName:        r.code_name,
+          factor:          Number(r.factor),
+          count:           Number(r.count),
+          notes:           r.notes  ?? undefined,
+          image_url:       r.image_url ?? undefined,
+          date:            r.date,
+          shift:           r.shift ?? null,
+          created_by_name: r.created_by_name ?? null,
         }))
 
-        // Server cache (mem-) yoki local- yozuvlarni qo'shamiz
+        // Faqat local-/mem- (DB da yo'q) yozuvlarni qo'shamiz
         const localOnly = lsLoad().filter(
           (ls) =>
             (ls.id.startsWith('local-') || ls.id.startsWith('mem-')) &&
@@ -97,53 +93,79 @@ export function GCAProvider({ children }: { children: ReactNode }) {
         )
         setRecords(merged)
         lsSave(merged)
+        setError(null)
       }
     } catch {
       // DB ishlamasa — localStorage dan yuklaymiz
       const cached = lsLoad()
       if (cached.length > 0) setRecords(cached)
+      setError('Offline rejimda — DB ga ulanib bo\'lmadi')
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => { loadRecords() }, [])
+  useEffect(() => {
+    loadRecords()
+    // Har 60 soniyada background refresh (loading spinner ko'rsatmasdan)
+    const interval = setInterval(() => loadRecords(true), 60_000)
+    // Tab/window focus bo'lganda refresh
+    const onFocus = () => loadRecords(true)
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) loadRecords(true)
+    })
+    window.addEventListener('focus', onFocus)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [])
 
   const refresh = () => loadRecords()
 
-  const addRecord = async (record: Omit<GCARecord, 'id' | 'date'>) => {
+  // ─── addRecord: date, shift, pono — hammasini yuboradi ───────────────────────
+  const addRecord = async (record: Omit<GCARecord, 'id'>) => {
+    const today = new Date().toISOString().split('T')[0]
+    const payload = {
+      shop:     record.shop,
+      sector:   record.sector  ?? null,
+      pono:     record.pono    ?? null,
+      code:     record.code,
+      codeName: record.codeName,
+      factor:   record.factor,
+      count:    record.count,
+      notes:    record.notes   ?? null,
+      imageUrl: record.image_url ?? null,
+      date:     record.date    || today,
+      shift:    record.shift   || 'A',
+    }
+
     try {
       const res = await fetch('/api/gca', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          shop:     record.shop,
-          sector:   record.sector ?? null,
-          code:     record.code,
-          codeName: record.codeName,
-          factor:   record.factor,
-          count:    record.count,
-          notes:    record.notes,
-          imageUrl: record.image_url,
-        }),
+        body: JSON.stringify(payload),
       })
 
       const text = await res.text()
       const newRecord = text ? JSON.parse(text) : null
 
       if (res.ok && newRecord) {
-        // DB dan qaytgan yozuv
+        // DB dan qaytgan haqiqiy yozuv
         const mapped: GCARecord = {
-          id:       newRecord.id,
-          shop:     newRecord.shop,
-          sector:   newRecord.sector ?? null,
-          code:     newRecord.code,
-          codeName: newRecord.code_name,
-          factor:   newRecord.factor,
-          count:    newRecord.count,
-          notes:    newRecord.notes,
-          image_url:newRecord.image_url,
-          date:     newRecord.date,
+          id:              newRecord.id,
+          shop:            newRecord.shop,
+          sector:          newRecord.sector   ?? null,
+          pono:            newRecord.pono     ?? null,
+          code:            newRecord.code,
+          codeName:        newRecord.code_name,
+          factor:          Number(newRecord.factor),
+          count:           Number(newRecord.count),
+          notes:           newRecord.notes    ?? undefined,
+          image_url:       newRecord.image_url ?? undefined,
+          date:            newRecord.date     || payload.date,
+          shift:           newRecord.shift    ?? payload.shift,
+          created_by_name: newRecord.created_by_name ?? null,
         }
         setRecords((prev) => {
           const updated = [mapped, ...prev]
@@ -151,66 +173,49 @@ export function GCAProvider({ children }: { children: ReactNode }) {
           return updated
         })
       } else {
-        // DB xatosi — localStorage ga saqlaymiz
-        const localRecord: GCARecord = {
-          id:       `local-${Date.now()}`,
-          shop:     record.shop,
-          sector:   record.sector ?? null,
-          code:     record.code,
-          codeName: record.codeName,
-          factor:   record.factor,
-          count:    record.count,
-          notes:    record.notes,
-          image_url:record.image_url,
-          date:     new Date().toISOString().split('T')[0],
-        }
-        setRecords((prev) => {
-          const updated = [localRecord, ...prev]
-          lsSave(updated)
-          return updated
-        })
+        // Server xatosi — localStorage ga offline yozuv
+        _saveLocal(payload, today)
       }
     } catch {
-      // Network xatosi — localStorage ga saqlaymiz
-      const localRecord: GCARecord = {
-        id:       `local-${Date.now()}`,
-        shop:     record.shop,
-        code:     record.code,
-        codeName: record.codeName,
-        factor:   record.factor,
-        count:    record.count,
-        notes:    record.notes,
-        image_url:record.image_url,
-        date:     new Date().toISOString().split('T')[0],
-      }
-      setRecords((prev) => {
-        const updated = [localRecord, ...prev]
-        lsSave(updated)
-        return updated
-      })
+      // Network xatosi — localStorage ga offline yozuv
+      _saveLocal(payload, today)
     }
+  }
+
+  function _saveLocal(payload: any, today: string) {
+    const localRecord: GCARecord = {
+      id:       `local-${Date.now()}`,
+      shop:     payload.shop,
+      sector:   payload.sector   ?? null,
+      pono:     payload.pono     ?? null,
+      code:     payload.code,
+      codeName: payload.codeName,
+      factor:   Number(payload.factor),
+      count:    Number(payload.count),
+      notes:    payload.notes    ?? undefined,
+      image_url:payload.imageUrl ?? undefined,
+      date:     payload.date     || today,
+      shift:    payload.shift    || 'A',
+    }
+    setRecords((prev) => {
+      const updated = [localRecord, ...prev]
+      lsSave(updated)
+      return updated
+    })
   }
 
   const deleteRecord = async (id: string) => {
-    // localStorage dan darhol olib tashlaymiz
     lsRemove(id)
     setRecords((prev) => prev.filter((r) => r.id !== id))
-
-    // DB dan ham o'chirishga harakat qilamiz (local-/mem- bo'lsa DB da yo'q)
     if (!id.startsWith('local-') && !id.startsWith('mem-')) {
-      try {
-        await fetch(`/api/gca?id=${id}`, { method: 'DELETE' })
-      } catch {}
+      try { await fetch(`/api/gca?id=${id}`, { method: 'DELETE' }) } catch {}
     }
   }
 
-  const getTotalDefects   = () => records.reduce((sum, r) => sum + r.count, 0)
-
-  const getDefectsByShop  = () => {
+  const getTotalDefects  = () => records.reduce((sum, r) => sum + r.count, 0)
+  const getDefectsByShop = () => {
     const byShop: Record<string, number> = {}
-    records.forEach((r) => {
-      byShop[r.shop] = (byShop[r.shop] || 0) + r.count
-    })
+    records.forEach((r) => { byShop[r.shop] = (byShop[r.shop] || 0) + r.count })
     return byShop
   }
 

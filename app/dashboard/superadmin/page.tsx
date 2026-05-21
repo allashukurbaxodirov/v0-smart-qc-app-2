@@ -276,25 +276,68 @@ export default function SuperAdminPage() {
   const [targets,      setTargets]      = useState({ ...DEFAULT_TARGETS })
   const [vehicles,     setVehicles]     = useState(50)
   const [targetsSaved, setTargetsSaved] = useState(false)
+  const [targetsLoading, setTargetsLoading] = useState(false)
 
+  // DB dan yuklash (va localStorage fallback)
   useEffect(() => {
-    try {
-      const t = localStorage.getItem(LS_TARGETS)
-      const v = localStorage.getItem(LS_VEHICLES)
-      if (t) setTargets(prev => ({ ...prev, ...JSON.parse(t) }))
-      if (v) setVehicles(Number(v))
-    } catch {}
+    fetch('/api/wdpv-settings')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d) {
+          if (d.targets) setTargets(prev => ({ ...prev, ...d.targets }))
+          if (d.vehicles) setVehicles(Number(d.vehicles))
+        } else {
+          // DB ishlamasa localStorage
+          try {
+            const t = localStorage.getItem(LS_TARGETS)
+            const v = localStorage.getItem(LS_VEHICLES)
+            if (t) setTargets(prev => ({ ...prev, ...JSON.parse(t) }))
+            if (v) setVehicles(Number(v))
+          } catch {}
+        }
+      })
+      .catch(() => {
+        try {
+          const t = localStorage.getItem(LS_TARGETS)
+          const v = localStorage.getItem(LS_VEHICLES)
+          if (t) setTargets(prev => ({ ...prev, ...JSON.parse(t) }))
+          if (v) setVehicles(Number(v))
+        } catch {}
+      })
   }, [])
 
-  const saveTargets = () => {
+  const saveTargets = async () => {
+    setTargetsLoading(true)
     try {
-      localStorage.setItem(LS_TARGETS,  JSON.stringify(targets))
-      localStorage.setItem(LS_VEHICLES, String(vehicles))
-      window.dispatchEvent(new CustomEvent('gca_targets_updated'))
+      // 1. DB ga saqlash
+      const res = await fetch('/api/wdpv-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targets, vehicles }),
+      })
+      if (!res.ok) throw new Error('API xatosi')
+
+      // 2. localStorage ga ham (offline fallback)
+      try {
+        localStorage.setItem(LS_TARGETS,  JSON.stringify(targets))
+        localStorage.setItem(LS_VEHICLES, String(vehicles))
+      } catch {}
+
       setTargetsSaved(true)
       setTimeout(() => setTargetsSaved(false), 2000)
-      toast("✓ Targetlar saqlandi va barcha dashboardlarga qo'llanildi")
-    } catch { toast('Saqlashda xatolik', false) }
+      toast("✓ Targetlar DB ga saqlandi — barcha dashboardlar yangilanadi")
+    } catch {
+      // Fallback: faqat localStorage
+      try {
+        localStorage.setItem(LS_TARGETS,  JSON.stringify(targets))
+        localStorage.setItem(LS_VEHICLES, String(vehicles))
+        setTargetsSaved(true)
+        setTimeout(() => setTargetsSaved(false), 2000)
+        toast("Targetlar lokal saqlandi (DB ga ulanib bo'lmadi)", false)
+      } catch { toast('Saqlashda xatolik', false) }
+    } finally {
+      setTargetsLoading(false)
+    }
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -904,8 +947,9 @@ export default function SuperAdminPage() {
               <div className="px-5 py-4 border-b border-border bg-primary/5">
                 <h2 className="text-base font-bold text-foreground flex items-center gap-2">
                   <Target className="w-4 h-4 text-primary" /> Sehlar bo'yicha WDPV Targetlar
+                  <span className="text-[10px] font-normal px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full">DB</span>
                 </h2>
-                <p className="text-xs text-muted-foreground mt-0.5">Avtomobil boshiga nuqson soni chegaralari</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Ma'lumotlar bazasida saqlanadi — barcha engineer va operatorlarda avtomatik yangilanadi</p>
               </div>
               <div className="divide-y divide-border/60">
                 {SHOPS_GCA.map(shop => (
@@ -977,8 +1021,12 @@ export default function SuperAdminPage() {
               </div>
 
               <div className="flex gap-3">
-                <Button onClick={saveTargets} className="gap-2 flex-1">
-                  {targetsSaved ? <><CheckCircle className="w-4 h-4" />Saqlandi!</> : <><Save className="w-4 h-4" />Saqlash</>}
+                <Button onClick={saveTargets} disabled={targetsLoading} className="gap-2 flex-1">
+                  {targetsLoading
+                    ? <><Loader2 className="w-4 h-4 animate-spin" />Saqlanmoqda...</>
+                    : targetsSaved
+                      ? <><CheckCircle className="w-4 h-4" />Saqlandi!</>
+                      : <><Save className="w-4 h-4" />DB ga saqlash</>}
                 </Button>
                 <Button onClick={() => { setTargets({ ...DEFAULT_TARGETS }); setVehicles(50); toast('Standart qiymatlarga qaytarildi') }} variant="outline" className="gap-2">
                   <RefreshCw className="w-4 h-4" /> Reset

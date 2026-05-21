@@ -21,6 +21,7 @@ import {
   Crown,
   Database,
   Target,
+  FileText,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
@@ -59,15 +60,27 @@ const superAdminSidebarItems: SidebarItem[] = [
     section: 'admin',
   },
   {
-    label: 'Umumiy dashboard',
-    href: '/dashboard/main',
+    label: 'GCA Dashboard',
+    href: '/dashboard/gca',
     icon: <BarChart3 className="w-5 h-5" />,
     section: 'dashboards',
   },
   {
-    label: 'GCA Dashboard',
-    href: '/dashboard/gca',
-    icon: <BarChart3 className="w-5 h-5" />,
+    label: 'DRR Dashboard',
+    href: '/dashboard/drr',
+    icon: <Activity className="w-5 h-5" />,
+    section: 'dashboards',
+  },
+  {
+    label: 'DRL Dashboard',
+    href: '/dashboard/drl',
+    icon: <Activity className="w-5 h-5" />,
+    section: 'dashboards',
+  },
+  {
+    label: 'PDI Dashboard',
+    href: '/dashboard/pdi-admin',
+    icon: <Activity className="w-5 h-5" />,
     section: 'dashboards',
   },
   {
@@ -80,16 +93,28 @@ const superAdminSidebarItems: SidebarItem[] = [
 
 const adminSidebarItems: SidebarItem[] = [
   {
-    label: 'Bosh sahifa',
-    href: '/dashboard',
-    icon: <Home className="w-5 h-5" />,
-    section: 'main',
+    label: 'GCA Dashboard',
+    href: '/dashboard/gca',
+    icon: <BarChart3 className="w-5 h-5" />,
+    section: 'dashboards',
   },
   {
-    label: 'Umumiy dashboard',
-    href: '/dashboard/main',
-    icon: <BarChart3 className="w-5 h-5" />,
-    section: 'main',
+    label: 'DRR Dashboard',
+    href: '/dashboard/drr',
+    icon: <Activity className="w-5 h-5" />,
+    section: 'dashboards',
+  },
+  {
+    label: 'DRL Dashboard',
+    href: '/dashboard/drl',
+    icon: <Activity className="w-5 h-5" />,
+    section: 'dashboards',
+  },
+  {
+    label: 'PDI Dashboard',
+    href: '/dashboard/pdi-admin',
+    icon: <Activity className="w-5 h-5" />,
+    section: 'dashboards',
   },
   {
     label: 'Analitika',
@@ -113,6 +138,12 @@ const adminSidebarItems: SidebarItem[] = [
     label: 'Audit va Hisobotlar',
     href: '/dashboard/reports',
     icon: <ClipboardList className="w-5 h-5" />,
+    section: 'admin',
+  },
+  {
+    label: 'Feedback Report',
+    href: '/dashboard/feedback-report',
+    icon: <FileText className="w-5 h-5" />,
     section: 'admin',
   },
   {
@@ -196,6 +227,12 @@ const gaEngineerSidebarItems: SidebarItem[] = [
     icon: <Clipboard className="w-5 h-5" />,
     section: 'main',
   },
+  {
+    label: 'Feedback Report',
+    href: '/dashboard/feedback-report',
+    icon: <FileText className="w-5 h-5" />,
+    section: 'main',
+  },
 ]
 
 const weldingEngineerSidebarItems: SidebarItem[] = [
@@ -205,30 +242,54 @@ const weldingEngineerSidebarItems: SidebarItem[] = [
     icon: <Clipboard className="w-5 h-5" />,
     section: 'main',
   },
+  {
+    label: 'Feedback Report',
+    href: '/dashboard/feedback-report',
+    icon: <FileText className="w-5 h-5" />,
+    section: 'main',
+  },
 ]
 
 const drrInspectorSidebarItems: SidebarItem[] = [
   {
-    label: 'DRR Admin paneli',
+    label: 'DRR Tahlil',
+    href: '/dashboard/drr',
+    icon: <BarChart3 className="w-5 h-5" />,
+    section: 'main',
+  },
+  {
+    label: 'GSIP Import',
     href: '/dashboard/drr-admin',
-    icon: <Clipboard className="w-5 h-5" />,
+    icon: <FileText className="w-5 h-5" />,
     section: 'main',
   },
 ]
 
 const drlInspectorSidebarItems: SidebarItem[] = [
   {
-    label: 'DRL Admin paneli',
+    label: 'DRL Tahlil',
+    href: '/dashboard/drl',
+    icon: <BarChart3 className="w-5 h-5" />,
+    section: 'main',
+  },
+  {
+    label: 'GSIP Import',
     href: '/dashboard/drl-admin',
-    icon: <Clipboard className="w-5 h-5" />,
+    icon: <FileText className="w-5 h-5" />,
     section: 'main',
   },
 ]
 
 const pdiInspectorSidebarItems: SidebarItem[] = [
   {
-    label: 'PDI Admin paneli',
+    label: 'PDI Dashboard',
     href: '/dashboard/pdi-admin',
+    icon: <BarChart3 className="w-5 h-5" />,
+    section: 'main',
+  },
+  {
+    label: 'Nuqson kiritish',
+    href: '/dashboard/pdi-admin/entry',
     icon: <Clipboard className="w-5 h-5" />,
     section: 'main',
   },
@@ -273,6 +334,12 @@ const managerSidebarItems: SidebarItem[] = [
     href: '/dashboard/d20',
     icon: <BarChart3 className="w-5 h-5" />,
     section: 'dashboards',
+  },
+  {
+    label: 'Feedback Report',
+    href: '/dashboard/feedback-report',
+    icon: <FileText className="w-5 h-5" />,
+    section: 'main',
   },
 ]
 
@@ -340,7 +407,7 @@ export default function Sidebar() {
     <>
       {/* Logo */}
       <div className="px-6 py-6 border-b border-sidebar-border">
-        <Link href="/dashboard" className="flex items-center gap-3">
+        <Link href="/dashboard/manager" className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground font-bold text-lg">
             SQ
           </div>
@@ -437,7 +504,7 @@ export default function Sidebar() {
 
       {/* Mobile Header */}
       <div className="lg:hidden fixed top-0 right-0 left-0 h-16 bg-card border-b border-border flex items-center justify-between px-4 z-50">
-        <Link href="/dashboard" className="flex items-center gap-2">
+        <Link href="/dashboard/manager" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground font-bold">
             SQ
           </div>

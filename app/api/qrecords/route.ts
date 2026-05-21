@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import sql from '@/lib/db'
+
+async function getSession() {
+  const cs = await cookies()
+  const raw = cs.get('qc_session')?.value
+  if (!raw) return null
+  try { return JSON.parse(raw) as { tabelNumber?: string; name: string; role: string } }
+  catch { return null }
+}
 
 interface CachedQ {
   id: string
@@ -17,8 +26,10 @@ interface CachedQ {
   created_by_name: string | null
 }
 
-// Server-side in-memory cache (shared across requests in same Node.js process)
-const memCache: CachedQ[] = []
+// globalThis — HMR va server restart da yo'qolmasin
+declare global { var __qc_qrecords_cache: CachedQ[] | undefined }
+if (!globalThis.__qc_qrecords_cache) globalThis.__qc_qrecords_cache = []
+const memCache = globalThis.__qc_qrecords_cache
 
 function toClient(r: CachedQ) {
   return {
@@ -76,6 +87,9 @@ export async function GET() {
 
 // ─── POST ──────────────────────────────────────────────────────────────────────
 export async function POST(req: Request) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const body = await req.json()
   const {
     type, date, shift, shop, sector,
@@ -114,17 +128,43 @@ export async function POST(req: Request) {
   return NextResponse.json(toClient(rec))
 }
 
-// ─── PATCH (sector assignment) ─────────────────────────────────────────────────
+// ─── PATCH (sector + corrective action) ────────────────────────────────────────
 export async function PATCH(req: Request) {
-  const { id, sector } = await req.json()
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const body = await req.json()
+  const { id, sector, cause, action, brakePoint, photoAfter, isResolved, resolvedByName, resolvedAt } = body
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
   const idx = memCache.findIndex(r => r.id === id)
-  if (idx >= 0) memCache[idx] = { ...memCache[idx], sector }
+  if (idx >= 0) {
+    if (sector !== undefined)       (memCache[idx] as any).sector        = sector
+    if (cause !== undefined)        (memCache[idx] as any).cause         = cause
+    if (action !== undefined)       (memCache[idx] as any).action        = action
+    if (brakePoint !== undefined)   (memCache[idx] as any).brakePoint    = brakePoint
+    if (photoAfter !== undefined)   (memCache[idx] as any).photoAfter    = photoAfter
+    if (isResolved !== undefined)   (memCache[idx] as any).isResolved    = isResolved
+    if (resolvedByName !== undefined) (memCache[idx] as any).resolvedByName = resolvedByName
+    if (resolvedAt !== undefined)   (memCache[idx] as any).resolvedAt    = resolvedAt
+  }
 
   if (!id.startsWith('mem-') && !id.startsWith('local-')) {
     try {
-      await sql`UPDATE qrecords SET sector = ${sector} WHERE id = ${id}::uuid`
+      if (sector !== undefined) {
+        await sql`UPDATE qrecords SET sector = ${sector} WHERE id = ${id}::uuid`
+      }
+      // Try to update corrective action columns (may not exist in older DB)
+      if (cause !== undefined || action !== undefined) {
+        try {
+          await sql`UPDATE qrecords SET
+            cause = ${cause ?? null}, corrective_action = ${action ?? null},
+            brake_point = ${brakePoint ?? null}, photo_after = ${photoAfter ?? null},
+            is_resolved = ${isResolved ?? false}, resolved_by_name = ${resolvedByName ?? null},
+            resolved_at = ${resolvedAt ? new Date(resolvedAt) : null}
+            WHERE id = ${id}::uuid`
+        } catch { /* columns may not exist yet */ }
+      }
     } catch {}
   }
   return NextResponse.json({ ok: true })
@@ -132,6 +172,9 @@ export async function PATCH(req: Request) {
 
 // ─── DELETE ────────────────────────────────────────────────────────────────────
 export async function DELETE(req: Request) {
+  const session = await getSession()
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { searchParams } = new URL(req.url)
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })

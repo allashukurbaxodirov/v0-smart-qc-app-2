@@ -51,7 +51,10 @@ export async function GET() {
     const [row] = await sql`
       SELECT value FROM app_settings WHERE key = 'main' LIMIT 1
     `
-    if (row) return NextResponse.json({ ...DEFAULTS, ...row.value })
+    if (row) {
+      const parsed = typeof row.value === 'string' ? JSON.parse(row.value) : row.value
+      return NextResponse.json({ ...DEFAULTS, ...parsed })
+    }
   } catch (e) {
     console.warn('settings GET error:', (e as Error).message)
   }
@@ -71,7 +74,7 @@ export async function POST(req: NextRequest) {
     try {
       await sql`
         INSERT INTO app_settings (key, value, updated_at)
-        VALUES ('main', ${JSON.stringify(updated)}::jsonb, NOW())
+        VALUES ('main', ${JSON.stringify(updated)}, NOW())
         ON CONFLICT (key) DO UPDATE SET
           value      = EXCLUDED.value,
           updated_at = NOW()

@@ -14,7 +14,7 @@ export async function GET() {
   try {
     const rows = await sql`
       SELECT
-        r.id, r.shop, r.sector, r.code, r.code_name, r.factor,
+        r.id, r.shop, r.sector, r.pono, r.code, r.code_name, r.factor,
         r.count, r.notes, r.image_url,
         COALESCE(r.date::text, r.created_at::date::text) AS date,
         COALESCE(r.shift, 'A') AS shift,
@@ -22,6 +22,7 @@ export async function GET() {
       FROM gca_records r
       LEFT JOIN users u ON u.id = r.created_by
       ORDER BY r.created_at DESC
+      LIMIT 500
     `
     return NextResponse.json(rows)
   } catch (e) {
@@ -36,7 +37,7 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { shop, sector, code, codeName, factor, count, notes, imageUrl, date, shift } = body
+  const { shop, sector, pono, code, codeName, factor, count, notes, imageUrl, date, shift } = body
 
   if (!shop || !code || !codeName || !factor || !count) {
     return NextResponse.json({ error: "Barcha maydonlar to'ldirilishi shart" }, { status: 400 })
@@ -52,11 +53,11 @@ export async function POST(request: Request) {
       : await sql`SELECT id FROM users WHERE email = ${session.email ?? ''} LIMIT 1`
 
     const [record] = await sql`
-      INSERT INTO gca_records (shop, sector, code, code_name, factor, count, notes, image_url, created_by, date, shift)
-      VALUES (${shop}, ${sector ?? null}, ${code}, ${codeName}, ${factor}, ${count},
+      INSERT INTO gca_records (shop, sector, pono, code, code_name, factor, count, notes, image_url, created_by, date, shift)
+      VALUES (${shop}, ${sector ?? null}, ${pono ?? null}, ${code}, ${codeName}, ${factor}, ${count},
               ${notes ?? null}, ${imageUrl ?? null}, ${user?.id ?? null},
               ${recordDate}::date, ${recordShift})
-      RETURNING id, shop, sector, code, code_name, factor, count, notes, image_url,
+      RETURNING id, shop, sector, pono, code, code_name, factor, count, notes, image_url,
                 date::text, shift, created_at::date::text AS created_date
     `
     return NextResponse.json({
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
     console.warn('gca POST fallback:', (e as Error).message)
     return NextResponse.json({
       id:              `mem-${Date.now()}`,
-      shop, sector: sector ?? null, code,
+      shop, sector: sector ?? null, pono: pono ?? null, code,
       code_name:       codeName,
       factor:          Number(factor), count: Number(count),
       notes:           notes ?? null, image_url: imageUrl ?? null,

@@ -21,7 +21,7 @@ export default function CMMAdminPage() {
   const [filterShop, setFilterShop]   = useState<string>('')
 
   // Session
-  const [session, setSession] = useState<{ role: string; shop: string | null } | null>(null)
+  const [session, setSession] = useState<{ role: string; shop: string | null; shift: string | null } | null>(null)
   useEffect(() => {
     fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => { if (d) setSession(d) })
   }, [])
@@ -66,6 +66,8 @@ export default function CMMAdminPage() {
         factor:   formData.factor,
         count:    formData.count,
         notes:    formData.notes || undefined,
+        date:     new Date().toISOString().split('T')[0],
+        shift:    session?.shift || 'A',
       })
       setShowSuccess(true)
       setTimeout(() => setShowSuccess(false), 3000)
