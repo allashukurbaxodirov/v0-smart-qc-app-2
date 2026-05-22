@@ -427,12 +427,11 @@ export default function GCAPage() {
                 <>
                   {/* ── Umumiy KPI row ──────────────────────────────────── */}
                   {hasAny && (
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                       {[
-                        { label: 'Plant WDPV',     value: Number(overview.totals.wdpv).toFixed(2),          icon: <TrendingUp className="w-5 h-5" />,   color: 'text-indigo-400',  bg: 'bg-indigo-500/10 border-indigo-500/20' },
-                        { label: "Jami og'irlik",  value: Number(overview.totals.total_weight).toFixed(0),  icon: <AlertTriangle className="w-5 h-5" />, color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/20' },
-                        { label: 'Jami avtomobil', value: overview.totals.veh_count,                        icon: <Car className="w-5 h-5" />,           color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/20' },
-                        { label: 'Batch soni',     value: overview.totals.batch_count,                      icon: <BarChart2 className="w-5 h-5" />,     color: 'text-sky-400',     bg: 'bg-sky-500/10 border-sky-500/20' },
+                        { label: 'Plant WDPV',     value: Number(overview.totals.wdpv).toFixed(2),  icon: <TrendingUp className="w-5 h-5" />, color: 'text-indigo-400',  bg: 'bg-indigo-500/10 border-indigo-500/20' },
+                        { label: 'Jami avtomobil', value: overview.totals.veh_count,                    icon: <Car className="w-5 h-5" />,           color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/20' },
+                        { label: 'Batch soni',     value: overview.totals.batch_count,                  icon: <BarChart2 className="w-5 h-5" />,     color: 'text-sky-400',     bg: 'bg-sky-500/10 border-sky-500/20' },
                       ].map(({ label, value, icon, color, bg }) => (
                         <div key={label} className={`rounded-xl border p-5 ${bg}`}>
                           <div className={`mb-2 ${color}`}>{icon}</div>
@@ -462,7 +461,6 @@ export default function GCAPage() {
                                 <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Smena</th>
                                 <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Batch</th>
                                 <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">WDPV</th>
-                                <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Og'irlik</th>
                                 <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Avtomobil</th>
                                 <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">So'nggi import</th>
                                 <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Status</th>
@@ -491,7 +489,6 @@ export default function GCAPage() {
                                     <td className="px-5 py-3 text-center">
                                       <span className={`text-lg font-bold ${over ? 'text-red-400' : 'text-green-400'}`}>{wdpv.toFixed(2)}</span>
                                     </td>
-                                    <td className="px-5 py-3 text-center text-sm text-foreground">{Number(s.total_weight).toFixed(0)}</td>
                                     <td className="px-5 py-3 text-center text-sm text-foreground">{s.veh_count}</td>
                                     <td className="px-5 py-3 text-center text-xs text-muted-foreground">
                                       {s.last_import ? s.last_import.slice(0, 16).replace('T', ' ') : '—'}
