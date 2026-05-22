@@ -72,9 +72,15 @@ export default function GCAAdminPage() {
   useEffect(() => {
     fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => { if (d) setSession(d) })
   }, [])
-  const isLocked   = session ? LOCKED_ROLES.includes(session.role) : false
-  const lockedShop = (isLocked && session?.shop) ? session.shop as ShopType : null
-  const isAdmin    = session && ['superadmin', 'admin'].includes(session.role)
+  const isLocked      = session ? LOCKED_ROLES.includes(session.role) : false
+  const lockedShop    = (isLocked && session?.shop) ? session.shop as ShopType : null
+  const isAdmin       = session && ['superadmin', 'admin'].includes(session.role)
+  const isGcaAuditor  = session?.role === 'gca_auditor'
+
+  // gca_auditor uchun har doim GSIP tabini ko'rsat
+  useEffect(() => {
+    if (isGcaAuditor) setMainTab('gsip')
+  }, [isGcaAuditor])
 
   // ── GSIP Import state ───────────────────────────────────────────────────────
   const [gsipFile,     setGsipFile]     = useState<File | null>(null)
@@ -275,25 +281,27 @@ export default function GCAAdminPage() {
           </Button>
         </Link>
 
-        {/* ── Tab switcher ─────────────────────────────────────────────────── */}
-        <div className="inline-flex bg-card border border-border rounded-lg p-1 gap-1">
-          {([
-            { key: 'manual', label: 'Qo\'lda kiritish' },
-            { key: 'gsip',   label: 'GSIP Import (GCA)' },
-          ] as const).map(t => (
-            <button
-              key={t.key}
-              onClick={() => setMainTab(t.key)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                mainTab === t.key
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {/* ── Tab switcher — gca_auditor uchun ko'rsatilmaydi ─────────────── */}
+        {!isGcaAuditor && (
+          <div className="inline-flex bg-card border border-border rounded-lg p-1 gap-1">
+            {([
+              { key: 'manual', label: 'Qo\'lda kiritish' },
+              { key: 'gsip',   label: 'GSIP Import (GCA)' },
+            ] as const).map(t => (
+              <button
+                key={t.key}
+                onClick={() => setMainTab(t.key)}
+                className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  mainTab === t.key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* ══ GSIP Import tab ═══════════════════════════════════════════════ */}
         {mainTab === 'gsip' && (
@@ -470,8 +478,8 @@ export default function GCAAdminPage() {
           </div>
         )}
 
-        {/* ══ Manual entry tab ══════════════════════════════════════════════ */}
-        {mainTab === 'manual' && <>
+        {/* ══ Manual entry tab — gca_auditor uchun ko'rsatilmaydi ══════════ */}
+        {mainTab === 'manual' && !isGcaAuditor && <>
 
         {showSuccess && (
           <div className="bg-success/10 border border-success/30 rounded-lg p-4 flex items-center gap-3">
