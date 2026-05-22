@@ -336,6 +336,18 @@ const managerSidebarItems: SidebarItem[] = [
     section: 'dashboards',
   },
   {
+    label: 'DRR Dashboard',
+    href: '/dashboard/drr',
+    icon: <Activity className="w-5 h-5" />,
+    section: 'dashboards',
+  },
+  {
+    label: 'DRL Dashboard',
+    href: '/dashboard/drl',
+    icon: <Activity className="w-5 h-5" />,
+    section: 'dashboards',
+  },
+  {
     label: 'Feedback Report',
     href: '/dashboard/feedback-report',
     icon: <FileText className="w-5 h-5" />,
