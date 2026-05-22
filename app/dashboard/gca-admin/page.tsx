@@ -65,7 +65,7 @@ export default function GCAAdminPage() {
   const [showSuccess, setShowSuccess] = useState(false)
   const [sortBy, setSortBy] = useState<'date' | 'shop' | 'factor'>('date')
   const [filterShop, setFilterShop] = useState<string>('')
-  const [mainTab, setMainTab] = useState<'manual' | 'gsip'>('manual')
+  const [mainTab, setMainTab] = useState<'manual' | 'gsip'>('gsip')
 
   // Session
   const [session, setSession] = useState<{ role: string; name?: string; shop: string | null; shift: string | null } | null>(null)
@@ -281,8 +281,8 @@ export default function GCAAdminPage() {
           </Button>
         </Link>
 
-        {/* ── Tab switcher — gca_auditor uchun ko'rsatilmaydi ─────────────── */}
-        {!isGcaAuditor && (
+        {/* ── Tab switcher — faqat admin/superadmin uchun ─────────────────── */}
+        {isAdmin && (
           <div className="inline-flex bg-card border border-border rounded-lg p-1 gap-1">
             {([
               { key: 'manual', label: 'Qo\'lda kiritish' },
@@ -478,8 +478,8 @@ export default function GCAAdminPage() {
           </div>
         )}
 
-        {/* ══ Manual entry tab — gca_auditor uchun ko'rsatilmaydi ══════════ */}
-        {mainTab === 'manual' && !isGcaAuditor && <>
+        {/* ══ Manual entry tab — faqat admin/superadmin uchun ══════════════ */}
+        {mainTab === 'manual' && isAdmin && <>
 
         {showSuccess && (
           <div className="bg-success/10 border border-success/30 rounded-lg p-4 flex items-center gap-3">
