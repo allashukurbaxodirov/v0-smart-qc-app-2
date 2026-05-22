@@ -11,6 +11,7 @@ import {
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, CartesianGrid, Legend,
+  BarChart, Bar,
 } from 'recharts'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -403,22 +404,28 @@ export default function GCAPage() {
             )}
 
             {overview && !overviewLoading && (() => {
-              // ── Trend data: pivot by date → {date, A?, B?, D?} ──────────
-              type TrendRow = { date: string; A?: number; B?: number; D?: number }
-              const dateMap = new Map<string, { A: number[]; B: number[]; D: number[] }>()
+              // ── Trend data: sana bo'yicha smena WDPV (BarChart) ──────────
+              type ChartRow = { date: string; A?: number; B?: number; D?: number; X?: number }
+              const dateMap = new Map<string, { A: number[]; B: number[]; D: number[]; X: number[] }>()
               for (const pt of overview.trend) {
-                if (!dateMap.has(pt.date)) dateMap.set(pt.date, { A: [], B: [], D: [] })
-                const e = dateMap.get(pt.date)!
+                const key = pt.date.slice(5) // MM-DD
+                if (!dateMap.has(key)) dateMap.set(key, { A: [], B: [], D: [], X: [] })
+                const e = dateMap.get(key)!
                 const sl = pt.shift_label
-                if (sl === 'A' || sl === 'B' || sl === 'D') e[sl].push(Number(pt.wdpv))
+                if (sl === 'A') e.A.push(Number(pt.wdpv))
+                else if (sl === 'B') e.B.push(Number(pt.wdpv))
+                else if (sl === 'D') e.D.push(Number(pt.wdpv))
+                else e.X.push(Number(pt.wdpv))
               }
-              const trendData: TrendRow[] = Array.from(dateMap.entries())
+              const avg = (arr: number[]) => arr.length ? +(arr.reduce((s, v) => s + v, 0) / arr.length).toFixed(2) : undefined
+              const trendData: ChartRow[] = Array.from(dateMap.entries())
                 .sort(([a], [b]) => a.localeCompare(b))
                 .map(([date, s]) => ({
-                  date: date.slice(5), // MM-DD
-                  A: s.A.length ? +(s.A.reduce((a, v) => a + v, 0) / s.A.length).toFixed(2) : undefined,
-                  B: s.B.length ? +(s.B.reduce((a, v) => a + v, 0) / s.B.length).toFixed(2) : undefined,
-                  D: s.D.length ? +(s.D.reduce((a, v) => a + v, 0) / s.D.length).toFixed(2) : undefined,
+                  date,
+                  A: avg(s.A),
+                  B: avg(s.B),
+                  D: avg(s.D),
+                  X: avg(s.X),
                 }))
 
               const hasAny = overview.byShift.length > 0 || overview.trend.length > 0
@@ -512,21 +519,21 @@ export default function GCAPage() {
                     )}
                   </div>
 
-                  {/* ── WDPV Trend grafigi ──────────────────────────────── */}
+                  {/* ── WDPV Trend grafigi (BarChart) ───────────────────── */}
                   {trendData.length > 0 && (
                     <div>
                       <h2 className="text-base font-bold text-foreground mb-3 flex items-center gap-2">
                         <TrendingUp className="w-4 h-4 text-indigo-500" />
                         WDPV Trend grafigi
-                        <span className="text-xs font-normal text-muted-foreground ml-1">— smena bo'yicha kunlik o'rtacha</span>
+                        <span className="text-xs font-normal text-muted-foreground ml-1">— smena bo'yicha kunlik WDPV</span>
                       </h2>
                       <div className="bg-card border border-border rounded-2xl p-5">
-                        <ResponsiveContainer width="100%" height={280}>
-                          <LineChart data={trendData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <ResponsiveContainer width="100%" height={300}>
+                          <BarChart data={trendData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }} barCategoryGap="30%" barGap={3}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                             <XAxis
                               dataKey="date"
-                              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
                               axisLine={{ stroke: 'hsl(var(--border))' }}
                               tickLine={false}
                             />
@@ -534,7 +541,8 @@ export default function GCAPage() {
                               tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
                               axisLine={false}
                               tickLine={false}
-                              tickFormatter={v => Number(v).toFixed(2)}
+                              tickFormatter={v => Number(v).toFixed(0)}
+                              domain={[0, 'auto']}
                             />
                             <Tooltip
                               contentStyle={{
@@ -544,16 +552,20 @@ export default function GCAPage() {
                                 color: 'hsl(var(--foreground))',
                                 fontSize: '13px',
                               }}
-                              formatter={(value: number, name: string) => [Number(value).toFixed(2), `${name} smena WDPV`]}
+                              formatter={(value: number, name: string) => [
+                                Number(value).toFixed(2),
+                                name === 'X' ? 'Belgilanmagan WDPV' : `${name} smena WDPV`,
+                              ]}
                             />
                             <Legend
-                              formatter={(value: string) => `${value} smena`}
-                              wrapperStyle={{ color: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                              formatter={(value: string) => value === 'X' ? 'Belgilanmagan' : `${value} smena`}
+                              wrapperStyle={{ color: 'hsl(var(--muted-foreground))', fontSize: 12, paddingTop: 8 }}
                             />
-                            <Line type="monotone" dataKey="A" name="A" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 4, fill: '#6366f1' }} activeDot={{ r: 6 }} connectNulls />
-                            <Line type="monotone" dataKey="B" name="B" stroke="#0ea5e9" strokeWidth={2.5} dot={{ r: 4, fill: '#0ea5e9' }} activeDot={{ r: 6 }} connectNulls />
-                            <Line type="monotone" dataKey="D" name="D" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} connectNulls />
-                          </LineChart>
+                            <Bar dataKey="A" name="A" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={48} label={{ position: 'top', fontSize: 11, fill: '#6366f1', formatter: (v: number) => v ? v.toFixed(0) : '' }} />
+                            <Bar dataKey="B" name="B" fill="#0ea5e9" radius={[4, 4, 0, 0]} maxBarSize={48} label={{ position: 'top', fontSize: 11, fill: '#0ea5e9', formatter: (v: number) => v ? v.toFixed(0) : '' }} />
+                            <Bar dataKey="D" name="D" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={48} label={{ position: 'top', fontSize: 11, fill: '#10b981', formatter: (v: number) => v ? v.toFixed(0) : '' }} />
+                            <Bar dataKey="X" name="X" fill="#94a3b8" radius={[4, 4, 0, 0]} maxBarSize={48} label={{ position: 'top', fontSize: 11, fill: '#94a3b8', formatter: (v: number) => v ? v.toFixed(0) : '' }} />
+                          </BarChart>
                         </ResponsiveContainer>
                       </div>
                     </div>
