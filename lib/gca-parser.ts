@@ -227,7 +227,8 @@ export function parseGsipGCA(buffer: Buffer): GCAParseResult {
     const seqNo         = String(r[13] ?? '').trim()
     const vin           = String(r[14] ?? '').trim()
 
-    const gcaWeight  = gcaWeightRaw !== '' && gcaWeightRaw != null ? Number(gcaWeightRaw) : 0
+    const _gcaW      = Number(gcaWeightRaw)
+    const gcaWeight  = (gcaWeightRaw !== '' && gcaWeightRaw != null && !isNaN(_gcaW)) ? _gcaW : 0
     const { faultCode, faultName } = parseFault(faultRaw)
     const shop       = prodTeamToShopGCA(prodTeam)
     const modelGroup = vinToModelGroup(vin)

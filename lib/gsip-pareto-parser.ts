@@ -162,6 +162,20 @@ export function parseFilterRow(filterStr: string): DRLImportMeta {
   return defaults
 }
 
+// ─── Safe number helpers ──────────────────────────────────────────────────────
+
+/** NaN / Infinity / string → 0 (integer-safe) */
+function safeInt(v: any): number {
+  const n = Number(v)
+  return (!isNaN(n) && isFinite(n)) ? Math.round(n) : 0
+}
+
+/** NaN / Infinity / string → 0 (float-safe) */
+function safeFloat(v: any): number {
+  const n = Number(v)
+  return (!isNaN(n) && isFinite(n)) ? n : 0
+}
+
 // ─── Main Parser ──────────────────────────────────────────────────────────────
 
 export function parseGsipPareto(buffer: Buffer): ParseResult {
@@ -198,9 +212,9 @@ export function parseGsipPareto(buffer: Buffer): ParseResult {
     const partLv4    = String(r[9]  ?? '').trim()
     const faultRaw   = String(r[11] ?? '').trim()
     const prodTeam   = String(r[13] ?? '').trim()
-    const count      = Number(r[14] ?? 0)
-    const drlRatio   = Number(r[15] ?? 0)
-    const vehCnt     = Number(r[16] ?? 0)
+    const count      = safeInt(r[14])
+    const drlRatio   = safeFloat(r[15])
+    const vehCnt     = safeInt(r[16])
 
     if (!faultRaw || count <= 0) { skipped++; continue }
 
@@ -232,7 +246,7 @@ export function parseGsipPareto(buffer: Buffer): ParseResult {
       partLv2,
       partLv3,
       partLv4,
-      faultId:  (r[10] != null && r[10] !== '') ? Number(r[10]) : null,
+      faultId:  (r[10] != null && r[10] !== '') ? (safeInt(r[10]) || null) : null,
       faultCode,
       faultName,
       prodTeam,

@@ -250,7 +250,8 @@ export function parseGsipDRR(buffer: Buffer): DRRParseResult {
       faultName = faultRaw
     }
 
-    const faultId = (faultIdRaw !== '' && faultIdRaw != null) ? Number(faultIdRaw) : null
+    const _faultIdNum = Number(faultIdRaw)
+    const faultId = (faultIdRaw !== '' && faultIdRaw != null && !isNaN(_faultIdNum)) ? _faultIdNum : null
 
     // Aggregate key
     const key = `${faultCode}||${faultName}||${prodTeam}||${modelGroup}||${partLv1}`
