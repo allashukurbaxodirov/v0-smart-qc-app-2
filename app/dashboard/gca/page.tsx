@@ -6,10 +6,11 @@ import PageHeader from '@/components/dashboard/page-header'
 import {
   ChevronLeft, TrendingDown, AlertTriangle, RefreshCw,
   Car, Layers, Building2, FileSpreadsheet, Activity,
-  CheckCircle, X, Search,
+  CheckCircle, X, Search, Calendar, TrendingUp, BarChart2,
 } from 'lucide-react'
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Legend,
 } from 'recharts'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -71,6 +72,40 @@ interface GcaBatch {
   veh_count:    number
 }
 
+// ─── Overview types ───────────────────────────────────────────────────────────
+interface ShiftSummary {
+  shift_label:  string
+  batch_count:  number
+  total_weight: number
+  veh_count:    number
+  wdpv:         number
+  last_import:  string
+}
+interface TrendPoint {
+  date:         string
+  imported_at:  string
+  shift_label:  string
+  imported_by:  string
+  file_name:    string
+  batch_id:     string
+  total_weight: number
+  veh_count:    number
+  wdpv:         number
+}
+interface OverviewTotals {
+  batch_count:  number
+  total_weight: number
+  veh_count:    number
+  wdpv:         number
+  date_from:    string
+  date_to:      string
+}
+interface OverviewData {
+  byShift: ShiftSummary[]
+  trend:   TrendPoint[]
+  totals:  OverviewTotals
+}
+
 // ─── Drilldown types ──────────────────────────────────────────────────────────
 interface DrillRow {
   part_lv2:   string
@@ -120,6 +155,17 @@ export default function GCAPage() {
   const [loading,  setLoading]  = useState(true)
   const [empty,    setEmpty]    = useState(false)
   const [session,  setSession]  = useState<{ role: string } | null>(null)
+
+  // Date range (default: last 30 days)
+  const [dateFrom, setDateFrom] = useState<string>(() => {
+    const d = new Date(); d.setDate(d.getDate() - 30)
+    return d.toISOString().slice(0, 10)
+  })
+  const [dateTo, setDateTo] = useState<string>(() => new Date().toISOString().slice(0, 10))
+
+  // Overview (Barchasi tab)
+  const [overview,        setOverview]        = useState<OverviewData | null>(null)
+  const [overviewLoading, setOverviewLoading] = useState(false)
 
   // Drilldown
   const [drill,        setDrill]        = useState<DrillData | null>(null)
@@ -196,6 +242,26 @@ export default function GCAPage() {
     else if (batches.length === 0 && !loading) setEmpty(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selBatch])
+
+  // Overview fetch (sanalar bo'yicha umumiy ko'rinish)
+  const loadOverview = useCallback(async (from = dateFrom, to = dateTo) => {
+    setOverviewLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (from) params.set('from', from)
+      if (to)   params.set('to', to)
+      const res = await fetch(`/api/gca-import/overview?${params}`)
+      if (res.ok) setOverview(await res.json())
+    } catch { /* ignore */ }
+    finally { setOverviewLoading(false) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFrom, dateTo])
+
+  // selShift === 'all' bo'lganda yoki sana o'zgarganda overview yuklash
+  useEffect(() => {
+    if (selShift === 'all') loadOverview()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selShift, dateFrom, dateTo])
 
   // Drilldown (part_lv1 kategoriya bo'yicha)
   const openDrill = async (lv1: string) => {
@@ -277,7 +343,25 @@ export default function GCAPage() {
               })}
             </div>
 
-            {filteredBatches.length > 0 && (
+            {/* Sana filtri — faqat Barchasi tabida ko'rinadi */}
+            {selShift === 'all' && (
+              <div className="flex items-center gap-1.5 bg-card border border-border rounded-lg px-3 py-2">
+                <Calendar className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <input
+                  type="date" value={dateFrom}
+                  onChange={e => setDateFrom(e.target.value)}
+                  className="bg-transparent text-xs text-foreground outline-none w-28"
+                />
+                <span className="text-muted-foreground text-xs">—</span>
+                <input
+                  type="date" value={dateTo}
+                  onChange={e => setDateTo(e.target.value)}
+                  className="bg-transparent text-xs text-foreground outline-none w-28"
+                />
+              </div>
+            )}
+
+            {filteredBatches.length > 0 && selShift !== 'all' && (
               <select value={selBatch} onChange={e => setSelBatch(e.target.value)}
                 className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground">
                 {filteredBatches.map(b => (
@@ -308,7 +392,182 @@ export default function GCAPage() {
           </div>
         )}
 
-        {stats && !loading && (
+        {/* ══ BARCHASI TAB — Overview (smena solishtirish + trend) ══════════ */}
+        {selShift === 'all' && !loading && (
+          <div className="space-y-6">
+
+            {overviewLoading && (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="w-7 h-7 animate-spin text-indigo-500" />
+              </div>
+            )}
+
+            {overview && !overviewLoading && (() => {
+              // ── Trend data: pivot by date → {date, A?, B?, D?} ──────────
+              type TrendRow = { date: string; A?: number; B?: number; D?: number }
+              const dateMap = new Map<string, { A: number[]; B: number[]; D: number[] }>()
+              for (const pt of overview.trend) {
+                if (!dateMap.has(pt.date)) dateMap.set(pt.date, { A: [], B: [], D: [] })
+                const e = dateMap.get(pt.date)!
+                const sl = pt.shift_label
+                if (sl === 'A' || sl === 'B' || sl === 'D') e[sl].push(Number(pt.wdpv))
+              }
+              const trendData: TrendRow[] = Array.from(dateMap.entries())
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([date, s]) => ({
+                  date: date.slice(5), // MM-DD
+                  A: s.A.length ? +(s.A.reduce((a, v) => a + v, 0) / s.A.length).toFixed(2) : undefined,
+                  B: s.B.length ? +(s.B.reduce((a, v) => a + v, 0) / s.B.length).toFixed(2) : undefined,
+                  D: s.D.length ? +(s.D.reduce((a, v) => a + v, 0) / s.D.length).toFixed(2) : undefined,
+                }))
+
+              const hasAny = overview.byShift.length > 0 || overview.trend.length > 0
+
+              return (
+                <>
+                  {/* ── Umumiy KPI row ──────────────────────────────────── */}
+                  {hasAny && (
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                      {[
+                        { label: 'Plant WDPV',     value: Number(overview.totals.wdpv).toFixed(2),          icon: <TrendingUp className="w-5 h-5" />,   color: 'text-indigo-400',  bg: 'bg-indigo-500/10 border-indigo-500/20' },
+                        { label: "Jami og'irlik",  value: Number(overview.totals.total_weight).toFixed(0),  icon: <AlertTriangle className="w-5 h-5" />, color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/20' },
+                        { label: 'Jami avtomobil', value: overview.totals.veh_count,                        icon: <Car className="w-5 h-5" />,           color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/20' },
+                        { label: 'Batch soni',     value: overview.totals.batch_count,                      icon: <BarChart2 className="w-5 h-5" />,     color: 'text-sky-400',     bg: 'bg-sky-500/10 border-sky-500/20' },
+                      ].map(({ label, value, icon, color, bg }) => (
+                        <div key={label} className={`rounded-xl border p-5 ${bg}`}>
+                          <div className={`mb-2 ${color}`}>{icon}</div>
+                          <p className="text-2xl font-bold text-foreground">{typeof value === 'number' ? value.toLocaleString() : value}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{label}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* ── Smena solishtirish jadvali ──────────────────────── */}
+                  <div>
+                    <h2 className="text-base font-bold text-foreground mb-3 flex items-center gap-2">
+                      <BarChart2 className="w-4 h-4 text-indigo-500" />
+                      Smena solishtirish jadvali
+                    </h2>
+                    {overview.byShift.length === 0 ? (
+                      <div className="bg-card border border-border rounded-xl p-8 text-center text-sm text-muted-foreground">
+                        Tanlangan sana oralig'ida ma'lumot yo'q
+                      </div>
+                    ) : (
+                      <div className="bg-card border border-border rounded-xl overflow-hidden">
+                        <div className="overflow-x-auto">
+                          <table className="w-full">
+                            <thead>
+                              <tr className="border-b border-border bg-muted/30">
+                                <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Smena</th>
+                                <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Batch</th>
+                                <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">WDPV</th>
+                                <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Og'irlik</th>
+                                <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Avtomobil</th>
+                                <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">So'nggi import</th>
+                                <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                              {overview.byShift.map(s => {
+                                const wdpv   = Number(s.wdpv)
+                                const target = 0.50   // umumiy WDPV chegarasi
+                                const over   = wdpv > target
+                                const badgeMap: Record<string, string> = {
+                                  A: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+                                  B: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+                                  D: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+                                  '—': 'bg-muted/40 text-muted-foreground border-border',
+                                }
+                                const badge = badgeMap[s.shift_label] ?? badgeMap['—']
+                                return (
+                                  <tr key={s.shift_label} className="hover:bg-muted/20 transition-colors">
+                                    <td className="px-5 py-3">
+                                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold ${badge}`}>
+                                        {s.shift_label === '—' ? 'Belgilanmagan' : `${s.shift_label} smena`}
+                                      </span>
+                                    </td>
+                                    <td className="px-5 py-3 text-center text-sm font-semibold text-foreground">{s.batch_count}</td>
+                                    <td className="px-5 py-3 text-center">
+                                      <span className={`text-lg font-bold ${over ? 'text-red-400' : 'text-green-400'}`}>{wdpv.toFixed(2)}</span>
+                                    </td>
+                                    <td className="px-5 py-3 text-center text-sm text-foreground">{Number(s.total_weight).toFixed(0)}</td>
+                                    <td className="px-5 py-3 text-center text-sm text-foreground">{s.veh_count}</td>
+                                    <td className="px-5 py-3 text-center text-xs text-muted-foreground">
+                                      {s.last_import ? s.last_import.slice(0, 16).replace('T', ' ') : '—'}
+                                    </td>
+                                    <td className="px-5 py-3 text-center">
+                                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold border ${
+                                        over
+                                          ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                          : 'bg-green-500/10 text-green-400 border-green-500/20'
+                                      }`}>
+                                        {over ? <><AlertTriangle className="w-3 h-3" /> Yuqori</> : <><CheckCircle className="w-3 h-3" /> OK</>}
+                                      </span>
+                                    </td>
+                                  </tr>
+                                )
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── WDPV Trend grafigi ──────────────────────────────── */}
+                  {trendData.length > 0 && (
+                    <div>
+                      <h2 className="text-base font-bold text-foreground mb-3 flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-indigo-500" />
+                        WDPV Trend grafigi
+                        <span className="text-xs font-normal text-muted-foreground ml-1">— smena bo'yicha kunlik o'rtacha</span>
+                      </h2>
+                      <div className="bg-card border border-border rounded-2xl p-5">
+                        <ResponsiveContainer width="100%" height={280}>
+                          <LineChart data={trendData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                            <XAxis
+                              dataKey="date"
+                              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                              axisLine={{ stroke: 'hsl(var(--border))' }}
+                              tickLine={false}
+                            />
+                            <YAxis
+                              tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                              axisLine={false}
+                              tickLine={false}
+                              tickFormatter={v => Number(v).toFixed(2)}
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: 'hsl(var(--card))',
+                                border: '1px solid hsl(var(--border))',
+                                borderRadius: '10px',
+                                color: 'hsl(var(--foreground))',
+                                fontSize: '13px',
+                              }}
+                              formatter={(value: number, name: string) => [Number(value).toFixed(2), `${name} smena WDPV`]}
+                            />
+                            <Legend
+                              formatter={(value: string) => `${value} smena`}
+                              wrapperStyle={{ color: 'hsl(var(--muted-foreground))', fontSize: 12 }}
+                            />
+                            <Line type="monotone" dataKey="A" name="A" stroke="#6366f1" strokeWidth={2.5} dot={{ r: 4, fill: '#6366f1' }} activeDot={{ r: 6 }} connectNulls />
+                            <Line type="monotone" dataKey="B" name="B" stroke="#0ea5e9" strokeWidth={2.5} dot={{ r: 4, fill: '#0ea5e9' }} activeDot={{ r: 6 }} connectNulls />
+                            <Line type="monotone" dataKey="D" name="D" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} connectNulls />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
+          </div>
+        )}
+
+        {stats && !loading && selShift !== 'all' && (
           <>
             {/* Meta bar */}
             <div className="flex flex-wrap gap-2 items-center text-xs text-muted-foreground">
