@@ -781,10 +781,10 @@ export default function ManagerPage() {
         )}
 
         {/* ── 3. SEHLAR HOLATI + INCOMING ──────────────────────────────────── */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 gap-5">
 
           {/* Sehlar jadvali */}
-          <div className="xl:col-span-2 bg-card border border-border rounded-xl overflow-hidden">
+          <div className="bg-card border border-border rounded-xl overflow-hidden">
             <div className="px-5 py-4 border-b border-border flex items-center justify-between bg-muted/20">
               <div>
                 <h2 className="text-base font-bold text-foreground">Sehlar Holati</h2>
@@ -876,112 +876,6 @@ export default function ManagerPage() {
             </div>
           </div>
 
-          {/* Incoming Control */}
-          <div className="xl:col-span-1 flex flex-col gap-4">
-            <div className="bg-card border border-cyan-500/40 rounded-xl overflow-hidden flex-1">
-              <div className="px-5 py-4 border-b border-border bg-cyan-500/5 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Package className="w-4 h-4 text-cyan-400" />
-                  <div>
-                    <h2 className="text-base font-bold text-foreground">Kiruvchi Nazorat</h2>
-                    <p className="text-xs text-muted-foreground">Smena {activeShift}</p>
-                  </div>
-                </div>
-                <Link href="/dashboard/incoming-admin" className="text-xs text-cyan-500 hover:underline">Admin →</Link>
-              </div>
-
-              {/* Jami */}
-              <div className="px-5 py-4 border-b border-border">
-                <div className="flex items-end justify-between">
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Nuqsonli detallar</p>
-                    <p className={`text-4xl font-bold ${plant.incomingDefect > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>{plant.incomingDefect}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground mb-1">Jami keldi</p>
-                    <p className="text-2xl font-bold text-foreground">{plant.incomingTotal}</p>
-                  </div>
-                </div>
-                {plant.incomingTotal > 0 && (
-                  <div className="mt-3">
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                      <span>Nuqson foizi</span>
-                      <span>{((plant.incomingDefect / plant.incomingTotal) * 100).toFixed(1)}%</span>
-                    </div>
-                    <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all ${plant.incomingDefect / plant.incomingTotal > 0.05 ? 'bg-rose-500' : plant.incomingDefect > 0 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                        style={{ width: `${Math.min((plant.incomingDefect / plant.incomingTotal) * 100, 100)}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Omborxonalar */}
-              <div className="divide-y divide-border/60">
-                {(['WAREHOUSE-1', 'WAREHOUSE-2', 'SP ZONE'] as const).map(wh => {
-                  const whRecs  = filteredIncoming.filter(r => r.warehouse === wh)
-                  const total   = whRecs.reduce((s, r) => s + r.totalCount,  0)
-                  const defects = whRecs.reduce((s, r) => s + r.defectCount, 0)
-                  const badgeColor = wh === 'WAREHOUSE-1' ? 'bg-blue-500/15 text-blue-600 border-blue-500/40'
-                                   : wh === 'WAREHOUSE-2' ? 'bg-indigo-500/15 text-indigo-600 border-indigo-500/40'
-                                   : 'bg-amber-500/15 text-amber-600 border-amber-500/40'
-                  return (
-                    <div key={wh} className="px-5 py-3">
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold border ${badgeColor}`}>{wh}</span>
-                        <div className="flex items-center gap-3 text-sm">
-                          <span className="text-muted-foreground">Keldi: <span className="text-foreground font-medium">{total}</span></span>
-                          <span className={`font-bold ${defects > 0 ? 'text-rose-500' : 'text-emerald-500'}`}>{defects} nuqsonli</span>
-                        </div>
-                      </div>
-                      {total > 0 && (
-                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${defects / total > 0.05 ? 'bg-rose-500' : defects > 0 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                            style={{ width: `${Math.min((defects / total) * 100, 100)}%` }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-
-              <div className="px-5 py-3 border-t border-border bg-muted/10 text-xs text-muted-foreground">
-                {filteredIncoming.length === 0
-                  ? <span className="italic">Bu smena uchun ma'lumot yo'q</span>
-                  : <span>{filteredIncoming.length} ta yozuv • {activeDate}</span>
-                }
-              </div>
-            </div>
-
-            {/* Bar chart */}
-            <div className="bg-card border border-border rounded-xl p-4">
-              <p className="text-sm font-semibold text-foreground mb-3">Omborxona grafigi</p>
-              <ResponsiveContainer width="100%" height={160}>
-                <BarChart
-                  data={(['WAREHOUSE-1', 'WAREHOUSE-2', 'SP ZONE'] as const).map(wh => {
-                    const whRecs = filteredIncoming.filter(r => r.warehouse === wh)
-                    return {
-                      wh: wh === 'WAREHOUSE-1' ? 'WH-1' : wh === 'WAREHOUSE-2' ? 'WH-2' : 'SP',
-                      Keldi:    whRecs.reduce((s, r) => s + r.totalCount,  0),
-                      Nuqsonli: whRecs.reduce((s, r) => s + r.defectCount, 0),
-                    }
-                  })}
-                  margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.1)" />
-                  <XAxis dataKey="wh" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip content={<ChartTip />} />
-                  <Bar dataKey="Keldi"    name="Keldi"    fill="#22d3ee" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Nuqsonli" name="Nuqsonli" fill="#f43f5e" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
         </div>
 
         {/* ── 3.5 D10 / D20 ALOHIDA PANEL ─────────────────────────────────── */}

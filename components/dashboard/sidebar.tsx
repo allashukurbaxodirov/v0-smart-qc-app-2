@@ -348,6 +348,12 @@ const managerSidebarItems: SidebarItem[] = [
     section: 'dashboards',
   },
   {
+    label: 'Incoming Control',
+    href: '/dashboard/incoming',
+    icon: <Package className="w-5 h-5" />,
+    section: 'dashboards',
+  },
+  {
     label: 'Feedback Report',
     href: '/dashboard/feedback-report',
     icon: <FileText className="w-5 h-5" />,
