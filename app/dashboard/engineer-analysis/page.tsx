@@ -362,16 +362,14 @@ export default function EngineerAnalysisPage() {
 
         {/* ── TAB BAR ───────────────────────────────────────────────────── */}
         <div className="inline-flex bg-card border border-border rounded-lg p-1 gap-1 flex-wrap">
-          {([
-            { key: 'overview', label: "Umumiy ko'rinish", icon: Activity       },
-            { key: 'ga',       label: 'GA Engineer',      icon: TrendingUp     },
-            { key: 'welding',  label: 'Welding Engineer', icon: BarChart2      },
-            { key: 'drl',      label: 'DRL Eskalatsiyalar', icon: Bell,
+          {(([
+            { key: 'overview', label: "Umumiy ko'rinish", icon: Activity       as React.FC<{className?:string}> },
+            { key: 'ga',       label: 'GA Engineer',      icon: TrendingUp     as React.FC<{className?:string}> },
+            { key: 'welding',  label: 'Welding Engineer', icon: BarChart2      as React.FC<{className?:string}> },
+            { key: 'drl',      label: 'DRL Eskalatsiyalar', icon: Bell         as React.FC<{className?:string}>,
               badge: escStats.open > 0 ? escStats.open : undefined },
-            { key: 'history',  label: 'Tarix',            icon: ClipboardList  },
-          ] as { key: typeof activeTab; label: string; icon: React.ElementType; badge?: number }[]).map(({ key, label, icon: Icon, badge }) => {
-            const Ic = Icon as React.FC<{ className?: string }>
-            return (
+            { key: 'history',  label: 'Tarix',            icon: ClipboardList  as React.FC<{className?:string}> },
+          ]) as { key: typeof activeTab; label: string; icon: React.FC<{className?:string}>; badge?: number }[]).map(({ key, label, icon: Ic, badge }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
@@ -389,7 +387,7 @@ export default function EngineerAnalysisPage() {
                 </span>
               )}
             </button>
-          )})}
+          ))}
         </div>
 
         {/* ── UMUMIY KO'RINISH ──────────────────────────────────────────── */}

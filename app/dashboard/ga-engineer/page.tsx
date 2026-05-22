@@ -276,23 +276,24 @@ export default function GAEngineerPage() {
 
         {/* Tab tugmalar */}
         <div className="inline-flex bg-card border border-border rounded-lg p-1 gap-1">
-          {([
-            { key: 'list',  label: "Nuqsonlar ro'yxati", icon: ClipboardList },
-            { key: 'stats', label: 'Statistika',          icon: CheckCircle2 },
-          ] as { key: 'list' | 'stats'; label: string; icon: React.ElementType }[]).map(({ key, label, icon: Icon }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-                activeTab === key
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {label}
-            </button>
-          ))}
+          {(['list', 'stats'] as const).map((tabKey) => {
+            const Icon = tabKey === 'list' ? ClipboardList : CheckCircle2
+            const label = tabKey === 'list' ? "Nuqsonlar ro'yxati" : 'Statistika'
+            return (
+              <button
+                key={tabKey}
+                onClick={() => setActiveTab(tabKey)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                  activeTab === tabKey
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </button>
+            )
+          })}
         </div>
 
         {/* ── RO'YXAT TAB ───────────────────────────────────────────────────── */}

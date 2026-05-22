@@ -520,10 +520,6 @@ export function QAdminTemplate({ type, title, description }: QAdminProps) {
                 {filtered.reduce((s, r) => s + r.count, 0)}
               </p>
               <p className="text-sm text-foreground">
-                <span className="font-semibold">Og&apos;irlik:</span>{' '}
-                {filtered.reduce((s, r) => s + r.count * r.factor, 0)}
-              </p>
-              <p className="text-sm text-foreground">
                 <span className="font-semibold">Kritik (F-50):</span>{' '}
                 {filtered.filter(r => r.factor === 50).reduce((s, r) => s + r.count, 0)}
               </p>

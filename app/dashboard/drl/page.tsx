@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import PageHeader from '@/components/dashboard/page-header'
@@ -118,7 +118,7 @@ function teamToRole(team: string) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-export default function DRLPage() {
+function DRLPageContent() {
   const searchParams = useSearchParams()
   const batchParam   = searchParams.get('batch')
 
@@ -941,5 +941,13 @@ export default function DRLPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function DRLPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
+      <DRLPageContent />
+    </Suspense>
   )
 }
