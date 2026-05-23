@@ -124,6 +124,7 @@ interface DrillData { lv1: string; rows: DrillRow[] }
 const WDPV_TARGETS: Record<string, number> = {
   'PRESS SHOP': 0.40, 'WELDING': 0.45,
   'PAINT SHOP': 0.70, 'GA':      0.50,
+  'SQ':         0.50, 'Boshqalar': 0.50,
 }
 
 const SHOP_COLORS: Record<string, string> = {
@@ -131,12 +132,16 @@ const SHOP_COLORS: Record<string, string> = {
   'PAINT SHOP': 'bg-violet-600 text-white border-violet-500',
   'GA':         'bg-emerald-600 text-white border-emerald-500',
   'PRESS SHOP': 'bg-amber-600 text-white border-amber-500',
+  'SQ':         'bg-rose-600 text-white border-rose-500',
+  'Boshqalar':  'bg-slate-600 text-white border-slate-500',
 }
 const SHOP_HEX: Record<string, string> = {
   'WELDING':    '#0284c7',
   'PAINT SHOP': '#7c3aed',
   'GA':         '#059669',
   'PRESS SHOP': '#d97706',
+  'SQ':         '#e11d48',
+  'Boshqalar':  '#64748b',
 }
 
 function rankColor(r: number) {
@@ -736,7 +741,6 @@ export default function GCAPage() {
                         <th className="px-5 py-3 text-center text-xs font-semibold text-orange-400">Faktor 20</th>
                         <th className="px-5 py-3 text-center text-xs font-semibold text-blue-400">Faktor 10</th>
                         <th className="px-5 py-3 text-center text-xs font-semibold text-green-400">Faktor 5</th>
-                        <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Jami og&apos;irlik</th>
                         <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Avto</th>
                         <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">WDPV</th>
                         <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Status</th>
@@ -762,7 +766,6 @@ export default function GCAPage() {
                             <td className="px-5 py-3 text-center">
                               {s.f5 > 0 ? <span className="font-bold text-green-400">{s.f5}</span> : <span className="text-muted-foreground">—</span>}
                             </td>
-                            <td className="px-5 py-3 text-center font-semibold text-foreground">{Number(s.total_weight).toFixed(0)}</td>
                             <td className="px-5 py-3 text-center text-sm text-foreground">{s.veh_count}</td>
                             <td className="px-5 py-3 text-center font-bold text-foreground">{wdpv.toFixed(2)}</td>
                             <td className="px-5 py-3 text-center">

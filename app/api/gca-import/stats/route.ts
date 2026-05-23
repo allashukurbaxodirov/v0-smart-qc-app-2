@@ -76,10 +76,17 @@ export async function GET(req: NextRequest) {
     const vehCount    = Number(totals.veh_count)
     const wdpv        = vehCount > 0 ? Math.round((totalWeight / vehCount) * 100) / 100 : 0
 
-    // Sehlar bo'yicha (faktor taqsimoti bilan)
+    // Sehlar bo'yicha (faktor taqsimoti bilan) — prod_team dan guruhlanadi
     const byShop = await sql`
       SELECT
-        i.shop,
+        CASE
+          WHEN UPPER(i.prod_team) LIKE 'PA.%' OR UPPER(i.prod_team) = 'PA' THEN 'PAINT SHOP'
+          WHEN UPPER(i.prod_team) LIKE 'BO.%' OR UPPER(i.prod_team) = 'BO' THEN 'WELDING'
+          WHEN UPPER(i.prod_team) LIKE 'PR.%' OR UPPER(i.prod_team) = 'PR' THEN 'PRESS SHOP'
+          WHEN UPPER(i.prod_team) LIKE 'GA.%' OR UPPER(i.prod_team) = 'GA' THEN 'GA'
+          WHEN UPPER(i.prod_team) LIKE 'SQ.%' OR UPPER(i.prod_team) = 'SQ' THEN 'SQ'
+          ELSE 'Boshqalar'
+        END                                                                        AS shop,
         COUNT(*)::int                                                              AS row_count,
         COALESCE(SUM(i.gca_weight), 0)::numeric                                   AS total_weight,
         COUNT(DISTINCT i.vin)::int                                                 AS veh_count,
@@ -92,7 +99,7 @@ export async function GET(req: NextRequest) {
           ELSE 0 END                                                               AS wdpv
       ${fromClause}
       ${whereClause}
-      GROUP BY i.shop ORDER BY total_weight DESC
+      GROUP BY 1 ORDER BY total_weight DESC
     `
 
     // Model bo'yicha
