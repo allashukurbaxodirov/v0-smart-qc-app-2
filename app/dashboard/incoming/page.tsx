@@ -105,19 +105,19 @@ interface Stats {
 type FilterMode = 'kunlik' | 'oylik' | 'yillik' | 'custom'
 
 const WAREHOUSE_LABELS: Record<string, string> = {
-  'warehouse-1': 'Warehouse-1',
-  'warehouse-2': 'Warehouse-2',
-  'sp-zone':     'SP-Zone',
+  'WAREHOUSE-1': 'Warehouse-1',
+  'WAREHOUSE-2': 'Warehouse-2',
+  'SP ZONE':     'SP-Zone',
 }
 const WAREHOUSE_COLORS: Record<string, string> = {
-  'warehouse-1': '#6366f1',
-  'warehouse-2': '#0ea5e9',
-  'sp-zone':     '#10b981',
+  'WAREHOUSE-1': '#6366f1',
+  'WAREHOUSE-2': '#0ea5e9',
+  'SP ZONE':     '#10b981',
 }
 const WAREHOUSE_BG: Record<string, string> = {
-  'warehouse-1': 'bg-indigo-500/10 border-indigo-500/20',
-  'warehouse-2': 'bg-sky-500/10 border-sky-500/20',
-  'sp-zone':     'bg-emerald-500/10 border-emerald-500/20',
+  'WAREHOUSE-1': 'bg-indigo-500/10 border-indigo-500/20',
+  'WAREHOUSE-2': 'bg-sky-500/10 border-sky-500/20',
+  'SP ZONE':     'bg-emerald-500/10 border-emerald-500/20',
 }
 
 function getDateRange(mode: FilterMode, selDate: string, selMonth: string, selYear: string, customFrom: string, customTo: string) {
@@ -286,9 +286,9 @@ export default function IncomingDashboardPage() {
           <select value={selWarehouse} onChange={e => setSelWarehouse(e.target.value)}
             className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground outline-none">
             <option value="">Barcha omborlar</option>
-            <option value="warehouse-1">Warehouse-1</option>
-            <option value="warehouse-2">Warehouse-2</option>
-            <option value="sp-zone">SP-Zone</option>
+            <option value="WAREHOUSE-1">Warehouse-1</option>
+            <option value="WAREHOUSE-2">Warehouse-2</option>
+            <option value="SP ZONE">SP-Zone</option>
           </select>
 
           {/* Refresh */}
@@ -406,7 +406,7 @@ export default function IncomingDashboardPage() {
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {/* Show all 3 warehouses, even if 0 */}
-                {['warehouse-1', 'warehouse-2', 'sp-zone'].map(wh => {
+                {['WAREHOUSE-1', 'WAREHOUSE-2', 'SP ZONE'].map(wh => {
                   const row = stats.byWarehouse.find(r => r.warehouse === wh)
                   const label = WAREHOUSE_LABELS[wh] ?? wh
                   const color = WAREHOUSE_COLORS[wh] ?? '#6b7280'
