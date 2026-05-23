@@ -353,12 +353,6 @@ const managerSidebarItems: SidebarItem[] = [
     icon: <Package className="w-5 h-5" />,
     section: 'dashboards',
   },
-  {
-    label: 'Feedback Report',
-    href: '/dashboard/feedback-report',
-    icon: <FileText className="w-5 h-5" />,
-    section: 'main',
-  },
 ]
 
 export default function Sidebar() {
