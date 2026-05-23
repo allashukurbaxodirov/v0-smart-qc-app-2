@@ -399,20 +399,6 @@ function DRLPageContent() {
             ))}
           </div>
 
-          {/* Batch dropdown */}
-          {filterMode === 'batch' && batches.length > 0 && (
-            <select
-              value={selBatch}
-              onChange={e => setSelBatch(e.target.value)}
-              className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground"
-            >
-              {batches.map(b => (
-                <option key={b.import_batch} value={b.import_batch}>
-                  {b.date_from} — {shiftLabel(b.shift_from)}→{shiftLabel(b.shift_to)} ({b.total_count?.toLocaleString()} ta)
-                </option>
-              ))}
-            </select>
-          )}
 
           {/* Kunlik — date picker */}
           {filterMode === 'kunlik' && (
@@ -486,18 +472,6 @@ function DRLPageContent() {
 
         {stats && !loading && (
           <>
-            {/* Meta bar */}
-            <div className="flex flex-wrap gap-2 items-center text-xs text-muted-foreground">
-              <span className="px-2.5 py-1 bg-card border border-border rounded-full">
-                📅 {stats.totals.date_from}
-              </span>
-              <span className="px-2.5 py-1 bg-card border border-border rounded-full">
-                🔄 {shiftLabel(stats.totals.shift_from)} → {shiftLabel(stats.totals.shift_to)} smena
-              </span>
-              <span className="px-2.5 py-1 bg-card border border-border rounded-full truncate max-w-[200px]">
-                📁 {stats.totals.file_name}
-              </span>
-            </div>
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
