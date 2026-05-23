@@ -157,12 +157,31 @@ export default function GCAPage() {
   const [empty,    setEmpty]    = useState(false)
   const [session,  setSession]  = useState<{ role: string } | null>(null)
 
-  // Date range (default: last 30 days)
+  // Date range — Barchasi tab (overview)
   const [dateFrom, setDateFrom] = useState<string>(() => {
     const d = new Date(); d.setDate(d.getDate() - 30)
     return d.toISOString().slice(0, 10)
   })
   const [dateTo, setDateTo] = useState<string>(() => new Date().toISOString().slice(0, 10))
+
+  // A/B/D shift — date filter mode
+  type GcaFilterMode = 'batch' | 'kunlik' | 'oylik' | 'yillik'
+  const todayGca  = new Date().toISOString().split('T')[0]
+  const [gcaFilterMode, setGcaFilterMode] = useState<GcaFilterMode>('batch')
+  const [gcaDate,   setGcaDate]   = useState(todayGca)
+  const [gcaMonth,  setGcaMonth]  = useState(todayGca.substring(0, 7))
+  const [gcaYear,   setGcaYear]   = useState(todayGca.substring(0, 4))
+
+  function gcaDateRange(mode: GcaFilterMode) {
+    if (mode === 'kunlik') return { from: gcaDate, to: gcaDate }
+    if (mode === 'oylik') {
+      const [y, m] = gcaMonth.split('-').map(Number)
+      const last   = new Date(y, m, 0).getDate()
+      return { from: `${gcaMonth}-01`, to: `${gcaMonth}-${String(last).padStart(2, '0')}` }
+    }
+    if (mode === 'yillik') return { from: `${gcaYear}-01-01`, to: `${gcaYear}-12-31` }
+    return null
+  }
 
   // Overview (Barchasi tab)
   const [overview,        setOverview]        = useState<OverviewData | null>(null)
@@ -225,12 +244,20 @@ export default function GCAPage() {
   }, [selShift])
 
   // Stats
-  const loadStats = useCallback(async (batchId?: string) => {
-    if (!batchId) return
+  const loadStats = useCallback(async (params: { batch?: string; from?: string; to?: string; shift?: string }) => {
+    if (!params.batch && !params.from) return
     setLoading(true)
     setEmpty(false)
     try {
-      const res  = await fetch(`/api/gca-import/stats?batch=${batchId}`)
+      let url = '/api/gca-import/stats'
+      if (params.batch) {
+        url = `/api/gca-import/stats?batch=${params.batch}`
+      } else if (params.from && params.to) {
+        const p = new URLSearchParams({ from: params.from, to: params.to })
+        if (params.shift) p.set('shift', params.shift)
+        url = `/api/gca-import/stats?${p}`
+      }
+      const res  = await fetch(url)
       const data = await res.json()
       if (data.empty || !data.totals) { setEmpty(true); setStats(null) }
       else setStats(data)
@@ -238,11 +265,21 @@ export default function GCAPage() {
     finally  { setLoading(false) }
   }, [])
 
+  // Batch mode
   useEffect(() => {
-    if (selBatch) loadStats(selBatch)
+    if (gcaFilterMode !== 'batch') return
+    if (selBatch) loadStats({ batch: selBatch })
     else if (batches.length === 0 && !loading) setEmpty(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selBatch])
+  }, [gcaFilterMode, selBatch])
+
+  // Date mode for A/B/D tabs
+  useEffect(() => {
+    if (gcaFilterMode === 'batch' || selShift === 'all') return
+    const range = gcaDateRange(gcaFilterMode)
+    if (range) loadStats({ ...range, shift: selShift })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [gcaFilterMode, gcaDate, gcaMonth, gcaYear, selShift])
 
   // Overview fetch (sanalar bo'yicha umumiy ko'rinish)
   const loadOverview = useCallback(async (from = dateFrom, to = dateTo) => {
@@ -362,7 +399,30 @@ export default function GCAPage() {
               </div>
             )}
 
-            {filteredBatches.length > 0 && selShift !== 'all' && (
+            {/* A/B/D tab — filter mode tabs */}
+            {selShift !== 'all' && (
+              <div className="flex items-center bg-muted/40 border border-border rounded-xl p-1 gap-1">
+                {([
+                  { key: 'batch',  label: 'Batch' },
+                  { key: 'kunlik', label: 'Kunlik' },
+                  { key: 'oylik',  label: 'Oylik' },
+                  { key: 'yillik', label: 'Yillik' },
+                ] as { key: GcaFilterMode; label: string }[]).map(m => (
+                  <button key={m.key}
+                    onClick={() => setGcaFilterMode(m.key)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      gcaFilterMode === m.key
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Batch dropdown */}
+            {selShift !== 'all' && gcaFilterMode === 'batch' && filteredBatches.length > 0 && (
               <select value={selBatch} onChange={e => setSelBatch(e.target.value)}
                 className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground">
                 {filteredBatches.map(b => (
@@ -372,7 +432,46 @@ export default function GCAPage() {
                 ))}
               </select>
             )}
-            <button onClick={() => loadBatches()}
+
+            {/* Kunlik picker */}
+            {selShift !== 'all' && gcaFilterMode === 'kunlik' && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <input type="date" value={gcaDate} onChange={e => setGcaDate(e.target.value)}
+                  className="bg-transparent text-sm text-foreground outline-none" />
+              </div>
+            )}
+
+            {/* Oylik picker */}
+            {selShift !== 'all' && gcaFilterMode === 'oylik' && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <input type="month" value={gcaMonth} onChange={e => setGcaMonth(e.target.value)}
+                  className="bg-transparent text-sm text-foreground outline-none" />
+              </div>
+            )}
+
+            {/* Yillik picker */}
+            {selShift !== 'all' && gcaFilterMode === 'yillik' && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <select value={gcaYear} onChange={e => setGcaYear(e.target.value)}
+                  className="bg-transparent text-sm text-foreground outline-none">
+                  {[2024, 2025, 2026, 2027].map(y => (
+                    <option key={y} value={String(y)}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <button onClick={() => {
+              if (selShift === 'all') loadBatches()
+              else if (gcaFilterMode === 'batch') loadStats({ batch: selBatch })
+              else {
+                const range = gcaDateRange(gcaFilterMode)
+                if (range) loadStats({ ...range, shift: selShift })
+              }
+            }}
               className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Yangilash
             </button>

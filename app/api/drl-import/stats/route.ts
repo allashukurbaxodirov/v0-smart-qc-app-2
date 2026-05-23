@@ -10,26 +10,36 @@ async function getSession() {
 }
 
 // GET /api/drl-import/stats?batch=UUID
+// GET /api/drl-import/stats?from=2026-05-01&to=2026-05-31  (date-range aggregate)
 export async function GET(req: NextRequest) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
   const batchParam = searchParams.get('batch')
+  const fromParam  = searchParams.get('from')
+  const toParam    = searchParams.get('to')
+
+  const isDateMode = !batchParam && !!(fromParam && toParam)
 
   try {
-    // Resolve batch: use param or latest
-    let batchId: string
-    if (batchParam) {
-      batchId = batchParam
-    } else {
-      const [latest] = await sql`
-        SELECT import_batch::text AS id FROM drl_import_batches
-        ORDER BY imported_at DESC LIMIT 1
-      `
-      if (!latest) return NextResponse.json({ empty: true })
-      batchId = latest.id
+    let batchId = ''
+    if (!isDateMode) {
+      if (batchParam) {
+        batchId = batchParam
+      } else {
+        const [latest] = await sql`
+          SELECT import_batch::text AS id FROM drl_import_batches
+          ORDER BY imported_at DESC LIMIT 1
+        `
+        if (!latest) return NextResponse.json({ empty: true })
+        batchId = latest.id
+      }
     }
+
+    const whereClause = isDateMode
+      ? sql`WHERE date_from >= ${fromParam}::date AND date_from <= ${toParam}::date`
+      : sql`WHERE import_batch = ${batchId}::uuid`
 
     const [totals] = await sql`
       SELECT
@@ -43,10 +53,9 @@ export async function GET(req: NextRequest) {
         MAX(shift_to)         AS shift_to,
         MAX(file_name)        AS file_name
       FROM drl_imports
-      WHERE import_batch = ${batchId}::uuid
+      ${whereClause}
     `
 
-    // If batch exists in batches table but has no rows (edge case), return empty
     if (!totals || Number(totals.row_count) === 0) {
       return NextResponse.json({ empty: true })
     }
@@ -54,26 +63,25 @@ export async function GET(req: NextRequest) {
     const byShop = await sql`
       SELECT shop, SUM(count)::int AS total
       FROM drl_imports
-      WHERE import_batch = ${batchId}::uuid
+      ${whereClause}
       GROUP BY shop ORDER BY total DESC
     `
 
     const byModel = await sql`
       SELECT model_label, SUM(count)::int AS total
       FROM drl_imports
-      WHERE import_batch = ${batchId}::uuid
+      ${whereClause}
       GROUP BY model_label ORDER BY total DESC
     `
 
     const byPartLv1 = await sql`
       SELECT part_lv1, SUM(count)::int AS total
       FROM drl_imports
-      WHERE import_batch = ${batchId}::uuid
+      ${whereClause}
         AND part_lv1 IS NOT NULL AND part_lv1 != ''
       GROUP BY part_lv1 ORDER BY total DESC LIMIT 10
     `
 
-    // Top 10 faults — simple aggregation, no subqueries
     const top10raw = await sql`
       SELECT
         fault_code,
@@ -87,7 +95,7 @@ export async function GET(req: NextRequest) {
         SUM(CASE WHEN model_group='R7A' THEN count ELSE 0 END)::int       AS model_labo,
         ROUND(SUM(drl_ratio)::numeric, 1)                                  AS drl_ratio_sum
       FROM drl_imports
-      WHERE import_batch = ${batchId}::uuid
+      ${whereClause}
       GROUP BY fault_code, fault_name, prod_team, shop, part_lv1
       ORDER BY SUM(count) DESC
     `
@@ -130,7 +138,7 @@ export async function GET(req: NextRequest) {
       .slice(0, 10)
       .map((f, i) => ({ ...f, rank: i + 1, _topGroupCount: undefined }))
 
-    return NextResponse.json({ batchId, totals, byShop, byModel, byPartLv1, top10 })
+    return NextResponse.json({ batchId: isDateMode ? null : batchId, totals, byShop, byModel, byPartLv1, top10 })
   } catch (e: any) {
     console.error('drl-import/stats error:', e.message)
     return NextResponse.json({ error: e.message }, { status: 500 })

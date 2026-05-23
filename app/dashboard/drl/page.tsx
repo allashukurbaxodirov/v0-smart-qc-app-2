@@ -7,7 +7,7 @@ import PageHeader from '@/components/dashboard/page-header'
 import {
   ChevronLeft, TrendingDown, AlertTriangle, RefreshCw,
   Car, Layers, Building2, FileSpreadsheet, Bell,
-  X, Search,
+  X, Search, Calendar,
 } from 'lucide-react'
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -72,6 +72,20 @@ interface Batch {
   total_count:  number
 }
 
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+type FilterMode = 'batch' | 'kunlik' | 'oylik' | 'yillik'
+
+function getDateRange(mode: FilterMode, selDate: string, selMonth: string, selYear: string) {
+  if (mode === 'kunlik') return { from: selDate, to: selDate }
+  if (mode === 'oylik') {
+    const [y, m] = selMonth.split('-').map(Number)
+    const last   = new Date(y, m, 0).getDate()
+    return { from: `${selMonth}-01`, to: `${selMonth}-${String(last).padStart(2, '0')}` }
+  }
+  if (mode === 'yillik') return { from: `${selYear}-01-01`, to: `${selYear}-12-31` }
+  return null
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const SHOP_COLORS: Record<string, string> = {
   'WELDING':    'bg-sky-600 text-white border-sky-500',
@@ -132,6 +146,15 @@ function DRLPageContent() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [session,  setSession]  = useState<{ role: string; name: string } | null>(null)
 
+  // Date filter
+  const todayStr   = new Date().toISOString().split('T')[0]
+  const monthStr   = todayStr.substring(0, 7)
+  const yearStr    = todayStr.substring(0, 4)
+  const [filterMode, setFilterMode] = useState<FilterMode>('batch')
+  const [selDate,    setSelDate]    = useState(todayStr)
+  const [selMonth,   setSelMonth]   = useState(monthStr)
+  const [selYear,    setSelYear]    = useState(yearStr)
+
   // Escalation modal
   const [escModal, setEscModal] = useState<EscalationModal | null>(null)
   const [escSaving, setEscSaving] = useState(false)
@@ -171,12 +194,12 @@ function DRLPageContent() {
   }, [batchParam])
 
   // Load stats
-  const loadStats = useCallback(async (batchId?: string) => {
+  const loadStats = useCallback(async (params: { batch?: string; from?: string; to?: string }) => {
     setLoading(true)
     setEmpty(false)
-    const url = batchId
-      ? `/api/drl-import/stats?batch=${batchId}`
-      : '/api/drl-import/stats'
+    let url = '/api/drl-import/stats'
+    if (params.batch) url = `/api/drl-import/stats?batch=${params.batch}`
+    else if (params.from && params.to) url = `/api/drl-import/stats?from=${params.from}&to=${params.to}`
     try {
       const res  = await fetch(url)
       const data = await res.json()
@@ -193,10 +216,19 @@ function DRLPageContent() {
     }
   }, [])
 
+  // Batch mode
   useEffect(() => {
-    if (selBatch) loadStats(selBatch)
+    if (filterMode !== 'batch') return
+    if (selBatch) loadStats({ batch: selBatch })
     else if (batches.length === 0 && !loading) setEmpty(true)
-  }, [selBatch, loadStats])
+  }, [filterMode, selBatch, loadStats])
+
+  // Date mode
+  useEffect(() => {
+    if (filterMode === 'batch') return
+    const range = getDateRange(filterMode, selDate, selMonth, selYear)
+    if (range) loadStats({ from: range.from, to: range.to })
+  }, [filterMode, selDate, selMonth, selYear, loadStats])
 
   // Load shop detail rows
   const openShopDetail = async (shop: string) => {
@@ -335,26 +367,6 @@ function DRLPageContent() {
           </Link>
 
           <div className="flex items-center gap-3 flex-wrap">
-            {/* Batch selector */}
-            {batches.length > 0 && (
-              <select
-                value={selBatch}
-                onChange={e => setSelBatch(e.target.value)}
-                className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground"
-              >
-                {batches.map(b => (
-                  <option key={b.import_batch} value={b.import_batch}>
-                    {b.date_from} — {shiftLabel(b.shift_from)}→{shiftLabel(b.shift_to)} ({b.total_count?.toLocaleString()} ta)
-                  </option>
-                ))}
-              </select>
-            )}
-
-            <button onClick={() => loadStats(selBatch)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Yangilash
-            </button>
-
             {isAdmin && (
               <Link href="/dashboard/drl-admin">
                 <button className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-all">
@@ -363,6 +375,89 @@ function DRLPageContent() {
               </Link>
             )}
           </div>
+        </div>
+
+        {/* Filter tabs */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Mode tabs */}
+          <div className="flex items-center bg-muted/40 border border-border rounded-xl p-1 gap-1">
+            {([
+              { key: 'batch',   label: 'Batch' },
+              { key: 'kunlik',  label: 'Kunlik' },
+              { key: 'oylik',   label: 'Oylik' },
+              { key: 'yillik',  label: 'Yillik' },
+            ] as { key: FilterMode; label: string }[]).map(m => (
+              <button key={m.key}
+                onClick={() => setFilterMode(m.key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  filterMode === m.key
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Batch dropdown */}
+          {filterMode === 'batch' && batches.length > 0 && (
+            <select
+              value={selBatch}
+              onChange={e => setSelBatch(e.target.value)}
+              className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground"
+            >
+              {batches.map(b => (
+                <option key={b.import_batch} value={b.import_batch}>
+                  {b.date_from} — {shiftLabel(b.shift_from)}→{shiftLabel(b.shift_to)} ({b.total_count?.toLocaleString()} ta)
+                </option>
+              ))}
+            </select>
+          )}
+
+          {/* Kunlik — date picker */}
+          {filterMode === 'kunlik' && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <input type="date" value={selDate}
+                onChange={e => setSelDate(e.target.value)}
+                className="bg-transparent text-sm text-foreground outline-none" />
+            </div>
+          )}
+
+          {/* Oylik — month picker */}
+          {filterMode === 'oylik' && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <input type="month" value={selMonth}
+                onChange={e => setSelMonth(e.target.value)}
+                className="bg-transparent text-sm text-foreground outline-none" />
+            </div>
+          )}
+
+          {/* Yillik — year select */}
+          {filterMode === 'yillik' && (
+            <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <select value={selYear} onChange={e => setSelYear(e.target.value)}
+                className="bg-transparent text-sm text-foreground outline-none">
+                {[2024, 2025, 2026, 2027].map(y => (
+                  <option key={y} value={String(y)}>{y}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Refresh */}
+          <button onClick={() => {
+            if (filterMode === 'batch') loadStats({ batch: selBatch })
+            else {
+              const range = getDateRange(filterMode, selDate, selMonth, selYear)
+              if (range) loadStats(range)
+            }
+          }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Yangilash
+          </button>
         </div>
 
         {/* Empty state */}
