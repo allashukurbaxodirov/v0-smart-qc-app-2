@@ -500,10 +500,9 @@ function DRLPageContent() {
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[
                 { label: 'Jami nuqsonlar',    value: stats.totals.total_count,  icon: <AlertTriangle className="w-5 h-5" />, color: 'text-red-400',    bg: 'bg-red-500/10 border-red-500/20' },
-                { label: 'Jami qatorlar',     value: stats.totals.row_count,    icon: <Layers className="w-5 h-5" />,       color: 'text-amber-400',  bg: 'bg-amber-500/10 border-amber-500/20' },
                 { label: 'DAMAS (R7)',         value: stats.totals.damas_count,  icon: <Car className="w-5 h-5" />,          color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20' },
                 { label: 'LABO (R7A)',         value: stats.totals.labo_count,   icon: <Car className="w-5 h-5" />,          color: 'text-green-400',  bg: 'bg-green-500/10 border-green-500/20' },
               ].map(({ label, value, icon, color, bg }) => (
