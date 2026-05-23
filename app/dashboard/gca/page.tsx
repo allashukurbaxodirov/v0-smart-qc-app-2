@@ -910,8 +910,8 @@ export default function GCAPage() {
                             <td className="px-4 py-3 text-right">
                               <span className="text-sm font-semibold text-indigo-400">{f.total_veh}</span>
                             </td>
-                            <td className="px-4 py-3 text-right text-sm text-blue-300">{f.veh_damas}</td>
-                            <td className="px-4 py-3 text-right text-sm text-green-300">{f.veh_labo}</td>
+                            <td className="px-4 py-3 text-right text-sm text-foreground">{f.veh_damas}</td>
+                            <td className="px-4 py-3 text-right text-sm text-foreground">{f.veh_labo}</td>
                             <td className="px-4 py-3 text-right text-xs text-muted-foreground max-w-[100px] truncate">
                               {f.top_part_lv1}
                             </td>

@@ -687,8 +687,8 @@ function DRLPageContent() {
                             <td className="px-4 py-3 text-right text-sm font-bold text-foreground">
                               {f.total_count.toLocaleString()}
                             </td>
-                            <td className="px-4 py-3 text-right text-sm text-blue-300">{f.model_damas}</td>
-                            <td className="px-4 py-3 text-right text-sm text-green-300">{f.model_labo}</td>
+                            <td className="px-4 py-3 text-right text-sm text-foreground">{f.model_damas}</td>
+                            <td className="px-4 py-3 text-right text-sm text-foreground">{f.model_labo}</td>
                             <td className="px-4 py-3 text-right text-xs text-muted-foreground max-w-[100px] truncate">
                               {f.top_part_lv1}
                             </td>
