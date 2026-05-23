@@ -382,7 +382,7 @@ function DRLPageContent() {
           {/* Mode tabs */}
           <div className="flex items-center bg-muted/40 border border-border rounded-xl p-1 gap-1">
             {([
-              { key: 'batch',   label: 'Batch' },
+              { key: 'batch',   label: 'Hammasi' },
               { key: 'kunlik',  label: 'Kunlik' },
               { key: 'oylik',   label: 'Oylik' },
               { key: 'yillik',  label: 'Yillik' },
