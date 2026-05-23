@@ -446,51 +446,45 @@ export default function Sidebar() {
       </div>
 
       {/* User Profile & Logout */}
-      <div className="border-t border-sidebar-border p-6 space-y-4">
-        <div className="px-3 py-3 rounded-lg bg-sidebar-primary/10">
-          <p className="text-sm font-semibold text-sidebar-foreground">{userName}</p>
-          {userTabel && (
-            <p className="text-xs text-muted-foreground font-mono">Tabel: {userTabel}</p>
-          )}
-          {userRole === 'superadmin' && (
-            <p className="text-xs text-yellow-500 font-bold mt-1 flex items-center gap-1">
-              <Crown className="w-3 h-3" />SUPERADMIN
-            </p>
-          )}
-          {userRole === 'gca_auditor' && (
-            <p className="text-xs text-primary font-medium mt-1">GCA Auditor</p>
-          )}
-          {userRole === 'cmm_inspector' && (
-            <p className="text-xs text-primary font-medium mt-1">CMM Inspector</p>
-          )}
-          {userRole === 'd10_inspector' && (
-            <p className="text-xs text-primary font-medium mt-1">D10 Inspector</p>
-          )}
-          {userRole === 'd20_inspector' && (
-            <p className="text-xs text-primary font-medium mt-1">D20 Inspector</p>
-          )}
-          {userRole === 'ga_engineer' && (
-            <p className="text-xs text-primary font-medium mt-1">GA Engineer</p>
-          )}
-          {userRole === 'welding_engineer' && (
-            <p className="text-xs text-primary font-medium mt-1">Welding Engineer</p>
-          )}
-          {userRole === 'manager' && (
-            <p className="text-xs text-primary font-medium mt-1">Rahbar</p>
-          )}
-          {userRole === 'drr_inspector' && (
-            <p className="text-xs text-orange-400 font-medium mt-1">DRR Inspector</p>
-          )}
-          {userRole === 'drl_inspector' && (
-            <p className="text-xs text-yellow-400 font-medium mt-1">DRL Inspector</p>
-          )}
-          {userRole === 'pdi_inspector' && (
-            <p className="text-xs text-purple-400 font-medium mt-1">PDI Inspector</p>
-          )}
-          {userRole === 'incoming_inspector' && (
-            <p className="text-xs text-cyan-400 font-medium mt-1">Incoming Inspector</p>
-          )}
-        </div>
+      <div className="border-t border-sidebar-border p-4 space-y-3">
+        {(() => {
+          const ROLE_META: Record<string, { label: string; color: string }> = {
+            superadmin:          { label: 'SUPERADMIN',        color: 'bg-yellow-400/20 text-yellow-300 border-yellow-400/30' },
+            admin:               { label: 'Admin',             color: 'bg-blue-400/20 text-blue-200 border-blue-400/30' },
+            manager:             { label: 'Rahbar',            color: 'bg-indigo-400/20 text-indigo-200 border-indigo-400/30' },
+            gca_auditor:         { label: 'GCA Auditor',       color: 'bg-emerald-400/20 text-emerald-200 border-emerald-400/30' },
+            ga_engineer:         { label: 'GA Engineer',       color: 'bg-teal-400/20 text-teal-200 border-teal-400/30' },
+            welding_engineer:    { label: 'Welding Engineer',  color: 'bg-sky-400/20 text-sky-200 border-sky-400/30' },
+            drr_inspector:       { label: 'DRR Inspector',     color: 'bg-orange-400/20 text-orange-200 border-orange-400/30' },
+            drl_inspector:       { label: 'DRL Inspector',     color: 'bg-amber-400/20 text-amber-200 border-amber-400/30' },
+            d10_inspector:       { label: 'D10 Inspector',     color: 'bg-cyan-400/20 text-cyan-200 border-cyan-400/30' },
+            d20_inspector:       { label: 'D20 Inspector',     color: 'bg-violet-400/20 text-violet-200 border-violet-400/30' },
+            cmm_inspector:       { label: 'CMM Inspector',     color: 'bg-pink-400/20 text-pink-200 border-pink-400/30' },
+            pdi_inspector:       { label: 'PDI Inspector',     color: 'bg-purple-400/20 text-purple-200 border-purple-400/30' },
+            incoming_inspector:  { label: 'Incoming Control',  color: 'bg-rose-400/20 text-rose-200 border-rose-400/30' },
+          }
+          const meta   = ROLE_META[userRole] ?? { label: userRole, color: 'bg-white/10 text-white/70 border-white/20' }
+          const initials = userName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+          return (
+            <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-white/5 border border-white/10">
+              {/* Avatar */}
+              <div className="w-9 h-9 rounded-full bg-white/15 flex items-center justify-center shrink-0">
+                <span className="text-xs font-bold text-white">{initials}</span>
+              </div>
+              {/* Info */}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-white truncate leading-tight">{userName}</p>
+                {userTabel && (
+                  <p className="text-[11px] text-white/50 font-mono leading-tight">Tabel: {userTabel}</p>
+                )}
+                <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${meta.color}`}>
+                  {userRole === 'superadmin' && <Crown className="w-2.5 h-2.5 inline mr-0.5 -mt-0.5" />}
+                  {meta.label}
+                </span>
+              </div>
+            </div>
+          )
+        })()}
         <Button
           variant="outline"
           className="w-full justify-start"
