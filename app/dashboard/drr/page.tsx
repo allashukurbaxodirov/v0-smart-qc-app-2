@@ -495,15 +495,12 @@ function DRRPageContent() {
               </span>
             </div>
 
-            {/* KPI Cards — 6 ta */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* KPI Cards — 3 ta */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {[
                 { label: 'Jami nuqsonlar',      value: stats.totals.total_count,  icon: <AlertTriangle className="w-5 h-5" />, color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/20' },
-                { label: 'Unique mashina soni', value: stats.totals.total_veh,    icon: <Users className="w-5 h-5" />,        color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/20' },
-                { label: 'Jami aggregate qator',value: stats.totals.row_count,    icon: <Layers className="w-5 h-5" />,       color: 'text-amber-400',   bg: 'bg-amber-500/10 border-amber-500/20' },
                 { label: 'DAMAS (R7) nuqson',   value: stats.totals.damas_count,  icon: <Car className="w-5 h-5" />,          color: 'text-blue-400',    bg: 'bg-blue-500/10 border-blue-500/20' },
                 { label: 'LABO (R7A) nuqson',   value: stats.totals.labo_count,   icon: <Car className="w-5 h-5" />,          color: 'text-green-400',   bg: 'bg-green-500/10 border-green-500/20' },
-                { label: 'DAMAS mashina',        value: stats.totals.damas_veh,    icon: <Car className="w-5 h-5" />,          color: 'text-sky-400',     bg: 'bg-sky-500/10 border-sky-500/20' },
               ].map(({ label, value, icon, color, bg }) => (
                 <div key={label} className={`rounded-xl border p-5 ${bg}`}>
                   <div className={`mb-2 ${color}`}>{icon}</div>
