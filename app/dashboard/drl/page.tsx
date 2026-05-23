@@ -311,7 +311,7 @@ function DRLPageContent() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/20">
-                  {['#', 'Kod', 'Nuqson', 'Soni', 'Mashina', 'DAMAS', 'LABO'].map(h => (
+                  {['#', 'Kod', 'Nuqson', 'Soni', 'DAMAS', 'LABO'].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{h}</th>
                   ))}
                 </tr>
@@ -327,13 +327,12 @@ function DRLPageContent() {
                     <td className="px-4 py-3 font-mono text-sm text-primary">{f.fault_code}</td>
                     <td className="px-4 py-3 text-sm text-foreground">{f.fault_name}</td>
                     <td className="px-4 py-3 text-sm font-bold text-foreground">{f.total_count}</td>
-                    <td className="px-4 py-3 text-sm font-semibold text-orange-400">{f.total_veh_cnt}</td>
                     <td className="px-4 py-3 text-sm text-foreground">{f.model_damas}</td>
                     <td className="px-4 py-3 text-sm text-foreground">{f.model_labo}</td>
                   </tr>
                 ))}
                 {(stats?.top10 ?? []).filter(f => f.top_shop === detailShop).length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                  <tr><td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">
                     Bu sehga tegishli top nuqsonlar topilmadi
                   </td></tr>
                 )}
