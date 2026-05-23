@@ -869,8 +869,6 @@ export default function GCAPage() {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground w-10">#</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nuqson</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sexi</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Og'irlik</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Mashina</th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">DAMAS</th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">LABO</th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Qism</th>
@@ -903,12 +901,6 @@ export default function GCAPage() {
                               <span className={`px-2 py-0.5 rounded text-xs font-medium border ${shopCls}`}>
                                 {f.top_shop}
                               </span>
-                            </td>
-                            <td className="px-4 py-3 text-right text-sm font-bold text-foreground">
-                              {Number(f.total_weight).toFixed(0)}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <span className="text-sm font-semibold text-indigo-400">{f.total_veh}</span>
                             </td>
                             <td className="px-4 py-3 text-right text-sm text-foreground">{f.veh_damas}</td>
                             <td className="px-4 py-3 text-right text-sm text-foreground">{f.veh_labo}</td>
