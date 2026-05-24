@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge'
 import { ChevronLeft, Upload, Trash2, Check, Lock, Car } from 'lucide-react'
 import Link from 'next/link'
 
-type D20Shop = 'PRESS SHOP' | 'WELDING-1' | 'WELDING-2'
+type D20Shop = 'PRESS SHOP'
 type CarModel = 'DAMAS' | 'LABO'
 
 const LOCKED_ROLES = ['d20_inspector', 'cmm_inspector', 'ga_engineer', 'welding_engineer']
@@ -177,29 +177,13 @@ export default function D20AdminPage() {
                   />
                 </div>
 
-                {/* 3. Shop */}
+                {/* 3. Shop — only PRESS SHOP */}
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                    Nuqson sexi *
-                    {isLocked && lockedShop && <Lock className="w-3 h-3 text-muted-foreground" />}
-                  </label>
-                  {isLocked && lockedShop ? (
-                    <div className="w-full px-3 py-2 bg-muted/40 border border-border rounded-lg text-sm font-bold text-foreground flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-primary" />
-                      {lockedShop}
-                    </div>
-                  ) : (
-                    <select
-                      name="shop"
-                      value={formData.shop}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm"
-                    >
-                      {d20ShopOptions.map((opt) => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  )}
+                  <label className="text-sm font-medium text-foreground">Nuqson sexi</label>
+                  <div className="w-full px-3 py-2 bg-muted/40 border border-border rounded-lg text-sm font-bold text-foreground flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary" />
+                    PRESS SHOP
+                  </div>
                 </div>
 
                 {/* 4. Sector */}
@@ -305,10 +289,8 @@ export default function D20AdminPage() {
                 onChange={(e) => setFilterShop(e.target.value)}
                 className="px-3 py-2 bg-card border border-border rounded-lg text-foreground text-sm"
               >
-                <option value="">Barcha sehlar</option>
-                {d20ShopOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
+                <option value="">Hammasi</option>
+                <option value="PRESS SHOP">PRESS SHOP</option>
               </select>
 
               <select

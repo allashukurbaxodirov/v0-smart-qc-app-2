@@ -17,12 +17,10 @@ import { ChevronLeft, AlertTriangle, Target } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-const SHOPS = ['PRESS SHOP', 'WELDING-1', 'WELDING-2'] as const
+const SHOPS = ['PRESS SHOP'] as const
 
 const SHOP_SHORT: Record<string, string> = {
   'PRESS SHOP': 'PRESS',
-  'WELDING-1':  'WELD-1',
-  'WELDING-2':  'WELD-2',
 }
 
 const FACTOR_META = [
@@ -243,7 +241,7 @@ export default function D20Page() {
           <div className="bg-card border-2 border-border rounded-xl p-5">
             <p className="text-xs text-muted-foreground mb-1">Jami D20 nuqsonlari</p>
             <p className="text-3xl font-bold text-foreground">{totalAll}</p>
-            <p className="text-xs text-muted-foreground mt-1">{SHOPS.length} sehdan</p>
+            <p className="text-xs text-muted-foreground mt-1">PRESS SHOP</p>
           </div>
           {FACTOR_META.map(({ key, label, textCls, borderCls, bgCls }) => {
             const val = key === 'f50' ? f50All : key === 'f20' ? f20All : key === 'f10' ? f10All : f5All

@@ -156,11 +156,9 @@ export const d10FactorOptions = [
 // D20 Defect Codes for Form Selection (same as GCA)
 export const d20DefectCodes = gcaDefectCodes
 
-// D20 Shop Options (restricted to 3 shops)
+// D20 Shop Options (only PRESS SHOP)
 export const d20ShopOptions = [
   { value: 'PRESS SHOP', label: 'PRESS SHOP' },
-  { value: 'WELDING-1', label: 'WELDING-1' },
-  { value: 'WELDING-2', label: 'WELDING-2' },
 ]
 
 // D20 Factor Options (restricted to 5, 10, 20, 50)
