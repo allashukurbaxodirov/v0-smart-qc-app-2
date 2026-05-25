@@ -54,11 +54,13 @@ export async function GET(req: NextRequest) {
       ? sql`FROM drl_imports i JOIN drl_import_batches b ON b.import_batch = i.import_batch`
       : sql`FROM drl_imports i`
 
+    // date overlap: batch range overlaps the requested [from, to] window
+    // works for both daily uploads (date_from=date_to=day) and monthly (date_from=Apr1, date_to=Apr30)
     const whereClause = isDateMode
       ? (needsJoin
-          ? sql`WHERE i.date_from >= ${fromParam}::date AND i.date_from <= ${toParam}::date
+          ? sql`WHERE i.date_to >= ${fromParam}::date AND i.date_from <= ${toParam}::date
                   AND b.shift_label = ${shiftParam}`
-          : sql`WHERE i.date_from >= ${fromParam}::date AND i.date_from <= ${toParam}::date`)
+          : sql`WHERE i.date_to >= ${fromParam}::date AND i.date_from <= ${toParam}::date`)
       : sql`WHERE i.import_batch = ${batchId}::uuid`
 
     const [totals] = await sql`
