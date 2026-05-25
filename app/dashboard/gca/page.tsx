@@ -475,60 +475,6 @@ export default function GCAPage() {
               </div>
             )}
 
-            {/* A/B/D tab — filter mode tabs */}
-            {selShift !== 'all' && (
-              <div className="flex items-center bg-muted/40 border border-border rounded-xl p-1 gap-1">
-                {([
-                  { key: 'batch',  label: 'Hammasi' },
-                  { key: 'kunlik', label: 'Kunlik' },
-                  { key: 'oylik',  label: 'Oylik' },
-                  { key: 'yillik', label: 'Yillik' },
-                ] as { key: GcaFilterMode; label: string }[]).map(m => (
-                  <button key={m.key}
-                    onClick={() => setGcaFilterMode(m.key)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      gcaFilterMode === m.key
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}>
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-
-            {/* Kunlik picker */}
-            {selShift !== 'all' && gcaFilterMode === 'kunlik' && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                <input type="date" value={gcaDate} onChange={e => setGcaDate(e.target.value)}
-                  className="bg-transparent text-sm text-foreground outline-none" />
-              </div>
-            )}
-
-            {/* Oylik picker */}
-            {selShift !== 'all' && gcaFilterMode === 'oylik' && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                <input type="month" value={gcaMonth} onChange={e => setGcaMonth(e.target.value)}
-                  className="bg-transparent text-sm text-foreground outline-none" />
-              </div>
-            )}
-
-            {/* Yillik picker */}
-            {selShift !== 'all' && gcaFilterMode === 'yillik' && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
-                <Calendar className="w-4 h-4 text-muted-foreground" />
-                <select value={gcaYear} onChange={e => setGcaYear(e.target.value)}
-                  className="bg-transparent text-sm text-foreground outline-none">
-                  {[2024, 2025, 2026, 2027].map(y => (
-                    <option key={y} value={String(y)}>{y}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
             <button onClick={() => {
               if (selShift === 'all') loadBatches()
               else if (gcaFilterMode === 'batch') loadStats({ batch: selBatch })
@@ -752,6 +698,55 @@ export default function GCAPage() {
                 </>
               )
             })()}
+          </div>
+        )}
+
+        {selShift !== 'all' && !loading && (
+          /* ── Smena filter mode panel ──────────────────────────────────── */
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center bg-muted/40 border border-border rounded-xl p-1 gap-1">
+              {([
+                { key: 'batch',  label: 'Hammasi' },
+                { key: 'kunlik', label: 'Kunlik' },
+                { key: 'oylik',  label: 'Oylik' },
+                { key: 'yillik', label: 'Yillik' },
+              ] as { key: GcaFilterMode; label: string }[]).map(m => (
+                <button key={m.key}
+                  onClick={() => setGcaFilterMode(m.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    gcaFilterMode === m.key
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            {gcaFilterMode === 'kunlik' && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <input type="date" value={gcaDate} onChange={e => setGcaDate(e.target.value)}
+                  className="bg-transparent text-sm text-foreground outline-none" />
+              </div>
+            )}
+            {gcaFilterMode === 'oylik' && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <input type="month" value={gcaMonth} onChange={e => setGcaMonth(e.target.value)}
+                  className="bg-transparent text-sm text-foreground outline-none" />
+              </div>
+            )}
+            {gcaFilterMode === 'yillik' && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <select value={gcaYear} onChange={e => setGcaYear(e.target.value)}
+                  className="bg-transparent text-sm text-foreground outline-none">
+                  {[2024, 2025, 2026, 2027].map(y => (
+                    <option key={y} value={String(y)}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         )}
 
