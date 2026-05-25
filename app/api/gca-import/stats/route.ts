@@ -84,7 +84,10 @@ export async function GET(req: NextRequest) {
           WHEN UPPER(i.prod_team) LIKE 'BO.%' OR UPPER(i.prod_team) = 'BO' THEN 'WELDING'
           WHEN UPPER(i.prod_team) LIKE 'PR.%' OR UPPER(i.prod_team) = 'PR' THEN 'PRESS SHOP'
           WHEN UPPER(i.prod_team) LIKE 'GA.%' OR UPPER(i.prod_team) = 'GA' THEN 'GA'
-          WHEN UPPER(i.prod_team) LIKE 'SQ.%' OR UPPER(i.prod_team) = 'SQ' THEN 'SQ'
+          WHEN UPPER(i.prod_team) LIKE 'SQE.%' OR UPPER(i.prod_team) = 'SQE' THEN 'SQE'
+          WHEN UPPER(i.prod_team) LIKE 'SQ.%'  OR UPPER(i.prod_team) = 'SQ'  THEN 'SQ'
+          WHEN UPPER(i.prod_team) LIKE 'QE.%'  OR UPPER(i.prod_team) = 'QE'  THEN 'QE'
+          WHEN UPPER(i.prod_team) LIKE 'SC.%'  OR UPPER(i.prod_team) = 'SC'  THEN 'SupplyChain'
           ELSE 'Boshqalar'
         END                                                                        AS shop,
         COUNT(*)::int                                                              AS row_count,

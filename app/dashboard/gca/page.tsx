@@ -120,28 +120,99 @@ interface DrillRow {
 }
 interface DrillData { lv1: string; rows: DrillRow[] }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const WDPV_TARGETS: Record<string, number> = {
-  'PRESS SHOP': 0.40, 'WELDING': 0.45,
-  'PAINT SHOP': 0.70, 'GA':      0.50,
-  'SQ':         0.50, 'Boshqalar': 0.50,
+// ─── 2026 WDPV Targets — Targets 2026.xlsx (GCA sheet, combined DAMAS+LABO) ──
+// Columns: Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec
+const WDPV_MONTHLY: Record<string, number[]> = {
+  'PRESS SHOP':  [23.4,22.7,22.1,21.7,21.2,20.7,19.8,19.0,18.4,17.7,17.3,17.3],
+  'WELDING':     [135.2,134.1,133.4,131.7,130.3,128.8,127.8,127.0,126.2,125.2,124.3,124.3],
+  'PAINT SHOP':  [44.0,43.4,42.6,42.0,41.6,41.1,40.6,39.8,38.8,38.1,37.4,37.4],
+  'GA':          [114.2,113.0,112.1,111.1,110.1,109.1,108.1,107.3,106.5,105.4,104.5,104.5],
+  'SQE':         [109.5,108.8,108.1,107.1,105.8,104.7,103.4,102.6,101.8,100.7,99.8,99.8],
+  'SQ':          [109.5,108.8,108.1,107.1,105.8,104.7,103.4,102.6,101.8,100.7,99.8,99.8],
+  'QE':          [1.9,1.9,1.9,1.9,1.8,1.8,1.8,1.8,1.7,1.7,1.7,1.7],
+  'SupplyChain': [6.6,6.6,6.6,6.6,6.5,6.5,6.4,6.4,6.4,6.1,6.1,6.1],
+  'Boshqalar':   [16.8,16.5,15.9,15.7,15.5,15.0,14.8,14.7,14.6,13.9,13.8,13.8],
+}
+const WDPV_MONTHLY_DAMAS: Record<string, number[]> = {
+  'PRESS SHOP':  [24.2,23.5,23.0,22.5,22.0,21.5,20.5,19.5,18.8,18.0,17.5,17.5],
+  'WELDING':     [146.1,143.1,142.0,140.1,138.6,137.0,136.0,135.0,134.0,133.0,132.2,132.2],
+  'PAINT SHOP':  [45.9,44.9,44.0,43.5,43.0,42.5,42.0,41.0,39.8,39.0,38.2,38.2],
+  'GA':          [121.8,119.3,118.1,117.0,116.0,115.0,114.0,113.0,112.0,110.8,110.0,110.0],
+  'SQE':         [125.9,123.3,122.0,121.0,119.6,118.4,117.0,116.0,115.0,114.0,113.5,113.5],
+  'SQ':          [125.9,123.3,122.0,121.0,119.6,118.4,117.0,116.0,115.0,114.0,113.5,113.5],
+  'QE':          [2.1,2.1,2.1,2.1,2.1,2.0,2.0,2.0,2.0,2.0,2.0,2.0],
+  'SupplyChain': [8.1,8.0,8.0,8.0,7.9,7.9,7.8,7.8,7.7,7.5,7.5,7.5],
+  'Boshqalar':   [0.9,0.8,0.8,0.8,0.8,0.7,0.7,0.7,0.7,0.7,0.5,0.5],
+}
+const WDPV_MONTHLY_LABO: Record<string, number[]> = {
+  'PRESS SHOP':  [20.8,19.8,18.8,18.8,17.9,17.5,17.0,17.0,16.8,16.7,16.5,16.5],
+  'WELDING':     [102.3,101.3,100.3,99.3,98.3,97.5,96.5,96.3,96.2,96.0,95.8,95.8],
+  'PAINT SHOP':  [39.0,38.0,37.0,36.0,36.0,35.5,35.0,35.0,34.8,34.7,34.5,34.5],
+  'GA':          [91.2,90.2,89.2,88.2,87.2,86.5,85.5,85.3,85.2,85.1,84.8,84.8],
+  'SQE':         [55.7,55.7,54.7,53.7,52.7,52.0,51.0,50.9,50.8,50.6,50.5,50.5],
+  'SQ':          [55.7,55.7,54.7,53.7,52.7,52.0,51.0,50.9,50.8,50.6,50.5,50.5],
+  'QE':          [0.9,0.9,0.9,0.9,0.8,0.8,0.8,0.8,0.7,0.7,0.7,0.7],
+  'SupplyChain': [1.3,1.3,1.3,1.3,1.3,1.2,1.2,1.2,1.2,1.0,1.0,1.0],
+  'Boshqalar':   [74.8,73.8,73.8,72.8,71.8,70.0,69.0,68.5,68.3,68.2,68.0,68.0],
+}
+// Faktor 10 targets — Targets 2026.xlsx (GCA 10F sheet, combined DAMAS+LABO)
+const F10_MONTHLY: Record<string, number[]> = {
+  'PRESS SHOP':  [21.5,21.3,21.3,20.9,20.7,20.7,20.4,20.2,20.1,20.0,19.6,19.6],
+  'WELDING':     [60.2,60.1,60.0,59.7,59.6,59.4,59.0,58.8,58.6,58.3,57.8,57.8],
+  'PAINT SHOP':  [10.0,9.9,9.8,9.5,9.3,9.2,9.0,8.8,8.8,8.7,8.7,8.7],
+  'GA':          [46.4,46.3,46.1,45.7,45.6,45.3,45.0,44.7,44.6,44.3,43.9,43.9],
+  'SQE':         [43.2,42.9,42.8,42.6,42.5,42.2,41.9,41.8,41.6,41.1,40.5,40.5],
+  'SQ':          [43.2,42.9,42.8,42.6,42.5,42.2,41.9,41.8,41.6,41.1,40.5,40.5],
+  'QE':          [1.6,1.6,1.5,1.5,1.5,1.5,1.4,1.4,1.4,1.4,1.3,1.3],
+  'SupplyChain': [4.3,4.3,4.2,4.2,4.2,4.2,4.1,4.1,4.1,4.1,4.1,4.1],
+  'Boshqalar':   [0,0,0,0,0,0,0,0,0,0,0,0],
+}
+const F10_MONTHLY_DAMAS: Record<string, number[]> = {
+  'PRESS SHOP':  [21.8,21.6,21.5,21.3,21.1,21.0,20.9,20.7,20.6,20.5,20.0,20.0],
+  'WELDING':     [64.3,64.1,64.0,63.8,63.6,63.4,63.2,62.9,62.6,62.4,62.0,62.0],
+  'PAINT SHOP':  [10.0,9.9,9.8,9.6,9.4,9.3,9.2,9.1,9.0,9.0,9.0,9.0],
+  'GA':          [48.1,48.0,47.7,47.5,47.3,47.0,46.8,46.5,46.3,46.0,45.6,45.6],
+  'SQE':         [48.7,48.4,48.2,48.0,47.8,47.5,47.3,47.2,46.9,46.5,46.0,46.0],
+  'SQ':          [48.7,48.4,48.2,48.0,47.8,47.5,47.3,47.2,46.9,46.5,46.0,46.0],
+  'QE':          [1.8,1.8,1.7,1.7,1.7,1.7,1.6,1.6,1.6,1.6,1.5,1.5],
+  'SupplyChain': [5.3,5.2,5.1,5.1,5.1,5.1,5.0,5.0,5.0,5.0,5.0,5.0],
+  'Boshqalar':   [0,0,0,0,0,0,0,0,0,0,0,0],
+}
+const F10_MONTHLY_LABO: Record<string, number[]> = {
+  'PRESS SHOP':  [20.4,20.4,20.4,19.4,19.4,19.4,18.4,18.4,18.4,18.2,18.0,18.0],
+  'WELDING':     [45.0,45.0,45.0,44.0,44.0,44.0,43.0,43.0,43.0,42.8,42.6,42.6],
+  'PAINT SHOP':  [10.0,10.0,10.0,9.0,9.0,9.0,8.0,8.0,8.0,7.8,7.6,7.6],
+  'GA':          [40.0,40.0,40.0,39.0,39.0,39.0,38.0,38.0,38.0,37.8,37.6,37.6],
+  'SQE':         [23.0,23.0,23.0,22.0,22.0,22.0,21.0,21.0,21.0,20.8,20.6,20.6],
+  'SQ':          [23.0,23.0,23.0,22.0,22.0,22.0,21.0,21.0,21.0,20.8,20.6,20.6],
+  'QE':          [0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8],
+  'SupplyChain': [0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8],
+  'Boshqalar':   [0,0,0,0,0,0,0,0,0,0,0,0],
 }
 
+const MONTHS_UZ = ['Yan','Fev','Mar','Apr','May','Iyn','Iyl','Avg','Sen','Okt','Noy','Dek']
+
 const SHOP_COLORS: Record<string, string> = {
-  'WELDING':    'bg-sky-600 text-white border-sky-500',
-  'PAINT SHOP': 'bg-violet-600 text-white border-violet-500',
-  'GA':         'bg-emerald-600 text-white border-emerald-500',
-  'PRESS SHOP': 'bg-amber-600 text-white border-amber-500',
-  'SQ':         'bg-rose-600 text-white border-rose-500',
-  'Boshqalar':  'bg-slate-600 text-white border-slate-500',
+  'WELDING':     'bg-sky-600 text-white border-sky-500',
+  'PAINT SHOP':  'bg-violet-600 text-white border-violet-500',
+  'GA':          'bg-emerald-600 text-white border-emerald-500',
+  'PRESS SHOP':  'bg-amber-600 text-white border-amber-500',
+  'SQ':          'bg-rose-600 text-white border-rose-500',
+  'SQE':         'bg-pink-600 text-white border-pink-500',
+  'QE':          'bg-cyan-600 text-white border-cyan-500',
+  'SupplyChain': 'bg-teal-600 text-white border-teal-500',
+  'Boshqalar':   'bg-slate-600 text-white border-slate-500',
 }
 const SHOP_HEX: Record<string, string> = {
-  'WELDING':    '#0284c7',
-  'PAINT SHOP': '#7c3aed',
-  'GA':         '#059669',
-  'PRESS SHOP': '#d97706',
-  'SQ':         '#e11d48',
-  'Boshqalar':  '#64748b',
+  'WELDING':     '#0284c7',
+  'PAINT SHOP':  '#7c3aed',
+  'GA':          '#059669',
+  'PRESS SHOP':  '#d97706',
+  'SQ':          '#e11d48',
+  'SQE':         '#db2777',
+  'QE':          '#0891b2',
+  'SupplyChain': '#0d9488',
+  'Boshqalar':   '#64748b',
 }
 
 function rankColor(r: number) {
@@ -726,61 +797,157 @@ export default function GCAPage() {
             )}
 
             {/* ── Faktor taqsimoti jadvali ─────────────────────────────── */}
-            <div>
-              <h2 className="text-base font-bold text-foreground mb-3 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-indigo-500" />
-                Faktor bo&apos;yicha umumiy taqsimot
-              </h2>
-              <div className="bg-card border border-border rounded-xl overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border bg-muted/30">
-                        <th className="px-5 py-3 text-left text-xs font-semibold text-muted-foreground">Sehi</th>
-                        <th className="px-5 py-3 text-center text-xs font-semibold text-red-400">Faktor 50</th>
-                        <th className="px-5 py-3 text-center text-xs font-semibold text-orange-400">Faktor 20</th>
-                        <th className="px-5 py-3 text-center text-xs font-semibold text-blue-400">Faktor 10</th>
-                        <th className="px-5 py-3 text-center text-xs font-semibold text-green-400">Faktor 5</th>
-                        <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Avto</th>
-                        <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">WDPV</th>
-                        <th className="px-5 py-3 text-center text-xs font-semibold text-muted-foreground">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {stats.byShop.map(s => {
-                        const target = WDPV_TARGETS[s.shop] ?? 0.5
-                        const wdpv   = Number(s.wdpv)
-                        const over   = wdpv > target
-                        return (
-                          <tr key={s.shop} className="hover:bg-muted/20 transition-colors">
-                            <td className="px-5 py-3 font-semibold text-sm text-foreground">{s.shop}</td>
-                            <td className="px-5 py-3 text-center">
-                              {s.f50 > 0 ? <span className="font-bold text-red-400">{s.f50}</span> : <span className="text-muted-foreground">—</span>}
-                            </td>
-                            <td className="px-5 py-3 text-center">
-                              {s.f20 > 0 ? <span className="font-bold text-orange-400">{s.f20}</span> : <span className="text-muted-foreground">—</span>}
-                            </td>
-                            <td className="px-5 py-3 text-center">
-                              {s.f10 > 0 ? <span className="font-bold text-blue-400">{s.f10}</span> : <span className="text-muted-foreground">—</span>}
-                            </td>
-                            <td className="px-5 py-3 text-center">
-                              {s.f5 > 0 ? <span className="font-bold text-green-400">{s.f5}</span> : <span className="text-muted-foreground">—</span>}
-                            </td>
-                            <td className="px-5 py-3 text-center text-sm text-foreground">{s.veh_count}</td>
-                            <td className="px-5 py-3 text-center font-bold text-foreground">{wdpv.toFixed(2)}</td>
-                            <td className="px-5 py-3 text-center">
-                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${over ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
-                                {over ? <><AlertTriangle className="w-3 h-3" /> Yuqori</> : <><CheckCircle className="w-3 h-3" /> OK</>}
-                              </span>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+            {(() => {
+              const curM = new Date().getMonth() // 0=Jan..11=Dec
+              const mLabel = MONTHS_UZ[curM]
+              return (
+                <>
+                  {/* ── WDPV Jami jadvali ──────────────────────────────────── */}
+                  <div>
+                    <h2 className="text-base font-bold text-foreground mb-1 flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-indigo-500" />
+                      Faktor bo&apos;yicha umumiy taqsimot
+                    </h2>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      2026 {mLabel} target · DAMAS (B-150) va LABO (B-100) alohida
+                    </p>
+                    <div className="bg-card border border-border rounded-xl overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-border bg-muted/30">
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sehi</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-red-400">F-50</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-orange-400">F-20</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-blue-400">F-10</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-green-400">F-5</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Avto</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-indigo-400">WDPV</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-blue-300">DAMAS target</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-green-300">LABO target</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {stats.byShop.map(s => {
+                              const target      = WDPV_MONTHLY[s.shop]?.[curM] ?? 999
+                              const tgtDamas    = WDPV_MONTHLY_DAMAS[s.shop]?.[curM]
+                              const tgtLabo     = WDPV_MONTHLY_LABO[s.shop]?.[curM]
+                              const wdpv        = Number(s.wdpv)
+                              const over        = wdpv > target
+                              return (
+                                <tr key={s.shop} className="hover:bg-muted/20 transition-colors">
+                                  <td className="px-4 py-3 font-semibold text-sm text-foreground">{s.shop}</td>
+                                  <td className="px-4 py-3 text-center">
+                                    {s.f50 > 0 ? <span className="font-bold text-red-400">{s.f50}</span> : <span className="text-muted-foreground">—</span>}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    {s.f20 > 0 ? <span className="font-bold text-orange-400">{s.f20}</span> : <span className="text-muted-foreground">—</span>}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    {s.f10 > 0 ? <span className="font-bold text-blue-400">{s.f10}</span> : <span className="text-muted-foreground">—</span>}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    {s.f5 > 0 ? <span className="font-bold text-green-400">{s.f5}</span> : <span className="text-muted-foreground">—</span>}
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-sm text-foreground">{s.veh_count}</td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className={`font-bold text-sm ${over ? 'text-red-400' : 'text-foreground'}`}>{wdpv.toFixed(2)}</span>
+                                    {target < 999 && (
+                                      <span className="block text-[10px] text-muted-foreground">≤ {target}</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-sm text-blue-300">
+                                    {tgtDamas != null ? tgtDamas.toFixed(1) : '—'}
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-sm text-green-300">
+                                    {tgtLabo != null ? tgtLabo.toFixed(1) : '—'}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${over ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
+                                      {over ? <><AlertTriangle className="w-3 h-3" /> Yuqori</> : <><CheckCircle className="w-3 h-3" /> OK</>}
+                                    </span>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── Faktor 10 alohida jadvali ──────────────────────────── */}
+                  <div>
+                    <h2 className="text-base font-bold text-foreground mb-1 flex items-center gap-2">
+                      <BarChart2 className="w-4 h-4 text-blue-500" />
+                      Faktor 10 bo&apos;yicha taqsimot
+                    </h2>
+                    <p className="text-xs text-muted-foreground mb-3">
+                      2026 {mLabel} F-10 target · DAMAS va LABO alohida
+                    </p>
+                    <div className="bg-card border border-border rounded-xl overflow-hidden">
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead>
+                            <tr className="border-b border-border bg-muted/30">
+                              <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Sehi</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-blue-400">F-10 soni</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-indigo-400">F-10 WDPV</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Kombinat target</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-blue-300">DAMAS target</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-green-300">LABO target</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {stats.byShop.map(s => {
+                              const f10wdpv  = s.veh_count > 0 ? (s.f10 * 10) / s.veh_count : 0
+                              const target   = F10_MONTHLY[s.shop]?.[curM] ?? 999
+                              const tgtDamas = F10_MONTHLY_DAMAS[s.shop]?.[curM]
+                              const tgtLabo  = F10_MONTHLY_LABO[s.shop]?.[curM]
+                              const over     = target < 999 && f10wdpv > target
+                              return (
+                                <tr key={s.shop} className="hover:bg-muted/20 transition-colors">
+                                  <td className="px-4 py-3 font-semibold text-sm text-foreground">{s.shop}</td>
+                                  <td className="px-4 py-3 text-center">
+                                    {s.f10 > 0 ? <span className="font-bold text-blue-400">{s.f10}</span> : <span className="text-muted-foreground">—</span>}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className={`font-bold text-sm ${over ? 'text-red-400' : 'text-foreground'}`}>
+                                      {f10wdpv.toFixed(2)}
+                                    </span>
+                                    {target < 999 && (
+                                      <span className="block text-[10px] text-muted-foreground">≤ {target}</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-sm text-foreground">
+                                    {target < 999 ? target.toFixed(1) : '—'}
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-sm text-blue-300">
+                                    {tgtDamas != null ? tgtDamas.toFixed(1) : '—'}
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-sm text-green-300">
+                                    {tgtLabo != null ? tgtLabo.toFixed(1) : '—'}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    {target < 999 ? (
+                                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${over ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
+                                        {over ? <><AlertTriangle className="w-3 h-3" /> Yuqori</> : <><CheckCircle className="w-3 h-3" /> OK</>}
+                                      </span>
+                                    ) : <span className="text-muted-foreground text-xs">—</span>}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )
+            })()}
 
             {/* ── Sehlar bo'yicha — Pie chart ──────────────────────────── */}
             <div>
