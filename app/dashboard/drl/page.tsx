@@ -124,6 +124,19 @@ function shiftLabel(s: string) {
   return s
 }
 
+const MONTHS_UZ_FULL = ['yanvar','fevral','mart','aprel','may','iyun','iyul','avgust','sentabr','oktabr','noyabr','dekabr']
+function formatDateRange(from: string, to: string): string {
+  if (!from || !to) return ''
+  const [fy, fm, fd] = from.split('-').map(Number)
+  const [ty, tm, td] = to.split('-').map(Number)
+  const mf = MONTHS_UZ_FULL[fm - 1]
+  const mt = MONTHS_UZ_FULL[tm - 1]
+  if (from === to) return `${fd}-${mf} ${fy}`
+  if (fm === tm && fy === ty) return `${fd}–${td} ${mf} ${fy}`
+  if (fy === ty) return `${fd}-${mf} – ${td}-${mt} ${fy}`
+  return `${fd}-${mf} ${fy} – ${td}-${mt} ${ty}`
+}
+
 function teamToRole(team: string) {
   const t = team.toUpperCase()
   if (t.startsWith('00.BO')) return 'welding_engineer'
@@ -412,6 +425,18 @@ function DRLPageContent() {
             </button>
           ))}
         </div>
+
+        {/* Date info badge */}
+        {stats && !loading && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 border border-border rounded-lg w-fit text-xs text-muted-foreground">
+            <Calendar className="w-3.5 h-3.5 shrink-0 text-primary" />
+            {selSmena !== 'all' && (
+              <span className="font-semibold text-foreground">{selSmena} Smena</span>
+            )}
+            {selSmena !== 'all' && <span className="text-border">•</span>}
+            <span>{formatDateRange(stats.totals.date_from, stats.totals.date_to)}</span>
+          </div>
+        )}
 
         {/* Filter tabs */}
         <div className="flex flex-wrap items-center gap-3">

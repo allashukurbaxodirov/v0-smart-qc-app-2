@@ -191,6 +191,18 @@ const F10_MONTHLY_LABO: Record<string, number[]> = {
 }
 
 const MONTHS_UZ = ['Yan','Fev','Mar','Apr','May','Iyn','Iyl','Avg','Sen','Okt','Noy','Dek']
+const MONTHS_UZ_FULL = ['yanvar','fevral','mart','aprel','may','iyun','iyul','avgust','sentabr','oktabr','noyabr','dekabr']
+function formatDateRange(from: string, to: string): string {
+  if (!from || !to) return ''
+  const [fy, fm, fd] = from.split('-').map(Number)
+  const [ty, tm, td] = to.split('-').map(Number)
+  const mf = MONTHS_UZ_FULL[fm - 1]
+  const mt = MONTHS_UZ_FULL[tm - 1]
+  if (from === to) return `${fd}-${mf} ${fy}`
+  if (fm === tm && fy === ty) return `${fd}–${td} ${mf} ${fy}`
+  if (fy === ty) return `${fd}-${mf} – ${td}-${mt} ${fy}`
+  return `${fd}-${mf} ${fy} – ${td}-${mt} ${ty}`
+}
 
 const SHOP_COLORS: Record<string, string> = {
   'WELDING':     'bg-sky-600 text-white border-sky-500',
@@ -752,15 +764,19 @@ export default function GCAPage() {
 
         {stats && !loading && selShift !== 'all' && (
           <>
-            {/* Meta bar */}
-            <div className="flex flex-wrap gap-2 items-center text-xs text-muted-foreground">
-              <span className="px-2.5 py-1 bg-card border border-border rounded-full">
-                📅 {stats.totals.date_from} → {stats.totals.date_to}
-              </span>
+            {/* Date info badge */}
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 border border-border rounded-lg w-fit text-xs text-muted-foreground">
+              <Calendar className="w-3.5 h-3.5 shrink-0 text-indigo-500" />
+              <span className="font-semibold text-foreground">{selShift} Smena</span>
+              <span className="text-border">•</span>
+              <span>{formatDateRange(stats.totals.date_from, stats.totals.date_to)}</span>
               {stats.batchInfo?.file_name && (
-                <span className="px-2.5 py-1 bg-card border border-border rounded-full truncate max-w-[220px]">
-                  📁 {stats.batchInfo.file_name}
-                </span>
+                <>
+                  <span className="text-border">•</span>
+                  <span className="truncate max-w-[180px]" title={stats.batchInfo.file_name}>
+                    {stats.batchInfo.file_name}
+                  </span>
+                </>
               )}
             </div>
 
