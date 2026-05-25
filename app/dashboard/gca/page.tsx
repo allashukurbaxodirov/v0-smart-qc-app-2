@@ -11,7 +11,7 @@ import {
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, CartesianGrid, Legend,
-  BarChart, Bar,
+  BarChart, Bar, ReferenceLine,
 } from 'recharts'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -603,24 +603,38 @@ export default function GCAPage() {
                   X: avg(s.X),
                 }))
 
+              const curM = new Date().getMonth()
+              const plantTarget = Math.round(Object.values(WDPV_MONTHLY).reduce((sum, arr) => sum + (arr[curM] ?? 0), 0) * 100) / 100
+
               const hasAny = overview.byShift.length > 0 || overview.trend.length > 0
 
               return (
                 <>
                   {/* ── Umumiy KPI row ──────────────────────────────────── */}
                   {hasAny && (
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                      {[
-                        { label: 'Plant WDPV',     value: Number(overview.totals.wdpv).toFixed(2),  icon: <TrendingUp className="w-5 h-5" />, color: 'text-indigo-400',  bg: 'bg-indigo-500/10 border-indigo-500/20' },
-                        { label: 'Jami avtomobil', value: overview.totals.veh_count,                    icon: <Car className="w-5 h-5" />,           color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/20' },
-                        { label: 'Batch soni',     value: overview.totals.batch_count,                  icon: <BarChart2 className="w-5 h-5" />,     color: 'text-sky-400',     bg: 'bg-sky-500/10 border-sky-500/20' },
-                      ].map(({ label, value, icon, color, bg }) => (
-                        <div key={label} className={`rounded-xl border p-5 ${bg}`}>
-                          <div className={`mb-2 ${color}`}>{icon}</div>
-                          <p className="text-2xl font-bold text-foreground">{typeof value === 'number' ? value.toLocaleString() : value}</p>
-                          <p className="text-xs text-muted-foreground mt-1">{label}</p>
-                        </div>
-                      ))}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-5">
+                        <div className="mb-2 text-indigo-400"><TrendingUp className="w-5 h-5" /></div>
+                        <p className="text-2xl font-bold text-foreground">{Number(overview.totals.wdpv).toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Plant WDPV</p>
+                        {plantTarget > 0 && (() => {
+                          const delta = Number(overview.totals.wdpv) - plantTarget
+                          const over  = delta > 0
+                          return (
+                            <div className="mt-2 flex items-center gap-1.5">
+                              <span className={`text-xs font-bold ${over ? 'text-red-400' : 'text-green-400'}`}>
+                                {over ? '▲' : '▼'} {Math.abs(delta).toFixed(2)}
+                              </span>
+                              <span className="text-xs text-muted-foreground">target: {plantTarget.toFixed(0)}</span>
+                            </div>
+                          )
+                        })()}
+                      </div>
+                      <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-5">
+                        <div className="mb-2 text-violet-400"><Car className="w-5 h-5" /></div>
+                        <p className="text-2xl font-bold text-foreground">{overview.totals.veh_count.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Jami avtomobil</p>
+                      </div>
                     </div>
                   )}
 
@@ -649,10 +663,9 @@ export default function GCAPage() {
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
-                              {overview.byShift.map(s => {
+                              {overview.byShift.filter(s => s.shift_label !== '—').map(s => {
                                 const wdpv   = Number(s.wdpv)
-                                const target = 0.50   // umumiy WDPV chegarasi
-                                const over   = wdpv > target
+                                const over   = wdpv > plantTarget
                                 const badgeMap: Record<string, string> = {
                                   A: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
                                   B: 'bg-sky-500/15 text-sky-400 border-sky-500/30',
@@ -740,6 +753,8 @@ export default function GCAPage() {
                             <Bar dataKey="B" name="B" fill="#0ea5e9" radius={[4, 4, 0, 0]} maxBarSize={48} label={{ position: 'top', fontSize: 11, fill: '#0ea5e9', formatter: (v: number) => v ? v.toFixed(0) : '' }} />
                             <Bar dataKey="D" name="D" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={48} label={{ position: 'top', fontSize: 11, fill: '#10b981', formatter: (v: number) => v ? v.toFixed(0) : '' }} />
                             <Bar dataKey="X" name="X" fill="#94a3b8" radius={[4, 4, 0, 0]} maxBarSize={48} label={{ position: 'top', fontSize: 11, fill: '#94a3b8', formatter: (v: number) => v ? v.toFixed(0) : '' }} />
+                            <ReferenceLine y={plantTarget} stroke="#f59e0b" strokeDasharray="6 3" strokeWidth={1.5}
+                              label={{ value: `Target ${plantTarget.toFixed(0)}`, position: 'insideTopRight', fill: '#f59e0b', fontSize: 10 }} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -766,19 +781,38 @@ export default function GCAPage() {
             </div>
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-              {[
-                { label: 'Plant WDPV',       value: Number(stats.totals.wdpv).toFixed(2),          icon: <Activity className="w-5 h-5" />,     color: 'text-indigo-400',  bg: 'bg-indigo-500/10 border-indigo-500/20' },
-                { label: "Jami og'irlik",     value: Number(stats.totals.total_weight).toFixed(0),  icon: <AlertTriangle className="w-5 h-5" />, color: 'text-orange-400',  bg: 'bg-orange-500/10 border-orange-500/20' },
-                { label: 'Avtomobillar (VIN)',value: stats.totals.veh_count,                        icon: <Car className="w-5 h-5" />,           color: 'text-violet-400',  bg: 'bg-violet-500/10 border-violet-500/20' },
-              ].map(({ label, value, icon, color, bg }) => (
-                <div key={label} className={`rounded-xl border p-5 ${bg}`}>
-                  <div className={`mb-2 ${color}`}>{icon}</div>
-                  <p className="text-2xl font-bold text-foreground">{typeof value === 'number' ? value.toLocaleString() : value}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{label}</p>
+            {(() => {
+              const curM2   = new Date().getMonth()
+              const pTarget = Math.round(Object.values(WDPV_MONTHLY).reduce((sum, arr) => sum + (arr[curM2] ?? 0), 0) * 100) / 100
+              const pWdpv   = Number(stats.totals.wdpv)
+              const pDelta  = pWdpv - pTarget
+              const pOver   = pDelta > 0
+              return (
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-5">
+                    <div className="mb-2 text-indigo-400"><Activity className="w-5 h-5" /></div>
+                    <p className="text-2xl font-bold text-foreground">{pWdpv.toFixed(2)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Plant WDPV</p>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      <span className={`text-xs font-bold ${pOver ? 'text-red-400' : 'text-green-400'}`}>
+                        {pOver ? '▲' : '▼'} {Math.abs(pDelta).toFixed(2)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">target: {pTarget.toFixed(0)}</span>
+                    </div>
+                  </div>
+                  <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-5">
+                    <div className="mb-2 text-orange-400"><AlertTriangle className="w-5 h-5" /></div>
+                    <p className="text-2xl font-bold text-foreground">{Number(stats.totals.total_weight).toFixed(0)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Jami og&apos;irlik</p>
+                  </div>
+                  <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-5">
+                    <div className="mb-2 text-violet-400"><Car className="w-5 h-5" /></div>
+                    <p className="text-2xl font-bold text-foreground">{stats.totals.veh_count.toLocaleString()}</p>
+                    <p className="text-xs text-muted-foreground mt-1">Avtomobillar (VIN)</p>
+                  </div>
                 </div>
-              ))}
-            </div>
+              )
+            })()}
 
             {/* Model taqsimoti */}
             {stats.byModel.length > 0 && (
