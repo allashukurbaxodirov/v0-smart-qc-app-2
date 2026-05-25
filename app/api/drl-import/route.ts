@@ -11,10 +11,19 @@ async function getSession() {
   try { return JSON.parse(raw) as { role: string; name: string } } catch { return null }
 }
 
+// ─── Ensure shift_label column exists (idempotent) ────────────────────────────
+async function ensureShiftLabel() {
+  try {
+    await sql`ALTER TABLE drl_import_batches ADD COLUMN IF NOT EXISTS shift_label TEXT`
+  } catch { /* ignore */ }
+}
+
 // ─── GET: Import batches list ──────────────────────────────────────────────────
 export async function GET() {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  await ensureShiftLabel()
 
   try {
     const batches = await sql`
