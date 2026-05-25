@@ -497,17 +497,6 @@ export default function GCAPage() {
               </div>
             )}
 
-            {/* Batch dropdown */}
-            {selShift !== 'all' && gcaFilterMode === 'batch' && filteredBatches.length > 0 && (
-              <select value={selBatch} onChange={e => setSelBatch(e.target.value)}
-                className="px-3 py-2 bg-card border border-border rounded-lg text-sm text-foreground">
-                {filteredBatches.map(b => (
-                  <option key={b.id} value={b.id}>
-                    {b.date_from} — {b.shift_label ? `Smena ${b.shift_label} · ` : ''}{b.shift_from}→{b.shift_to} ({Number(b.total_weight).toFixed(0)} og'irlik · {b.veh_count} avto)
-                  </option>
-                ))}
-              </select>
-            )}
 
             {/* Kunlik picker */}
             {selShift !== 'all' && gcaFilterMode === 'kunlik' && (
