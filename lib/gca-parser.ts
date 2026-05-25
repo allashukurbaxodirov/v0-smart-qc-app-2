@@ -153,18 +153,30 @@ export function parseGCAFilterRow(filterStr: string): GCAImportMeta {
   if (!filterStr) return defaults
 
   try {
+    // Format 1 (per-shift): "From: 20.05.2026 - E"
+    // Format 2 (monthly):   "From: 01.04.2026,"  (Audit Date, no shift letter)
     const fromMatch  = filterStr.match(/From:\s*([\d.]+)\s*-\s*([A-Z])/i)
+    const fromMatch2 = filterStr.match(/From:\s*([\d.]+)/i)
     const toMatch    = filterStr.match(/To:\s*([\d.]+)\s*-\s*([A-Z])/i)
+    const toMatch2   = filterStr.match(/To:\s*([\d.]+)/i)
     const modelMatch = filterStr.match(/Model Group:\s*([^,\n]+(?:,[^,\n]+)*?)(?:,\s*Metric|$)/i)
 
     if (fromMatch) {
       defaults.dateFrom  = parseDate(fromMatch[1])
       defaults.shiftFrom = fromMatch[2].toUpperCase()
+    } else if (fromMatch2) {
+      defaults.dateFrom  = parseDate(fromMatch2[1])
+      defaults.shiftFrom = 'E'
     }
+
     if (toMatch) {
       defaults.dateTo  = parseDate(toMatch[1])
       defaults.shiftTo = toMatch[2].toUpperCase()
+    } else if (toMatch2) {
+      defaults.dateTo  = parseDate(toMatch2[1])
+      defaults.shiftTo = 'N'
     }
+
     if (modelMatch) {
       const modelStr = modelMatch[1]
       const models: string[] = []
