@@ -992,7 +992,7 @@ export default function GCAPage() {
                       const totalW = Number(stats.totals.total_weight)
                       const pct    = totalW > 0 ? ((Number(s.total_weight) / totalW) * 100).toFixed(1) : '0'
                       const hex    = SHOP_HEX[s.shop] ?? '#6366f1'
-                      const target = WDPV_TARGETS[s.shop] ?? 0.5
+                      const target = WDPV_MONTHLY[s.shop]?.[new Date().getMonth()] ?? 999
                       const over   = Number(s.wdpv) > target
                       return (
                         <div key={s.shop} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-background">
