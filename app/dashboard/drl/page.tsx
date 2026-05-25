@@ -146,6 +146,10 @@ function DRLPageContent() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [session,  setSession]  = useState<{ role: string; name: string } | null>(null)
 
+  // Smena tabs
+  type SmenaTab = 'all' | 'A' | 'B' | 'D'
+  const [selSmena, setSelSmena] = useState<SmenaTab>('all')
+
   // Date filter
   const todayStr   = new Date().toISOString().split('T')[0]
   const monthStr   = todayStr.substring(0, 7)
@@ -194,12 +198,19 @@ function DRLPageContent() {
   }, [batchParam])
 
   // Load stats
-  const loadStats = useCallback(async (params: { batch?: string; from?: string; to?: string }) => {
+  const loadStats = useCallback(async (params: { batch?: string; from?: string; to?: string; shift?: string }) => {
     setLoading(true)
     setEmpty(false)
     let url = '/api/drl-import/stats'
-    if (params.batch) url = `/api/drl-import/stats?batch=${params.batch}`
-    else if (params.from && params.to) url = `/api/drl-import/stats?from=${params.from}&to=${params.to}`
+    if (params.batch) {
+      url = `/api/drl-import/stats?batch=${params.batch}`
+    } else if (params.from && params.to) {
+      url = `/api/drl-import/stats?from=${params.from}&to=${params.to}`
+      if (params.shift) url += `&shift=${params.shift}`
+    } else if (params.shift) {
+      // batch mode with shift filter — get latest batch of that shift
+      url = `/api/drl-import/stats?shift=${params.shift}`
+    }
     try {
       const res  = await fetch(url)
       const data = await res.json()
@@ -219,16 +230,22 @@ function DRLPageContent() {
   // Batch mode
   useEffect(() => {
     if (filterMode !== 'batch') return
-    if (selBatch) loadStats({ batch: selBatch })
-    else if (batches.length === 0 && !loading) setEmpty(true)
-  }, [filterMode, selBatch, loadStats])
+    if (selSmena !== 'all') {
+      loadStats({ shift: selSmena })
+    } else if (selBatch) {
+      loadStats({ batch: selBatch })
+    } else if (batches.length === 0 && !loading) {
+      setEmpty(true)
+    }
+  }, [filterMode, selBatch, selSmena, loadStats])
 
   // Date mode
   useEffect(() => {
     if (filterMode === 'batch') return
     const range = getDateRange(filterMode, selDate, selMonth, selYear)
-    if (range) loadStats({ from: range.from, to: range.to })
-  }, [filterMode, selDate, selMonth, selYear, loadStats])
+    if (!range) return
+    loadStats({ from: range.from, to: range.to, shift: selSmena !== 'all' ? selSmena : undefined })
+  }, [filterMode, selDate, selMonth, selYear, selSmena, loadStats])
 
   // Load shop detail rows
   const openShopDetail = async (shop: string) => {
@@ -376,6 +393,26 @@ function DRLPageContent() {
           </div>
         </div>
 
+        {/* Smena tabs */}
+        <div className="flex items-center gap-1 bg-muted/40 border border-border rounded-xl p-1 w-fit">
+          {([
+            { key: 'all', label: 'Barchasi' },
+            { key: 'A',   label: 'A Smena' },
+            { key: 'B',   label: 'B Smena' },
+            { key: 'D',   label: 'D Smena' },
+          ] as { key: SmenaTab; label: string }[]).map(s => (
+            <button key={s.key}
+              onClick={() => setSelSmena(s.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                selSmena === s.key
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}>
+              {s.label}
+            </button>
+          ))}
+        </div>
+
         {/* Filter tabs */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Mode tabs */}
@@ -434,10 +471,13 @@ function DRLPageContent() {
 
           {/* Refresh */}
           <button onClick={() => {
-            if (filterMode === 'batch') loadStats({ batch: selBatch })
-            else {
+            const shiftArg = selSmena !== 'all' ? selSmena : undefined
+            if (filterMode === 'batch') {
+              if (selSmena !== 'all') loadStats({ shift: selSmena })
+              else loadStats({ batch: selBatch })
+            } else {
               const range = getDateRange(filterMode, selDate, selMonth, selYear)
-              if (range) loadStats(range)
+              if (range) loadStats({ ...range, shift: shiftArg })
             }
           }}
             className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">

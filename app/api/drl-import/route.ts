@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import sql from '@/lib/db'
 import { parseGsipPareto, prodTeamToShop, countToPriority, prodTeamToRole } from '@/lib/gsip-pareto-parser'
+import { parseGsipDRL } from '@/lib/gsip-drl-parser'
 
 async function getSession() {
   const cs = await cookies()
@@ -18,7 +19,7 @@ export async function GET() {
   try {
     const batches = await sql`
       SELECT import_batch, imported_at, imported_by, file_name,
-             date_from::text, date_to::text, shift_from, shift_to,
+             date_from::text, date_to::text, shift_from, shift_to, shift_label,
              row_count, total_count, models, status
       FROM drl_import_batches
       ORDER BY imported_at DESC
@@ -39,13 +40,42 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const formData = await req.formData()
-    const file     = formData.get('file') as File | null
+    const formData  = await req.formData()
+    const file      = formData.get('file') as File | null
+    const shiftLabel = (formData.get('shift_label') as string | null)?.trim() || null  // A | B | D | null
+
     if (!file) return NextResponse.json({ error: 'Fayl topilmadi' }, { status: 400 })
 
-    const buffer   = Buffer.from(await file.arrayBuffer())
-    const result   = parseGsipPareto(buffer)
-    const { meta, rows, top10, skipped, warnings } = result
+    const buffer = Buffer.from(await file.arrayBuffer())
+
+    // ── Auto-detect format by sheet name ──────────────────────────────────────
+    let rows: any[]
+    let meta: any
+    let top10: any[]
+    let skipped: number
+    let warnings: string[]
+
+    const XLSX = await import('xlsx')
+    const wb   = XLSX.read(buffer, { type: 'buffer' })
+    const sheetName = wb.SheetNames[0] ?? ''
+
+    if (sheetName.toLowerCase().includes('defect detail')) {
+      // DRL Defect Details format → use DRL detail parser (aggregates raw rows)
+      const parsed = parseGsipDRL(buffer)
+      rows     = parsed.rows
+      meta     = parsed.meta
+      top10    = parsed.top10
+      skipped  = parsed.skipped
+      warnings = parsed.warnings
+    } else {
+      // Default: DRL Pareto format
+      const parsed = parseGsipPareto(buffer)
+      rows     = parsed.rows
+      meta     = parsed.meta
+      top10    = parsed.top10
+      skipped  = parsed.skipped
+      warnings = parsed.warnings
+    }
 
     if (rows.length === 0) {
       return NextResponse.json({ error: 'Faylda ma\'lumot topilmadi' }, { status: 400 })
@@ -60,7 +90,7 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK)
       await sql`
-        INSERT INTO drl_imports ${sql(chunk.map(r => ({
+        INSERT INTO drl_imports ${sql(chunk.map((r: any) => ({
           import_batch: importBatch,
           imported_by:  session.name,
           file_name:    file.name,
@@ -81,25 +111,25 @@ export async function POST(req: NextRequest) {
           prod_team:    r.prodTeam || null,
           shop:         r.shop,
           count:        r.count,
-          drl_ratio:    r.drlRatio,
-          veh_cnt:      r.vehCnt,
+          drl_ratio:    r.drlRatio ?? 0,
+          veh_cnt:      r.vehCnt ?? 0,
         })))}
       `
     }
 
-    const totalCount = rows.reduce((s, r) => s + r.count, 0)
-    const models     = [...new Set(rows.map(r => r.modelLabel))].join(', ')
+    const totalCount = rows.reduce((s: number, r: any) => s + r.count, 0)
+    const models     = [...new Set(rows.map((r: any) => r.modelLabel))].join(', ')
 
-    // Save batch summary
+    // Save batch summary (with shift_label)
     await sql`
       INSERT INTO drl_import_batches
         (import_batch, imported_by, file_name,
-         date_from, date_to, shift_from, shift_to,
+         date_from, date_to, shift_from, shift_to, shift_label,
          row_count, total_count, models)
       VALUES
         (${importBatch}, ${session.name}, ${file.name},
          ${meta.dateFrom}::date, ${meta.dateTo}::date,
-         ${meta.shiftFrom}, ${meta.shiftTo},
+         ${meta.shiftFrom}, ${meta.shiftTo}, ${shiftLabel},
          ${rows.length}, ${totalCount}, ${models})
     `
 

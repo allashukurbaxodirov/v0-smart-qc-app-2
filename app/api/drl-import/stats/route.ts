@@ -11,6 +11,7 @@ async function getSession() {
 
 // GET /api/drl-import/stats?batch=UUID
 // GET /api/drl-import/stats?from=2026-05-01&to=2026-05-31  (date-range aggregate)
+// GET /api/drl-import/stats?from=...&to=...&shift=A        (smena filter)
 export async function GET(req: NextRequest) {
   const session = await getSession()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -19,6 +20,7 @@ export async function GET(req: NextRequest) {
   const batchParam = searchParams.get('batch')
   const fromParam  = searchParams.get('from')
   const toParam    = searchParams.get('to')
+  const shiftParam = searchParams.get('shift')  // A | B | D | null
 
   const isDateMode = !batchParam && !!(fromParam && toParam)
 
@@ -28,31 +30,49 @@ export async function GET(req: NextRequest) {
       if (batchParam) {
         batchId = batchParam
       } else {
-        const [latest] = await sql`
-          SELECT import_batch::text AS id FROM drl_import_batches
-          ORDER BY imported_at DESC LIMIT 1
-        `
+        // If shift filter applied, get latest batch with that shift_label
+        const [latest] = shiftParam
+          ? await sql`
+              SELECT import_batch::text AS id FROM drl_import_batches
+              WHERE shift_label = ${shiftParam}
+              ORDER BY imported_at DESC LIMIT 1
+            `
+          : await sql`
+              SELECT import_batch::text AS id FROM drl_import_batches
+              ORDER BY imported_at DESC LIMIT 1
+            `
         if (!latest) return NextResponse.json({ empty: true })
         batchId = latest.id
       }
     }
 
+    // ── FROM + WHERE clauses ─────────────────────────────────────────────────
+    // When shift filter is needed, JOIN with drl_import_batches
+    const needsJoin = isDateMode && !!shiftParam
+
+    const fromClause = needsJoin
+      ? sql`FROM drl_imports i JOIN drl_import_batches b ON b.import_batch = i.import_batch`
+      : sql`FROM drl_imports i`
+
     const whereClause = isDateMode
-      ? sql`WHERE date_from >= ${fromParam}::date AND date_from <= ${toParam}::date`
-      : sql`WHERE import_batch = ${batchId}::uuid`
+      ? (needsJoin
+          ? sql`WHERE i.date_from >= ${fromParam}::date AND i.date_from <= ${toParam}::date
+                  AND b.shift_label = ${shiftParam}`
+          : sql`WHERE i.date_from >= ${fromParam}::date AND i.date_from <= ${toParam}::date`)
+      : sql`WHERE i.import_batch = ${batchId}::uuid`
 
     const [totals] = await sql`
       SELECT
         COUNT(*)::int                                                              AS row_count,
-        COALESCE(SUM(count), 0)::int                                              AS total_count,
-        COALESCE(SUM(CASE WHEN model_group='R7'  THEN count ELSE 0 END), 0)::int AS damas_count,
-        COALESCE(SUM(CASE WHEN model_group='R7A' THEN count ELSE 0 END), 0)::int AS labo_count,
-        MIN(date_from)::text  AS date_from,
-        MAX(date_to)::text    AS date_to,
-        MIN(shift_from)       AS shift_from,
-        MAX(shift_to)         AS shift_to,
-        MAX(file_name)        AS file_name
-      FROM drl_imports
+        COALESCE(SUM(i.count), 0)::int                                            AS total_count,
+        COALESCE(SUM(CASE WHEN i.model_group='R7'  THEN i.count ELSE 0 END), 0)::int AS damas_count,
+        COALESCE(SUM(CASE WHEN i.model_group='R7A' THEN i.count ELSE 0 END), 0)::int AS labo_count,
+        MIN(i.date_from)::text  AS date_from,
+        MAX(i.date_to)::text    AS date_to,
+        MIN(i.shift_from)       AS shift_from,
+        MAX(i.shift_to)         AS shift_to,
+        MAX(i.file_name)        AS file_name
+      ${fromClause}
       ${whereClause}
     `
 
@@ -61,43 +81,43 @@ export async function GET(req: NextRequest) {
     }
 
     const byShop = await sql`
-      SELECT shop, SUM(count)::int AS total
-      FROM drl_imports
+      SELECT i.shop, SUM(i.count)::int AS total
+      ${fromClause}
       ${whereClause}
-      GROUP BY shop ORDER BY total DESC
+      GROUP BY i.shop ORDER BY total DESC
     `
 
     const byModel = await sql`
-      SELECT model_label, SUM(count)::int AS total
-      FROM drl_imports
+      SELECT i.model_label, SUM(i.count)::int AS total
+      ${fromClause}
       ${whereClause}
-      GROUP BY model_label ORDER BY total DESC
+      GROUP BY i.model_label ORDER BY total DESC
     `
 
     const byPartLv1 = await sql`
-      SELECT part_lv1, SUM(count)::int AS total
-      FROM drl_imports
+      SELECT i.part_lv1, SUM(i.count)::int AS total
+      ${fromClause}
       ${whereClause}
-        AND part_lv1 IS NOT NULL AND part_lv1 != ''
-      GROUP BY part_lv1 ORDER BY total DESC LIMIT 10
+        AND i.part_lv1 IS NOT NULL AND i.part_lv1 != ''
+      GROUP BY i.part_lv1 ORDER BY total DESC LIMIT 10
     `
 
     const top10raw = await sql`
       SELECT
-        fault_code,
-        fault_name,
-        prod_team,
-        shop,
-        part_lv1,
-        SUM(count)::int                                                   AS group_count,
-        COALESCE(SUM(veh_cnt), 0)::int                                    AS group_veh,
-        SUM(CASE WHEN model_group='R7'  THEN count ELSE 0 END)::int       AS model_damas,
-        SUM(CASE WHEN model_group='R7A' THEN count ELSE 0 END)::int       AS model_labo,
-        ROUND(SUM(drl_ratio)::numeric, 1)                                  AS drl_ratio_sum
-      FROM drl_imports
+        i.fault_code,
+        i.fault_name,
+        i.prod_team,
+        i.shop,
+        i.part_lv1,
+        SUM(i.count)::int                                                   AS group_count,
+        COALESCE(SUM(i.veh_cnt), 0)::int                                    AS group_veh,
+        SUM(CASE WHEN i.model_group='R7'  THEN i.count ELSE 0 END)::int     AS model_damas,
+        SUM(CASE WHEN i.model_group='R7A' THEN i.count ELSE 0 END)::int     AS model_labo,
+        ROUND(SUM(i.drl_ratio)::numeric, 1)                                 AS drl_ratio_sum
+      ${fromClause}
       ${whereClause}
-      GROUP BY fault_code, fault_name, prod_team, shop, part_lv1
-      ORDER BY SUM(count) DESC
+      GROUP BY i.fault_code, i.fault_name, i.prod_team, i.shop, i.part_lv1
+      ORDER BY SUM(i.count) DESC
     `
 
     // Merge by fault_code: pick dominant prod_team/shop/part_lv1

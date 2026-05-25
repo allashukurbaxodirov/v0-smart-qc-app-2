@@ -18,6 +18,7 @@ interface ImportBatch {
   date_to:      string
   shift_from:   string
   shift_to:     string
+  shift_label:  string | null
   row_count:    number
   total_count:  number
   models:       string
@@ -52,6 +53,7 @@ export default function DRLAdminPage() {
   const [batches,    setBatches]    = useState<ImportBatch[]>([])
   const [loadingBatches, setLoadingBatches] = useState(false)
   const [deletingId, setDeletingId] = useState<string>('')
+  const [selSmena, setSelSmena] = useState<string>('')  // '' | 'A' | 'B' | 'D'
 
   const isAdmin = session && ['superadmin', 'admin'].includes(session.role)
 
@@ -93,6 +95,7 @@ export default function DRLAdminPage() {
     try {
       const fd = new FormData()
       fd.append('file', file)
+      if (selSmena) fd.append('shift_label', selSmena)
       const res  = await fetch('/api/drl-import', { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) {
@@ -237,6 +240,34 @@ export default function DRLAdminPage() {
                 />
               </div>
 
+              {/* Smena tanlash */}
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  Smena (ixtiyoriy — DRL Defect Details fayl uchun)
+                </p>
+                <div className="flex gap-2">
+                  {[
+                    { key: '',  label: '— Belgilanmagan' },
+                    { key: 'A', label: 'A Smena' },
+                    { key: 'B', label: 'B Smena' },
+                    { key: 'D', label: 'D Smena' },
+                  ].map(s => (
+                    <button
+                      key={s.key}
+                      type="button"
+                      onClick={() => setSelSmena(s.key)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                        selSmena === s.key
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background border-border text-muted-foreground hover:border-primary/50'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {uploadErr && (
                 <div className="border border-red-500/30 bg-red-500/10 rounded-lg p-3 flex items-center gap-2">
                   <X className="w-4 h-4 text-red-400 flex-shrink-0" />
@@ -336,7 +367,7 @@ export default function DRLAdminPage() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-border bg-muted/30">
-                      {['Sana', 'Smena', 'Fayl', 'Qatorlar', 'Jami nuqson', 'Modellar', 'Yuklagan', ''].map(h => (
+                      {['Sana', 'Smena', 'A/B/D', 'Fayl', 'Qatorlar', 'Jami nuqson', 'Modellar', 'Yuklagan', ''].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{h}</th>
                       ))}
                     </tr>
@@ -349,6 +380,17 @@ export default function DRLAdminPage() {
                           <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs font-mono">
                             {shiftLabel(b.shift_from)} → {shiftLabel(b.shift_to)}
                           </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {b.shift_label ? (
+                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                              b.shift_label === 'A' ? 'bg-blue-500/15 text-blue-300' :
+                              b.shift_label === 'B' ? 'bg-emerald-500/15 text-emerald-300' :
+                              'bg-amber-500/15 text-amber-300'
+                            }`}>{b.shift_label}</span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-sm text-foreground max-w-[140px] truncate">{b.file_name}</td>
                         <td className="px-4 py-3 text-sm font-semibold text-foreground">{b.row_count?.toLocaleString()}</td>
