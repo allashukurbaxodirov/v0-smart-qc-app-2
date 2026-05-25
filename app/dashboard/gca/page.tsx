@@ -235,7 +235,7 @@ export default function GCAPage() {
 
   // Date range — Barchasi tab (overview)
   const [dateFrom, setDateFrom] = useState<string>(() => {
-    const d = new Date(); d.setDate(d.getDate() - 30)
+    const d = new Date(); d.setDate(d.getDate() - 60)
     return d.toISOString().slice(0, 10)
   })
   const [dateTo, setDateTo] = useState<string>(() => new Date().toISOString().slice(0, 10))

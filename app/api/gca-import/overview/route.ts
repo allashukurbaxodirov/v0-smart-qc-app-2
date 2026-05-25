@@ -33,8 +33,8 @@ export async function GET(req: NextRequest) {
       FROM gca_import_batches b
       JOIN gca_imports i ON i.import_batch = b.import_batch
       WHERE 1=1
-        ${from ? sql`AND b.date_from >= ${from}::date` : sql``}
-        ${to   ? sql`AND b.date_to   <= ${to}::date`   : sql``}
+        ${from ? sql`AND b.date_to   >= ${from}::date` : sql``}
+        ${to   ? sql`AND b.date_from <= ${to}::date`   : sql``}
       GROUP BY b.shift_label
       ORDER BY total_weight DESC
     `
@@ -55,8 +55,8 @@ export async function GET(req: NextRequest) {
           ELSE 0 END                                          AS wdpv
       FROM gca_import_batches b
       WHERE 1=1
-        ${from ? sql`AND b.date_from >= ${from}::date` : sql``}
-        ${to   ? sql`AND b.date_to   <= ${to}::date`   : sql``}
+        ${from ? sql`AND b.date_to   >= ${from}::date` : sql``}
+        ${to   ? sql`AND b.date_from <= ${to}::date`   : sql``}
       ORDER BY b.date_from ASC, b.imported_at ASC
     `
 
@@ -74,8 +74,8 @@ export async function GET(req: NextRequest) {
       FROM gca_import_batches b
       JOIN gca_imports i ON i.import_batch = b.import_batch
       WHERE 1=1
-        ${from ? sql`AND b.date_from >= ${from}::date` : sql``}
-        ${to   ? sql`AND b.date_to   <= ${to}::date`   : sql``}
+        ${from ? sql`AND b.date_to   >= ${from}::date` : sql``}
+        ${to   ? sql`AND b.date_from <= ${to}::date`   : sql``}
     `
 
     return NextResponse.json({ byShift, trend, totals })
