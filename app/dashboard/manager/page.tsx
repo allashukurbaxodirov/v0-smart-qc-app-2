@@ -306,7 +306,6 @@ export default function ManagerPage() {
     const interval = setInterval(apply, 60_000)
     return () => clearInterval(interval)
   }, [])
-  const [expandedShop, setExpandedShop] = useState<ShopType | null>(null)
 
   const { records: gcaRecs,  loading: gcaLoad, refresh: gcaRefresh }   = useGCA()
   const { records: dAllRecs, loading: dLoad,   refresh: dRefresh   }   = useDRecords()
@@ -410,29 +409,6 @@ export default function ManagerPage() {
     })
   }
 
-  const lineDetail = useMemo(() => {
-    if (!expandedShop) return []
-    return SHOP_LINES[expandedShop].map(line => {
-      const le      = shiftEntries.filter(e => e.shop === expandedShop && e.line === line)
-      const lineQR  = filteredQRecs.filter(r => r.shop === expandedShop && r.sector === line)
-      const lineGCA = gcaRecs.filter(r => r.shop === expandedShop && r.sector === line)
-      const lineD10 = d10Recs.filter(r => r.shop === expandedShop && r.sector === line)
-      const lineD20 = d20Recs.filter(r => r.shop === expandedShop && r.sector === line)
-      const gcaCnt  = lineGCA.reduce((s, r) => s + r.count, 0)
-      const wdpv    = VEHICLES > 0 ? gcaCnt / VEHICLES : 0
-      return {
-        line,
-        wdpv,
-        gs:     gcaSt(wdpv, expandedShop),
-        d10cnt: lineD10.reduce((s, r) => s + r.count, 0),
-        d20cnt: lineD20.reduce((s, r) => s + r.count, 0),
-        drr:    lineQR.filter(r => r.type === 'drr').reduce((s, r) => s + r.count, 0),
-        drl:    lineQR.filter(r => r.type === 'drl').reduce((s, r) => s + r.count, 0),
-        inc:    le.reduce((s, e) => s + e.incoming, 0),
-        pdi:    lineQR.filter(r => r.type === 'pdi').reduce((s, r) => s + r.count, 0),
-      }
-    })
-  }, [expandedShop, shiftEntries, filteredQRecs, gcaRecs, d10Recs, d20Recs])
 
   const critCount = shopMetrics.filter(s => s.ov === 'crit').length
   const warnCount = shopMetrics.filter(s => s.ov === 'warn').length
@@ -823,56 +799,30 @@ export default function ManagerPage() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {shopMetrics.map(m => (
-                    <React.Fragment key={m.shop}>
-                      <tr
-                        onClick={() => setExpandedShop(expandedShop === m.shop ? null : m.shop)}
-                        className={`cursor-pointer transition-colors hover:bg-muted/20 ${ST[m.ov].row}`}
-                      >
-                        <td className="px-5 py-3.5">
-                          <div className="flex items-center gap-2.5">
-                            <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${ST[m.ov].dot}`} />
-                            <span className="text-sm font-semibold text-foreground">{m.shop}</span>
-                            <span className="ml-auto text-muted-foreground/60">
-                              {expandedShop === m.shop
-                                ? <ChevronDown className="w-4 h-4" />
-                                : <ChevronRight className="w-4 h-4" />}
-                            </span>
-                          </div>
-                        </td>
-                        <MCell v={parseFloat(m.wdpv.toFixed(2))} st={m.gs} f2 />
-                        <MCell v={m.gsipDrr} st={drrSt(m.gsipDrr)} />
-                        <DrlCell v={m.gsipDrl} st={drlSt(m.gsipDrl)} onClick={() => openDrl(gsipShopName(m.shop))} />
-                        <MCell v={m.pdi} st={pdiSt(m.pdi)} />
-                        <td className="px-4 py-3.5 text-center">
-                          <span className={`px-3 py-1 rounded-md text-sm font-semibold border ${ST[m.ov].pill}`}>
-                            {ST[m.ov].label}
-                          </span>
-                        </td>
-                      </tr>
-
-                      {expandedShop === m.shop && lineDetail.map(({ line, wdpv, gs, drr, drl, pdi }) => (
-                        <tr key={line} className="bg-muted/5 hover:bg-muted/15 transition-colors">
-                          <td className="px-5 py-2.5 pl-12">
-                            <div className="flex items-center gap-2">
-                              <span className="text-muted-foreground/50 text-xs">└</span>
-                              <span className="text-sm text-muted-foreground font-medium">{line}</span>
-                            </div>
-                          </td>
-                          <MCell v={parseFloat(wdpv.toFixed(2))} st={gs} f2 />
-                          <MCell v={drr} st={drrSt(drr)} />
-                          <MCell v={drl} st={drlSt(drl)} />
-                          <MCell v={pdi} st={pdiSt(pdi)} />
-                          <td className="px-4 py-2.5 text-center text-sm text-muted-foreground/40">—</td>
-                        </tr>
-                      ))}
-                    </React.Fragment>
+                    <tr key={m.shop} className={`transition-colors hover:bg-muted/20 ${ST[m.ov].row}`}>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2.5">
+                          <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${ST[m.ov].dot}`} />
+                          <span className="text-sm font-semibold text-foreground">{m.shop}</span>
+                        </div>
+                      </td>
+                      <MCell v={parseFloat(m.wdpv.toFixed(2))} st={m.gs} f2 />
+                      <MCell v={m.gsipDrr} st={drrSt(m.gsipDrr)} />
+                      <DrlCell v={m.gsipDrl} st={drlSt(m.gsipDrl)} onClick={() => openDrl(gsipShopName(m.shop))} />
+                      <MCell v={m.pdi} st={pdiSt(m.pdi)} />
+                      <td className="px-4 py-3.5 text-center">
+                        <span className={`px-3 py-1 rounded-md text-sm font-semibold border ${ST[m.ov].pill}`}>
+                          {ST[m.ov].label}
+                        </span>
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
             </div>
 
             <div className="px-5 py-2.5 border-t border-border bg-muted/10 text-xs text-muted-foreground">
-              DRR / DRL — GSIP import ma'lumotlari · Sehni bosing — sektorlar bo'yicha ko'rsatkichlar ochiladi
+              DRR / DRL — GSIP import ma'lumotlari
             </div>
           </div>
 
