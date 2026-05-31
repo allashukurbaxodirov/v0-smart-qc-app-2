@@ -419,7 +419,7 @@ export default function ManagerPage() {
     { label: 'D20',               value: String(plant.d20),     st: dCntSt(plant.d20),   sub: 'Nuqsonlar soni',       icon: <Layers className="w-5 h-5" /> },
     { label: 'DRR',               value: drrStats ? String(drrStats.totals.total_count) : String(plant.drr), st: drrSt(drrStats?.totals.total_count ?? plant.drr), sub: drrStats ? `GSIP: ${drrStats.totals.date_from}` : 'Rad etilgan', icon: <TrendingDown className="w-5 h-5" /> },
     { label: 'DRL',               value: drlStats ? String(drlStats.totals.total_count) : String(plant.drl), st: drlSt(plant.drl), sub: drlStats ? `GSIP: ${drlStats.totals.date_from}` : 'Qayta ishlangan', icon: <TrendingUp className="w-5 h-5" />, clickable: true },
-    { label: 'Kiruvchi nazorat',  value: String(plant.incomingDefect), st: incSt(plant.incomingDefect), sub: `Jami: ${plant.incomingTotal} ta detal`, icon: <Package className="w-5 h-5" /> },
+    { label: 'Incoming Control',  value: String(plant.incomingDefect), st: incSt(plant.incomingDefect), sub: `Jami: ${plant.incomingTotal} ta detal`, icon: <Package className="w-5 h-5" /> },
     { label: 'PDI',               value: String(plant.pdi),     st: pdiSt(plant.pdi),    sub: 'Yetkazish nazorati',   icon: <CheckCircle className="w-5 h-5" /> },
   ]
 
