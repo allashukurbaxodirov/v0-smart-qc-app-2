@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     const wdpv        = vehCount > 0 ? Math.round((totalWeight / vehCount) * 100) / 100 : 0
 
     // Sehlar bo'yicha (faktor taqsimoti bilan) — prod_team dan guruhlanadi
-    const byShop = await sql`
+    const byShopRaw = await sql`
       SELECT
         CASE
           WHEN UPPER(i.prod_team) LIKE 'PA.%' OR UPPER(i.prod_team) = 'PA' THEN 'PAINT SHOP'
@@ -96,30 +96,36 @@ export async function GET(req: NextRequest) {
         COALESCE(SUM(CASE WHEN i.gca_weight = 50 THEN 1 ELSE 0 END), 0)::int      AS f50,
         COALESCE(SUM(CASE WHEN i.gca_weight = 20 THEN 1 ELSE 0 END), 0)::int      AS f20,
         COALESCE(SUM(CASE WHEN i.gca_weight = 10 THEN 1 ELSE 0 END), 0)::int      AS f10,
-        COALESCE(SUM(CASE WHEN i.gca_weight = 5  THEN 1 ELSE 0 END), 0)::int      AS f5,
-        CASE WHEN COUNT(DISTINCT i.vin) > 0
-          THEN ROUND(SUM(i.gca_weight) / COUNT(DISTINCT i.vin)::numeric, 2)
-          ELSE 0 END                                                               AS wdpv
+        COALESCE(SUM(CASE WHEN i.gca_weight = 5  THEN 1 ELSE 0 END), 0)::int      AS f5
       ${fromClause}
       ${whereClause}
       GROUP BY 1 ORDER BY total_weight DESC
     `
+    // WDPV per shop = shop_total_weight / TOTAL inspected vehicles (not per-shop vehicles)
+    const byShop = byShopRaw.map(r => ({
+      ...r,
+      total_weight: Number(r.total_weight),
+      wdpv: vehCount > 0 ? Math.round((Number(r.total_weight) / vehCount) * 100) / 100 : 0,
+    }))
 
     // Model bo'yicha
-    const byModel = await sql`
+    const byModelRaw = await sql`
       SELECT
         i.model_label,
         i.model_group,
         COUNT(*)::int                  AS row_count,
         COALESCE(SUM(i.gca_weight), 0) AS total_weight,
-        COUNT(DISTINCT i.vin)::int     AS veh_count,
-        CASE WHEN COUNT(DISTINCT i.vin) > 0
-          THEN ROUND(SUM(i.gca_weight) / COUNT(DISTINCT i.vin)::numeric, 2)
-          ELSE 0 END                   AS wdpv
+        COUNT(DISTINCT i.vin)::int     AS veh_count
       ${fromClause}
       ${whereClause}
       GROUP BY i.model_label, i.model_group ORDER BY total_weight DESC
     `
+    // WDPV per model = model_total_weight / TOTAL inspected vehicles
+    const byModel = byModelRaw.map(r => ({
+      ...r,
+      total_weight: Number(r.total_weight),
+      wdpv: vehCount > 0 ? Math.round((Number(r.total_weight) / vehCount) * 100) / 100 : 0,
+    }))
 
     // Part Level 1 bo'yicha (top 10)
     const byPartLv1 = await sql`

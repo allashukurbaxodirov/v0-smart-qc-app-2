@@ -131,6 +131,7 @@ export async function GET(req: NextRequest) {
       const row = gcaByShift.find(r => r.shift_label === s)
       const w = Number(row?.total_weight ?? 0)
       const v = Number(row?.veh_count ?? 0)
+      // WDPV = Σ(factor × defect_count) / total inspected vehicles for this shift
       gca[s] = {
         total_weight: w,
         veh_count:    v,
@@ -145,8 +146,9 @@ export async function GET(req: NextRequest) {
             shop:         r.shop,
             total_weight: Number(r.total_weight),
             veh_count:    Number(r.veh_count),
-            wdpv:         Number(r.veh_count) > 0
-              ? Math.round((Number(r.total_weight) / Number(r.veh_count)) * 100) / 100
+            // Per-shop WDPV uses shift-total vehicles as denominator (not per-shop)
+            wdpv:         v > 0
+              ? Math.round((Number(r.total_weight) / v) * 100) / 100
               : 0,
           })),
       }
