@@ -183,12 +183,25 @@ function DRLPageContent() {
   const [drillSearch,  setDrillSearch]  = useState('')
 
   const openDrill = async (lv1: string) => {
-    if (!stats?.batchId) return
     setDrillLoading(true)
     setDrill(null)
     setDrillSearch('')
     try {
-      const res  = await fetch(`/api/drl-import/drilldown?batch=${stats.batchId}&lv1=${encodeURIComponent(lv1)}`)
+      let url: string
+      if (stats?.batchId) {
+        // Batch mode — use batch UUID
+        url = `/api/drl-import/drilldown?batch=${stats.batchId}&lv1=${encodeURIComponent(lv1)}`
+      } else {
+        // Date mode — use from/to + optional shift
+        const range = filterMode === 'batch'
+          ? null
+          : getDateRange(filterMode, selDate, selMonth, selYear)
+        if (!range) { setDrillLoading(false); return }
+        const params = new URLSearchParams({ from: range.from, to: range.to, lv1 })
+        if (selSmena !== 'all') params.set('shift', selSmena)
+        url = `/api/drl-import/drilldown?${params}`
+      }
+      const res  = await fetch(url)
       const data = await res.json()
       setDrill(data)
     } finally {
