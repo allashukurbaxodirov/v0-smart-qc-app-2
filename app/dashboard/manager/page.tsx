@@ -30,7 +30,7 @@ interface DrlTotals {
   row_count: number; total_count: number; damas_count: number; labo_count: number
   date_from: string; date_to: string; shift_from: string; shift_to: string; file_name: string
 }
-interface DrlShop  { shop: string;  total: number }
+interface DrlShop  { shop: string; total: number; damas: number; labo: number }
 interface DrlFault {
   fault_code: string; fault_name: string; total_count: number; drl_ratio_sum: number
   model_damas: number; model_labo: number; top_shop: string; top_prod_team: string
@@ -49,7 +49,7 @@ interface DrrTotals {
   damas_count: number; labo_count: number
   date_from: string; date_to: string; shift_from: string; shift_to: string
 }
-interface DrrShop { shop: string; total: number; veh_total: number }
+interface DrrShop { shop: string; total: number; veh_total: number; damas: number; labo: number }
 interface DrrStats {
   batchId: string
   totals:  DrrTotals
@@ -58,7 +58,8 @@ interface DrrStats {
 
 // ─── GCA GSIP Types ────────────────────────────────────────────────────────────
 interface GcaGsipShop {
-  shop: string; wdpv: number; total_weight: number; veh_count: number
+  shop: string; wdpv: number; damas_wdpv: number; labo_wdpv: number
+  total_weight: number; damas_weight: number; labo_weight: number; veh_count: number
 }
 interface GcaGsipTotals {
   wdpv: number; total_weight: number; veh_count: number
@@ -354,23 +355,42 @@ export default function ManagerPage() {
 
   const shopMetrics = useMemo(() => SHOPS_ALL.map(shop => {
     // GCA WDPV: GSIP import dan (agar mavjud) → fallback: qo'lda kiritilgan
-    const gsipKey     = gsipShopName(shop)  // WELDING-1/WELDING-2 → WELDING
-    const gsipGcaRow  = gcaGsipStats?.byShop.find(s => s.shop === gsipKey)
-    const gcaCnt      = filteredGcaRecs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
-    const wdpv        = gsipGcaRow
-      ? Number(gsipGcaRow.wdpv)
+    const gsipKey    = gsipShopName(shop)  // WELDING-1/WELDING-2 → WELDING
+    const gsipGcaRow = gcaGsipStats?.byShop.find(s => s.shop === gsipKey)
+    const gcaCnt     = filteredGcaRecs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
+
+    // WELDING-1 = DAMAS (R7), WELDING-2 = LABO (R7A)
+    const isW1 = shop === 'WELDING-1'
+    const isW2 = shop === 'WELDING-2'
+
+    // GCA WDPV split by model for WELDING
+    const wdpv = gsipGcaRow
+      ? (isW1 ? Number(gsipGcaRow.damas_wdpv)
+        : isW2 ? Number(gsipGcaRow.labo_wdpv)
+        :        Number(gsipGcaRow.wdpv))
       : (VEHICLES > 0 ? gcaCnt / VEHICLES : 0)
-    const gs      = gcaSt(wdpv, shop)
-    const d10cnt  = filteredD10Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
-    const d20cnt  = filteredD20Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
-    const shopQR  = filteredQRecs.filter(r => r.shop === shop)
-    const drr     = shopQR.filter(r => r.type === 'drr').reduce((s, r) => s + r.count, 0)
-    const drl     = shopQR.filter(r => r.type === 'drl').reduce((s, r) => s + r.count, 0)
-    const pdi     = shopQR.filter(r => r.type === 'pdi').reduce((s, r) => s + r.count, 0)
-    const inc     = shiftEntries.filter(e => e.shop === shop).reduce((s, e) => s + e.incoming, 0)
-    // GSIP DRR/DRL
-    const gsipDrr = drrStats?.byShop.find(s => s.shop === gsipKey)?.total ?? 0
-    const gsipDrl = drlStats?.byShop.find(s => s.shop === gsipKey)?.total ?? 0
+
+    const gs     = gcaSt(wdpv, shop)
+    const d10cnt = filteredD10Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
+    const d20cnt = filteredD20Recs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0)
+    const shopQR = filteredQRecs.filter(r => r.shop === shop)
+    const drr    = shopQR.filter(r => r.type === 'drr').reduce((s, r) => s + r.count, 0)
+    const drl    = shopQR.filter(r => r.type === 'drl').reduce((s, r) => s + r.count, 0)
+    const pdi    = shopQR.filter(r => r.type === 'pdi').reduce((s, r) => s + r.count, 0)
+    const inc    = shiftEntries.filter(e => e.shop === shop).reduce((s, e) => s + e.incoming, 0)
+
+    // GSIP DRR — split WELDING by model
+    const drrRow  = drrStats?.byShop.find(s => s.shop === gsipKey)
+    const gsipDrr = drrRow
+      ? (isW1 ? (drrRow.damas ?? 0) : isW2 ? (drrRow.labo ?? 0) : drrRow.total)
+      : 0
+
+    // GSIP DRL — split WELDING by model
+    const drlRow  = drlStats?.byShop.find(s => s.shop === gsipKey)
+    const gsipDrl = drlRow
+      ? (isW1 ? (drlRow.damas ?? 0) : isW2 ? (drlRow.labo ?? 0) : drlRow.total)
+      : 0
+
     // Umumiy holat
     const ov = overall(gs, drrSt(gsipDrr), drlSt(gsipDrl), pdiSt(pdi))
     return { shop, wdpv, gs, d10cnt, d20cnt, drr, drl, inc, pdi, gsipDrr, gsipDrl, ov }

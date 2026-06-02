@@ -68,9 +68,12 @@ export async function GET(req: NextRequest) {
 
     // Sehlar bo'yicha taqsimot
     const byShop = await sql`
-      SELECT shop,
-             SUM(count)::int   AS total,
-             SUM(veh_cnt)::int AS veh_total
+      SELECT
+        shop,
+        SUM(count)::int                                                      AS total,
+        SUM(veh_cnt)::int                                                    AS veh_total,
+        SUM(CASE WHEN model_group='R7'  THEN count ELSE 0 END)::int          AS damas,
+        SUM(CASE WHEN model_group='R7A' THEN count ELSE 0 END)::int          AS labo
       FROM drr_imports
       ${whereClause}
       GROUP BY shop ORDER BY total DESC

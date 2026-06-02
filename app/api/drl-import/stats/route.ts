@@ -83,7 +83,11 @@ export async function GET(req: NextRequest) {
     }
 
     const byShop = await sql`
-      SELECT i.shop, SUM(i.count)::int AS total
+      SELECT
+        i.shop,
+        SUM(i.count)::int                                                    AS total,
+        SUM(CASE WHEN i.model_group='R7'  THEN i.count ELSE 0 END)::int     AS damas,
+        SUM(CASE WHEN i.model_group='R7A' THEN i.count ELSE 0 END)::int     AS labo
       ${fromClause}
       ${whereClause}
       GROUP BY i.shop ORDER BY total DESC

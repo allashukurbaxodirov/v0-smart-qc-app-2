@@ -92,6 +92,8 @@ export async function GET(req: NextRequest) {
         END                                                                        AS shop,
         COUNT(*)::int                                                              AS row_count,
         COALESCE(SUM(i.gca_weight), 0)::numeric                                   AS total_weight,
+        COALESCE(SUM(CASE WHEN i.model_group='R7'  THEN i.gca_weight ELSE 0 END), 0)::numeric AS damas_weight,
+        COALESCE(SUM(CASE WHEN i.model_group='R7A' THEN i.gca_weight ELSE 0 END), 0)::numeric AS labo_weight,
         COUNT(DISTINCT i.vin)::int                                                 AS veh_count,
         COALESCE(SUM(CASE WHEN i.gca_weight = 50 THEN 1 ELSE 0 END), 0)::int      AS f50,
         COALESCE(SUM(CASE WHEN i.gca_weight = 20 THEN 1 ELSE 0 END), 0)::int      AS f20,
@@ -104,8 +106,12 @@ export async function GET(req: NextRequest) {
     // WDPV per shop = shop_total_weight / TOTAL inspected vehicles (not per-shop vehicles)
     const byShop = byShopRaw.map(r => ({
       ...r,
-      total_weight: Number(r.total_weight),
-      wdpv: vehCount > 0 ? Math.round((Number(r.total_weight) / vehCount) * 100) / 100 : 0,
+      total_weight:  Number(r.total_weight),
+      damas_weight:  Number(r.damas_weight),
+      labo_weight:   Number(r.labo_weight),
+      wdpv:          vehCount > 0 ? Math.round((Number(r.total_weight) / vehCount) * 100) / 100 : 0,
+      damas_wdpv:    vehCount > 0 ? Math.round((Number(r.damas_weight) / vehCount) * 100) / 100 : 0,
+      labo_wdpv:     vehCount > 0 ? Math.round((Number(r.labo_weight)  / vehCount) * 100) / 100 : 0,
     }))
 
     // Model bo'yicha
