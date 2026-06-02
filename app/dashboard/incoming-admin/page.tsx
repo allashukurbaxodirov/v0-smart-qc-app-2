@@ -98,7 +98,7 @@ export default function IncomingAdminPage() {
       defectCodeName: Number(form.defectCount) > 0 ? (selected?.name ?? null) : null,
       defectReason:   form.defectReason.trim() || null,
       shift:          form.shift,
-      date:           form.date,
+      date:           today(),
       createdByName:  null,
     })
     setShowSuccess(true)
@@ -352,19 +352,7 @@ export default function IncomingAdminPage() {
                   )}
                 </div>
 
-                {/* 9. Sana */}
-                <div className="space-y-1.5">
-                  <label className="text-sm font-semibold text-foreground">Sana</label>
-                  <input
-                    type="date"
-                    name="date"
-                    value={form.date}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
-                </div>
-
-                {/* 10. Rasm */}
+                {/* 9. Rasm */}
                 <div className="space-y-1.5">
                   <label className="text-sm font-semibold text-foreground">Rasm (ixtiyoriy)</label>
                   <label className="flex flex-col items-center gap-2 border-2 border-dashed border-border rounded-xl p-4 cursor-pointer hover:border-primary/50 transition-colors">
