@@ -24,7 +24,6 @@ const ROLES: {
   { value: 'admin',              label: 'Admin',               color: 'text-purple-600',  bg: 'bg-purple-500/15 border-purple-500/40' },
   { value: 'manager',            label: 'Rahbar',              color: 'text-blue-600',    bg: 'bg-blue-500/15   border-blue-500/40'   },
   { value: 'gca_auditor',        label: 'GCA Auditor',         color: 'text-emerald-600', bg: 'bg-emerald-500/15 border-emerald-500/40', needsShift: true, needsShop: true  },
-  { value: 'cmm_inspector',      label: 'CMM Inspector',       color: 'text-teal-600',    bg: 'bg-teal-500/15   border-teal-500/40',    needsShift: true, needsShop: true  },
   { value: 'd10_inspector',      label: 'D10 Inspector',       color: 'text-sky-600',     bg: 'bg-sky-500/15    border-sky-500/40',     needsShift: true, needsShop: true  },
   { value: 'd20_inspector',      label: 'D20 Inspector',       color: 'text-indigo-600',  bg: 'bg-indigo-500/15 border-indigo-500/40',  needsShift: true, needsShop: true  },
   { value: 'ga_engineer',        label: 'GA Engineer',         color: 'text-violet-600',  bg: 'bg-violet-500/15 border-violet-500/40',  needsShift: false, needsShop: true  },

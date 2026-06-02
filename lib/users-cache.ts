@@ -27,7 +27,6 @@ const SEED: CachedUser[] = [
   { id: 'seed-1',  tabelNumber: 'T001', email: 'superadmin@uzauto.uz', password: 'super123',    name: 'Super Admin',        role: 'superadmin',         shift: null, shop: null, created_at: new Date().toISOString() },
   { id: 'seed-2',  tabelNumber: 'T002', email: 'demo@uzauto.uz',        password: 'demo123',     name: 'Demo Admin',         role: 'admin',              shift: null, shop: null, created_at: new Date().toISOString() },
   { id: 'seed-3',  tabelNumber: 'T003', email: 'gca@uzauto.uz',         password: 'gca123',      name: 'GCA Auditor',        role: 'gca_auditor',        shift: null, shop: null, created_at: new Date().toISOString() },
-  { id: 'seed-4',  tabelNumber: 'T004', email: 'cmm@uzauto.uz',         password: 'cmm123',      name: 'CMM Inspector',      role: 'cmm_inspector',      shift: null, shop: null, created_at: new Date().toISOString() },
   { id: 'seed-5',  tabelNumber: 'T005', email: 'd10@uzauto.uz',         password: 'd10123',      name: 'D10 Inspector',      role: 'd10_inspector',      shift: null, shop: null, created_at: new Date().toISOString() },
   { id: 'seed-6',  tabelNumber: 'T006', email: 'd20@uzauto.uz',         password: 'd20123',      name: 'D20 Inspector',      role: 'd20_inspector',      shift: null, shop: null, created_at: new Date().toISOString() },
   { id: 'seed-7',  tabelNumber: 'T007', email: 'engineer@uzauto.uz',    password: 'engineer123', name: 'GA Engineer',        role: 'ga_engineer',        shift: null, shop: null, created_at: new Date().toISOString() },

@@ -5,7 +5,6 @@ const ROLE_REDIRECTS: Record<string, string> = {
   superadmin:         '/dashboard/superadmin',
   admin:              '/dashboard',
   gca_auditor:        '/dashboard/gca-admin',
-  cmm_inspector:      '/dashboard/cmm-admin',
   d10_inspector:      '/dashboard/d10-admin',
   d20_inspector:      '/dashboard/d20-admin',
   drr_inspector:      '/dashboard/drr-admin',

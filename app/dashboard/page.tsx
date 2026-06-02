@@ -11,7 +11,6 @@ const ROLE_REDIRECT: Record<string, string> = {
   ga_engineer:          '/dashboard/ga-engineer',
   welding_engineer:     '/dashboard/welding-engineer',
   gca_auditor:          '/dashboard/gca',
-  cmm_inspector:        '/dashboard/cmm',
   d10_inspector:        '/dashboard/d10',
   d20_inspector:        '/dashboard/d20',
   drr_inspector:        '/dashboard/drr-admin',

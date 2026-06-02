@@ -58,7 +58,7 @@ const Damas3DModal = dynamic(
 
 type ShopType = 'PRESS SHOP' | 'WELDING-1' | 'WELDING-2' | 'PAINT SHOP' | 'GA'
 
-const LOCKED_ROLES = ['gca_auditor', 'cmm_inspector', 'ga_engineer', 'welding_engineer']
+const LOCKED_ROLES = ['gca_auditor', 'ga_engineer', 'welding_engineer']
 
 export default function GCAAdminPage() {
   const { records, addRecord, deleteRecord } = useGCA()

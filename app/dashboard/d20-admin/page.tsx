@@ -14,7 +14,7 @@ import Link from 'next/link'
 type D20Shop = 'PRESS SHOP'
 type CarModel = 'DAMAS' | 'LABO'
 
-const LOCKED_ROLES = ['d20_inspector', 'cmm_inspector', 'ga_engineer', 'welding_engineer']
+const LOCKED_ROLES = ['d20_inspector', 'ga_engineer', 'welding_engineer']
 
 export default function D20AdminPage() {
   const { records, addRecord, deleteRecord } = useDRecords()

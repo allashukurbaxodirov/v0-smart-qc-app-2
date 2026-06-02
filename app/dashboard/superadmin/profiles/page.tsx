@@ -82,23 +82,6 @@ const PROFILES = [
     issues: [],
   },
   {
-    role: 'cmm_inspector',
-    label: 'CMM Inspector',
-    color: 'text-teal-600',
-    bg: 'bg-teal-500/10 border-teal-500/30',
-    dot: 'bg-teal-500',
-    path: '/dashboard/cmm-admin',
-    features: {
-      'Nuqson kiritish':   true,
-      'Shift lock':        false,
-      'Shop lock':         true,
-      'DB-backed storage': true,
-      'Sektor tanlash':    true,
-    },
-    apis: ['/api/me', '/api/gca'],
-    issues: ['Shift lock yo\'q (shift maydoni qulflangan emas)'],
-  },
-  {
     role: 'd10_inspector',
     label: 'D10 Inspector',
     color: 'text-sky-600',
@@ -296,8 +279,8 @@ export default function ProfilesPage() {
   const getIssues = (p: typeof PROFILES[0]) => {
     const issues = [...p.issues]
     const roleMeta = PROFILES.find(x => x.role === p.role)!
-    const needsShift = ['gca_auditor','cmm_inspector','d10_inspector','d20_inspector','drr_inspector','drl_inspector','pdi_inspector','incoming_inspector'].includes(p.role)
-    const needsShop  = ['gca_auditor','cmm_inspector','d10_inspector','d20_inspector','drr_inspector','drl_inspector','pdi_inspector','ga_engineer','welding_engineer'].includes(p.role)
+    const needsShift = ['gca_auditor','d10_inspector','d20_inspector','drr_inspector','drl_inspector','pdi_inspector','incoming_inspector'].includes(p.role)
+    const needsShop  = ['gca_auditor','d10_inspector','d20_inspector','drr_inspector','drl_inspector','pdi_inspector','ga_engineer','welding_engineer'].includes(p.role)
     if (needsShift && missingShift(p.role).length > 0)
       issues.push(`${missingShift(p.role).length} ta foydalanuvchida shift tayinlanmagan`)
     if (needsShop && missingShop(p.role).length > 0)
@@ -516,7 +499,7 @@ export default function ProfilesPage() {
                                 : <span className="px-1 py-0.5 bg-amber-500/10 text-amber-600 rounded text-[10px]">shift?</span>}
                               {u.shop
                                 ? <span className="px-1 py-0.5 bg-success/10 text-success rounded text-[10px] truncate max-w-[60px]">{u.shop?.split(' ')[0]}</span>
-                                : ['ga_engineer','welding_engineer','gca_auditor','cmm_inspector','d10_inspector','d20_inspector','drr_inspector','drl_inspector','pdi_inspector'].includes(profile.role)
+                                : ['ga_engineer','welding_engineer','gca_auditor','d10_inspector','d20_inspector','drr_inspector','drl_inspector','pdi_inspector'].includes(profile.role)
                                   ? <span className="px-1 py-0.5 bg-amber-500/10 text-amber-600 rounded text-[10px]">shop?</span>
                                   : null}
                             </div>

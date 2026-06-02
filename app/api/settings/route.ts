@@ -13,7 +13,6 @@ export interface AppSettings {
   gcaTarget:         number
   ftqTarget:         number
   drrTarget:         number
-  cmmTarget:         number
   alertCritical:     boolean
   alertDailyReport:  boolean
   alertHighDefect:   boolean
@@ -30,7 +29,6 @@ const DEFAULTS: AppSettings = {
   gcaTarget:        98.0,
   ftqTarget:        92.0,
   drrTarget:        95.0,
-  cmmTarget:        96.0,
   alertCritical:    true,
   alertDailyReport: true,
   alertHighDefect:  true,

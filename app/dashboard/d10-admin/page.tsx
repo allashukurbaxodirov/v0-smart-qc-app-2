@@ -14,7 +14,7 @@ import Link from 'next/link'
 type D10Shop = 'PRESS SHOP' | 'WELDING-1' | 'WELDING-2'
 type CarModel = 'DAMAS' | 'LABO'
 
-const LOCKED_ROLES = ['d10_inspector', 'cmm_inspector', 'ga_engineer', 'welding_engineer']
+const LOCKED_ROLES = ['d10_inspector', 'ga_engineer', 'welding_engineer']
 
 export default function D10AdminPage() {
   const { records, addRecord, deleteRecord } = useDRecords()

@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS users (
   password     TEXT NOT NULL,
   name         TEXT NOT NULL,
   role         TEXT NOT NULL CHECK (role IN (
-    'superadmin','admin','gca_auditor','cmm_inspector',
+    'superadmin','admin','gca_auditor',
     'd10_inspector','d20_inspector','ga_engineer','welding_engineer',
     'manager','drr_inspector','drl_inspector','pdi_inspector','incoming_inspector'
   )),

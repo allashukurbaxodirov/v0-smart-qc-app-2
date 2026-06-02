@@ -5,14 +5,11 @@ import { usePathname } from 'next/navigation'
 import {
   BarChart3,
   Home,
-  TrendingUp,
-  AlertTriangle,
   Users,
   Settings,
   LogOut,
   Menu,
   X,
-  Factory,
   ClipboardList,
   Clipboard,
   LayoutDashboard,
@@ -117,24 +114,6 @@ const adminSidebarItems: SidebarItem[] = [
     section: 'dashboards',
   },
   {
-    label: 'Analitika',
-    href: '/dashboard/analytics',
-    icon: <TrendingUp className="w-5 h-5" />,
-    section: 'analytics',
-  },
-  {
-    label: 'Yuqori Defektlar',
-    href: '/dashboard/top-defects',
-    icon: <AlertTriangle className="w-5 h-5" />,
-    section: 'analytics',
-  },
-  {
-    label: 'Ishlab chiqarish',
-    href: '/dashboard/workshops',
-    icon: <Factory className="w-5 h-5" />,
-    section: 'operations',
-  },
-  {
     label: 'Audit va Hisobotlar',
     href: '/dashboard/reports',
     icon: <ClipboardList className="w-5 h-5" />,
@@ -170,21 +149,6 @@ const gcaAuditorSidebarItems: SidebarItem[] = [
   {
     label: 'GCA Admin paneli',
     href: '/dashboard/gca-admin',
-    icon: <Clipboard className="w-5 h-5" />,
-    section: 'main',
-  },
-]
-
-const cmmInspectorSidebarItems: SidebarItem[] = [
-  {
-    label: 'CMM Dashboard',
-    href: '/dashboard/cmm',
-    icon: <Home className="w-5 h-5" />,
-    section: 'main',
-  },
-  {
-    label: 'CMM Admin paneli',
-    href: '/dashboard/cmm-admin',
     icon: <Clipboard className="w-5 h-5" />,
     section: 'main',
   },
@@ -386,8 +350,6 @@ export default function Sidebar() {
     sidebarItems = superAdminSidebarItems
   } else if (userRole === 'gca_auditor') {
     sidebarItems = gcaAuditorSidebarItems
-  } else if (userRole === 'cmm_inspector') {
-    sidebarItems = cmmInspectorSidebarItems
   } else if (userRole === 'd10_inspector') {
     sidebarItems = d10InspectorSidebarItems
   } else if (userRole === 'd20_inspector') {
@@ -465,7 +427,6 @@ export default function Sidebar() {
             drl_inspector:       { label: 'DRL Inspector',     color: 'bg-amber-400/20 text-amber-200 border-amber-400/30' },
             d10_inspector:       { label: 'D10 Inspector',     color: 'bg-cyan-400/20 text-cyan-200 border-cyan-400/30' },
             d20_inspector:       { label: 'D20 Inspector',     color: 'bg-violet-400/20 text-violet-200 border-violet-400/30' },
-            cmm_inspector:       { label: 'CMM Inspector',     color: 'bg-pink-400/20 text-pink-200 border-pink-400/30' },
             pdi_inspector:       { label: 'PDI Inspector',     color: 'bg-purple-400/20 text-purple-200 border-purple-400/30' },
             incoming_inspector:  { label: 'Incoming Control',  color: 'bg-rose-400/20 text-rose-200 border-rose-400/30' },
           }

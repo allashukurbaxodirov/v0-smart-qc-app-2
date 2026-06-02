@@ -18,7 +18,7 @@ function isAdmin(role: string) {
 
 const VALID_ROLES = [
   'superadmin', 'admin', 'manager',
-  'gca_auditor', 'cmm_inspector', 'd10_inspector', 'd20_inspector',
+  'gca_auditor', 'd10_inspector', 'd20_inspector',
   'ga_engineer', 'welding_engineer',
   'drr_inspector', 'drl_inspector', 'pdi_inspector', 'incoming_inspector',
 ]

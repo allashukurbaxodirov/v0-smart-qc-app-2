@@ -18,7 +18,6 @@ const DEFAULTS: AppSettings = {
   gcaTarget:        98.0,
   ftqTarget:        92.0,
   drrTarget:        95.0,
-  cmmTarget:        96.0,
   alertCritical:    true,
   alertDailyReport: true,
   alertHighDefect:  true,
@@ -191,7 +190,6 @@ export default function SettingsPage() {
               { key: 'gcaTarget', label: 'GCA maqsadi' },
               { key: 'ftqTarget', label: 'FTQ maqsadi' },
               { key: 'drrTarget', label: 'DRR maqsadi' },
-              { key: 'cmmTarget', label: 'CMM maqsadi' },
             ] as { key: keyof AppSettings; label: string }[]).map(({ key, label }) => (
               <div key={key}>
                 <label className="block text-sm font-medium text-foreground mb-2">{label}</label>

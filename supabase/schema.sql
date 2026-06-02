@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   password     TEXT NOT NULL,
   name         TEXT NOT NULL,
   role         TEXT NOT NULL CHECK (role IN (
-    'superadmin','admin','gca_auditor','cmm_inspector',
+    'superadmin','admin','gca_auditor',
     'd10_inspector','d20_inspector','ga_engineer','welding_engineer',
     'manager','drr_inspector','drl_inspector','pdi_inspector','incoming_inspector'
   )),
@@ -212,7 +212,6 @@ INSERT INTO users (tabel_number, email, password, name, role) VALUES
   ('T001', 'superadmin@uzauto.uz', 'super123',    'Super Admin',        'superadmin'),
   ('T002', 'demo@uzauto.uz',       'demo123',     'Demo Admin',         'admin'),
   ('T003', 'gca@uzauto.uz',        'gca123',      'GCA Auditor',        'gca_auditor'),
-  ('T004', 'cmm@uzauto.uz',        'cmm123',      'CMM Inspector',      'cmm_inspector'),
   ('T005', 'd10@uzauto.uz',        'd10123',      'D10 Inspector',      'd10_inspector'),
   ('T006', 'd20@uzauto.uz',        'd20123',      'D20 Inspector',      'd20_inspector'),
   ('T007', 'engineer@uzauto.uz',   'engineer123', 'GA Engineer',        'ga_engineer'),

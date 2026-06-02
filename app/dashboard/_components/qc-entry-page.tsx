@@ -29,7 +29,7 @@ const FACTORS = [5, 10, 20, 50] as const
 const SHIFTS: QShift[] = ['A', 'B', 'D']
 
 const LOCKED_ROLES = [
-  'gca_auditor','cmm_inspector','d10_inspector','d20_inspector',
+  'gca_auditor','d10_inspector','d20_inspector',
   'drr_inspector','drl_inspector','pdi_inspector','incoming_inspector',
   'ga_engineer','welding_engineer',
 ]
