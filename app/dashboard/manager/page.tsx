@@ -19,9 +19,9 @@ import {
   ResponsiveContainer, BarChart, Legend,
 } from 'recharts'
 import {
-  AlertTriangle, CheckCircle, ChevronDown, ChevronRight,
-  Activity, TrendingDown, TrendingUp, Layers,
-  RefreshCw, Package, Eye, X, ExternalLink, Car,
+  AlertTriangle, ChevronDown,
+  TrendingUp,
+  RefreshCw, Eye, X, ExternalLink, Car,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -94,7 +94,7 @@ function gcaSt(w: number, shop: string): Status {
   return w <= t ? 'ok' : w <= t * 1.5 ? 'warn' : 'crit'
 }
 function dCntSt(v: number): Status { return v <= 5  ? 'ok' : v <= 15 ? 'warn' : 'crit' }
-function incSt(v: number):  Status { return v <= 3  ? 'ok' : v <= 10 ? 'warn' : 'crit' }
+
 function pdiSt(v: number):  Status { return v <= 2  ? 'ok' : v <= 7  ? 'warn' : 'crit' }
 function overall(...ss: Status[]): Status {
   return ss.includes('crit') ? 'crit' : ss.includes('warn') ? 'warn' : 'ok'
@@ -312,7 +312,7 @@ export default function ManagerPage() {
   const { records: dAllRecs, loading: dLoad,   refresh: dRefresh   }   = useDRecords()
   const { entries: allShiftEntries } = useShift()
   const { records: qRecs, refresh: qRefresh }                          = useQRecords()
-  const { records: incomingRecs, refresh: incomingRefresh }            = useIncoming()
+  const { refresh: incomingRefresh }                                   = useIncoming()
 
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date())
   const [refreshing,  setRefreshing]  = useState(false)
@@ -343,11 +343,6 @@ export default function ManagerPage() {
     [allShiftEntries, activeShift, activeDate]
   )
 
-  // Smena+sana bo'yicha filtrlangan incoming yozuvlari
-  const filteredIncoming = useMemo(
-    () => incomingRecs.filter(r => r.shift === activeShift && r.date === activeDate),
-    [incomingRecs, activeShift, activeDate]
-  )
   const filteredQRecs = useMemo(
     () => qRecs.filter(r => r.shift === activeShift && r.date === activeDate),
     [qRecs, activeShift, activeDate]
@@ -396,19 +391,6 @@ export default function ManagerPage() {
     return { shop, wdpv, gs, d10cnt, d20cnt, drr, drl, inc, pdi, gsipDrr, gsipDrl, ov }
   }), [filteredGcaRecs, filteredD10Recs, filteredD20Recs, filteredQRecs, shiftEntries, targetsVer, drrStats, drlStats, gcaGsipStats])
 
-  const plant = useMemo(() => ({
-    wdpv: gcaGsipStats
-      ? Number(gcaGsipStats.totals.wdpv)
-      : (VEHICLES > 0 ? filteredGcaRecs.reduce((s, r) => s + r.count, 0) / VEHICLES : 0),
-    d10:           filteredD10Recs.reduce((s, r) => s + r.count, 0),
-    d20:           filteredD20Recs.reduce((s, r) => s + r.count, 0),
-    drr:           filteredQRecs.filter(r => r.type === 'drr').reduce((s, r) => s + r.count, 0),
-    drl:           filteredQRecs.filter(r => r.type === 'drl').reduce((s, r) => s + r.count, 0),
-    pdi:           filteredQRecs.filter(r => r.type === 'pdi').reduce((s, r) => s + r.count, 0),
-    incomingTotal: filteredIncoming.reduce((s, r) => s + r.totalCount,  0),
-    incomingDefect:filteredIncoming.reduce((s, r) => s + r.defectCount, 0),
-  }), [filteredGcaRecs, filteredD10Recs, filteredD20Recs, filteredQRecs, filteredIncoming, targetsVer, gcaGsipStats])
-
   const gcaChart = useMemo(() => SHOPS_ALL.map(shop => ({
     shop:   shop.replace(' SHOP', '').replace('WELDING-', 'W-'),
     actual: parseFloat((VEHICLES > 0 ? filteredGcaRecs.filter(r => r.shop === shop).reduce((s, r) => s + r.count, 0) / VEHICLES : 0).toFixed(2)),
@@ -433,16 +415,6 @@ export default function ManagerPage() {
   const critCount = shopMetrics.filter(s => s.ov === 'crit').length
   const warnCount = shopMetrics.filter(s => s.ov === 'warn').length
 
-  const kpiCards = [
-    { label: 'GCA WDPV',         value: plant.wdpv.toFixed(2), st: (plant.wdpv <= PLANT_TARGET ? 'ok' : plant.wdpv <= PLANT_TARGET * 1.5 ? 'warn' : 'crit') as Status, sub: `Maqsad ≤ ${PLANT_TARGET}`,  icon: <Activity className="w-5 h-5" /> },
-    { label: 'D10',               value: String(plant.d10),     st: dCntSt(plant.d10),   sub: 'Nuqsonlar soni',       icon: <Layers className="w-5 h-5" /> },
-    { label: 'D20',               value: String(plant.d20),     st: dCntSt(plant.d20),   sub: 'Nuqsonlar soni',       icon: <Layers className="w-5 h-5" /> },
-    { label: 'DRR',               value: drrStats ? String(drrStats.totals.total_count) : String(plant.drr), st: drrSt(drrStats?.totals.total_count ?? plant.drr), sub: drrStats ? `GSIP: ${drrStats.totals.date_from}` : 'Rad etilgan', icon: <TrendingDown className="w-5 h-5" /> },
-    { label: 'DRL',               value: drlStats ? String(drlStats.totals.total_count) : String(plant.drl), st: drlSt(plant.drl), sub: drlStats ? `GSIP: ${drlStats.totals.date_from}` : 'Qayta ishlangan', icon: <TrendingUp className="w-5 h-5" />, clickable: true },
-    { label: 'Incoming Control',  value: String(plant.incomingDefect), st: incSt(plant.incomingDefect), sub: `Jami: ${plant.incomingTotal} ta detal`, icon: <Package className="w-5 h-5" /> },
-    { label: 'PDI',               value: String(plant.pdi),     st: pdiSt(plant.pdi),    sub: 'Yetkazish nazorati',   icon: <CheckCircle className="w-5 h-5" /> },
-  ]
-
   return (
     <div className="min-h-screen bg-background">
       <PageHeader
@@ -452,38 +424,8 @@ export default function ManagerPage() {
 
       <div className="p-5 md:p-6 space-y-6">
 
-        {/* ── 1. SMENA / SANA / HOLAT ───────────────────────────────────────── */}
+        {/* ── 1. HOLAT / YANGILASH ──────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-3">
-
-          {/* Smena tugmalari */}
-          <div className="flex items-center gap-0.5 bg-card border border-border rounded-xl p-1">
-            {(['A', 'B', 'D'] as Shift[]).map(s => (
-              <button
-                key={s}
-                onClick={() => setActiveShift(s)}
-                className={`px-7 py-2.5 rounded-lg text-sm font-bold transition-all ${
-                  activeShift === s
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                }`}
-              >
-                Smena {s}
-              </button>
-            ))}
-          </div>
-
-          {/* Sana */}
-          <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5">
-            <span className="text-sm text-muted-foreground">Sana:</span>
-            <input
-              type="date"
-              value={activeDate}
-              onChange={e => setActiveDate(e.target.value)}
-              className="text-sm font-medium bg-transparent border-0 focus:outline-none text-foreground"
-            />
-          </div>
-
-          {/* Holat belgilari */}
           {critCount > 0 && (
             <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-950/50 border border-rose-700/50">
               <AlertTriangle className="w-4 h-4 text-rose-400" />
@@ -502,8 +444,6 @@ export default function ManagerPage() {
               <span className="text-sm font-semibold text-emerald-300">Barcha sehlar — Normal</span>
             </div>
           )}
-
-          {/* Yangilash */}
           <div className="ml-auto flex items-center gap-2">
             <span suppressHydrationWarning className="hidden sm:block text-xs text-muted-foreground">
               {lastUpdated.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
@@ -517,33 +457,6 @@ export default function ManagerPage() {
               {refreshing ? 'Yangilanmoqda...' : 'Yangilash'}
             </button>
           </div>
-        </div>
-
-        {/* ── 2. KPI KARTOCHKALAR ───────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-          {kpiCards.map(({ label, value, st, sub, icon, clickable }: { label: string; value: string; st: Status; sub: string; icon: React.ReactNode; clickable?: boolean }) => (
-            <div
-              key={label}
-              onClick={clickable ? () => openDrl() : undefined}
-              className={`relative bg-card border rounded-xl p-4 overflow-hidden transition-all
-                ${ST[st].border}
-                ${clickable ? 'cursor-pointer hover:scale-[1.03] hover:shadow-lg hover:border-yellow-400/60 group' : ''}
-                ${clickable && drlOpen && !drlShopFilter ? 'ring-2 ring-yellow-400/50' : ''}
-              `}
-            >
-              {/* Chap chiziq */}
-              <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${ST[st].dot}`} />
-              <div className={`mb-2 ${ST[st].text}`}>{icon}</div>
-              <p className="text-xs text-muted-foreground mb-0.5 font-medium">{label}</p>
-              <p className={`text-2xl font-bold ${ST[st].text}`}>{value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{sub}</p>
-              {clickable && (
-                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ChevronDown className="w-3.5 h-3.5 text-yellow-400" />
-                </div>
-              )}
-            </div>
-          ))}
         </div>
 
         {/* ── DRL GSIP DRILLDOWN PANEL ─────────────────────────────────────── */}
