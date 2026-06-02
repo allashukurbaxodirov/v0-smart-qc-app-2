@@ -324,12 +324,6 @@ const managerSidebarItems: SidebarItem[] = [
     section: 'main',
   },
   {
-    label: 'Analitika',
-    href: '/dashboard/manager/analytics',
-    icon: <BarChart3 className="w-5 h-5" />,
-    section: 'analytics',
-  },
-  {
     label: 'GCA Dashboard',
     href: '/dashboard/gca',
     icon: <BarChart3 className="w-5 h-5" />,
