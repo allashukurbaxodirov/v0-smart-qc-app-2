@@ -297,6 +297,12 @@ const pdiInspectorSidebarItems: SidebarItem[] = [
 
 const incomingInspectorSidebarItems: SidebarItem[] = [
   {
+    label: 'Incoming Dashboard',
+    href: '/dashboard/incoming',
+    icon: <BarChart3 className="w-5 h-5" />,
+    section: 'main',
+  },
+  {
     label: 'Incoming Control',
     href: '/dashboard/incoming-admin',
     icon: <Package className="w-5 h-5" />,
