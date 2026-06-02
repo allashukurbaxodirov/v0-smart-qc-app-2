@@ -1,9 +1,13 @@
 -- ============================================================
 --  Smart QC — TO'LIQ DATABASE SETUP
 --  IT Guruhi uchun — bitta fayl, ketma-ket ishlatiladi
---  PostgreSQL 14+
+--  PostgreSQL 13+
 --  Ishlatish: psql -U postgres -d smart_qc -f SETUP_DATABASE.sql
 -- ============================================================
+
+-- gen_random_uuid() uchun (PostgreSQL 13'dan past versiyalarda kerak;
+-- 13+ da o'rnatilgan, lekin bu qator zararsiz)
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- ─────────────────────────────────────────────────────────────
 -- 1. USERS
@@ -319,6 +323,29 @@ CREATE TABLE IF NOT EXISTS drr_imports (
   veh_cnt       INT          NOT NULL DEFAULT 0
 );
 
+CREATE TABLE IF NOT EXISTS drr_escalations (
+  id            UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+  import_batch  UUID,
+  fault_code    TEXT,
+  fault_name    TEXT        NOT NULL,
+  shop          TEXT,
+  prod_team     TEXT,
+  total_count   INT         NOT NULL DEFAULT 0,
+  total_veh_cnt INT         NOT NULL DEFAULT 0,
+  model_damas   INT         NOT NULL DEFAULT 0,
+  model_labo    INT         NOT NULL DEFAULT 0,
+  assigned_role TEXT        NOT NULL DEFAULT 'ga_engineer',
+  assigned_name TEXT,
+  priority      TEXT        NOT NULL DEFAULT 'high',
+  status        TEXT        NOT NULL DEFAULT 'open',
+  engineer_note TEXT,
+  root_cause    TEXT,
+  action_taken  TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resolved_at   TIMESTAMPTZ
+);
+
 -- ─────────────────────────────────────────────────────────────
 -- 12. GCA GSIP IMPORT JADVALLARI
 -- ─────────────────────────────────────────────────────────────
@@ -373,6 +400,10 @@ CREATE INDEX IF NOT EXISTS idx_drl_batches_at         ON drl_import_batches(impo
 CREATE INDEX IF NOT EXISTS idx_drr_imports_batch      ON drr_imports(import_batch);
 CREATE INDEX IF NOT EXISTS idx_drr_imports_shop       ON drr_imports(shop);
 CREATE INDEX IF NOT EXISTS idx_drr_batches_at         ON drr_import_batches(imported_at DESC);
+CREATE INDEX IF NOT EXISTS idx_drr_esc_status         ON drr_escalations(status);
+CREATE INDEX IF NOT EXISTS idx_drr_esc_role           ON drr_escalations(assigned_role);
+CREATE INDEX IF NOT EXISTS idx_drl_esc_status         ON drl_escalations(status);
+CREATE INDEX IF NOT EXISTS idx_drl_esc_role           ON drl_escalations(assigned_role);
 CREATE INDEX IF NOT EXISTS idx_gca_imports_batch      ON gca_imports(import_batch);
 CREATE INDEX IF NOT EXISTS idx_gca_imports_shop       ON gca_imports(shop);
 CREATE INDEX IF NOT EXISTS idx_gca_imports_date       ON gca_imports(reporting_date);
