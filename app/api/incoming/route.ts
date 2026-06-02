@@ -96,8 +96,11 @@ export async function POST(req: Request) {
   const {
     partNumber, warehouse, supplier, partName,
     totalCount, defectCount, defectCode, defectCodeName,
-    defectReason, shift, date, createdByName,
+    defectReason, shift, date,
   } = body
+
+  // Always use the authenticated user's name from session
+  const createdByName = session.name ?? null
 
   let id: string
   try {
@@ -112,7 +115,7 @@ export async function POST(req: Request) {
          ${totalCount}, ${defectCount ?? 0},
          ${defectCode ?? null}, ${defectCodeName ?? null},
          ${defectReason ?? null},
-         ${shift}, ${date}::date, ${createdByName ?? null})
+         ${shift}, ${date}::date, ${createdByName})
       RETURNING id
     `
     id = row.id
@@ -133,7 +136,7 @@ export async function POST(req: Request) {
     defect_reason:    defectReason ?? null,
     shift,
     date,
-    created_by_name:  createdByName ?? null,
+    created_by_name:  createdByName,
   }
   memCache.unshift(rec)
   return NextResponse.json(toClient(rec))
