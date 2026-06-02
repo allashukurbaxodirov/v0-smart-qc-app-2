@@ -195,9 +195,35 @@ function ChartTip({ active, payload, label }: any) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+type FilterMode = 'latest' | 'today' | 'month' | 'custom'
+type FilterSmena = 'all' | 'A' | 'B' | 'D'
+
+function buildGsipQs(mode: FilterMode, smena: FilterSmena, date: string, month: string): string {
+  const today = new Date().toISOString().split('T')[0]
+  let from = '', to = ''
+  if (mode === 'today')  { from = today; to = today }
+  else if (mode === 'month') {
+    const [y, m] = month.split('-').map(Number)
+    const last   = new Date(y, m, 0).getDate()
+    from = `${month}-01`
+    to   = `${month}-${String(last).padStart(2, '0')}`
+  } else if (mode === 'custom') { from = date; to = date }
+
+  if (!from) return ''
+  const p = new URLSearchParams({ from, to })
+  if (smena !== 'all') p.set('shift', smena)
+  return '?' + p
+}
+
 export default function ManagerPage() {
   const [activeShift,  setActiveShift]  = useState<Shift>('A')
   const [activeDate,   setActiveDate]   = useState(() => new Date().toISOString().split('T')[0])
+
+  // ── GSIP filters ──────────────────────────────────────────────────────────
+  const [filterMode,  setFilterMode]  = useState<FilterMode>('latest')
+  const [filterSmena, setFilterSmena] = useState<FilterSmena>('all')
+  const [filterDate,  setFilterDate]  = useState(() => new Date().toISOString().split('T')[0])
+  const [filterMonth, setFilterMonth] = useState(() => new Date().toISOString().slice(0, 7))
 
   // ── DRL GSIP drilldown ────────────────────────────────────────────────────
   const [drlOpen,      setDrlOpen]      = useState(false)
@@ -207,11 +233,10 @@ export default function ManagerPage() {
   const [drlEmpty,     setDrlEmpty]     = useState(false)
   const [openEscCount, setOpenEscCount] = useState(0)
 
-  const loadDrlStats = useCallback(async () => {
-    setDrlLoading(true)
-    setDrlEmpty(false)
+  const loadDrlStats = useCallback(async (qs = '') => {
+    setDrlLoading(true); setDrlEmpty(false)
     try {
-      const res  = await fetch('/api/drl-import/stats')
+      const res  = await fetch(`/api/drl-import/stats${qs}`)
       const data = await res.json()
       if (data.empty || !data.totals) { setDrlEmpty(true); setDrlStats(null) }
       else setDrlStats(data)
@@ -224,11 +249,10 @@ export default function ManagerPage() {
   const [drrLoading, setDrrLoading] = useState(false)
   const [drrEmpty,   setDrrEmpty]   = useState(false)
 
-  const loadDrrStats = useCallback(async () => {
-    setDrrLoading(true)
-    setDrrEmpty(false)
+  const loadDrrStats = useCallback(async (qs = '') => {
+    setDrrLoading(true); setDrrEmpty(false)
     try {
-      const res  = await fetch('/api/drr-import/stats')
+      const res  = await fetch(`/api/drr-import/stats${qs}`)
       const data = await res.json()
       if (data.empty || !data.totals) { setDrrEmpty(true); setDrrStats(null) }
       else setDrrStats(data)
@@ -237,17 +261,24 @@ export default function ManagerPage() {
   }, [])
 
   // ── GCA GSIP ──────────────────────────────────────────────────────────────
-  const [gcaGsipStats,   setGcaGsipStats]   = useState<GcaGsipStats | null>(null)
-  const [gcaGsipEmpty,   setGcaGsipEmpty]   = useState(false)
+  const [gcaGsipStats, setGcaGsipStats] = useState<GcaGsipStats | null>(null)
+  const [gcaGsipEmpty, setGcaGsipEmpty] = useState(false)
 
-  const loadGcaGsipStats = useCallback(async () => {
+  const loadGcaGsipStats = useCallback(async (qs = '') => {
     try {
-      const res  = await fetch('/api/gca-import/stats')
+      const res  = await fetch(`/api/gca-import/stats${qs}`)
       const data = await res.json()
       if (data.empty || !data.totals) { setGcaGsipEmpty(true); setGcaGsipStats(null) }
       else { setGcaGsipStats(data); setGcaGsipEmpty(false) }
     } catch { setGcaGsipEmpty(true) }
   }, [])
+
+  const loadAllGsip = useCallback((mode: FilterMode, smena: FilterSmena, date: string, month: string) => {
+    const qs = buildGsipQs(mode, smena, date, month)
+    loadDrlStats(qs)
+    loadDrrStats(qs)
+    loadGcaGsipStats(qs)
+  }, [loadDrlStats, loadDrrStats, loadGcaGsipStats])
 
   const loadEscCount = useCallback(async () => {
     try {
@@ -259,7 +290,17 @@ export default function ManagerPage() {
     } catch {}
   }, [])
 
-  useEffect(() => { loadDrlStats(); loadDrrStats(); loadGcaGsipStats(); loadEscCount() }, [loadDrlStats, loadDrrStats, loadGcaGsipStats, loadEscCount])
+  // Initial load
+  useEffect(() => {
+    loadAllGsip(filterMode, filterSmena, filterDate, filterMonth)
+    loadEscCount()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Reload when filter changes
+  useEffect(() => {
+    loadAllGsip(filterMode, filterSmena, filterDate, filterMonth)
+  }, [filterMode, filterSmena, filterDate, filterMonth, loadAllGsip])
 
   // Har 30 soniyada eskalatsiya sonini yangilash
   useEffect(() => {
@@ -270,7 +311,7 @@ export default function ManagerPage() {
   const openDrl = (shop?: string) => {
     setDrlShopFilter(shop ?? '')
     setDrlOpen(true)
-    if (!drlStats && !drlLoading) loadDrlStats()
+    if (!drlStats && !drlLoading) loadDrlStats(buildGsipQs(filterMode, filterSmena, filterDate, filterMonth))
   }
   // Dynamic GCA targets — DB dan yuklash (SuperAdmin panel o'zgartiradi)
   const [targetsVer, setTargetsVer] = useState(0)
@@ -319,10 +360,13 @@ export default function ManagerPage() {
 
   const refreshAll = useCallback(async () => {
     setRefreshing(true)
-    await Promise.all([gcaRefresh(), dRefresh(), qRefresh(), incomingRefresh(), loadEscCount(), loadGcaGsipStats(), loadDrrStats(), loadDrlStats()])
+    const qs = buildGsipQs(filterMode, filterSmena, filterDate, filterMonth)
+    await Promise.all([gcaRefresh(), dRefresh(), qRefresh(), incomingRefresh(), loadEscCount(),
+      loadGcaGsipStats(qs), loadDrrStats(qs), loadDrlStats(qs)])
     setLastUpdated(new Date())
     setRefreshing(false)
-  }, [gcaRefresh, dRefresh, qRefresh, incomingRefresh, loadEscCount, loadGcaGsipStats, loadDrrStats, loadDrlStats])
+  }, [gcaRefresh, dRefresh, qRefresh, incomingRefresh, loadEscCount, loadGcaGsipStats, loadDrrStats, loadDrlStats,
+      filterMode, filterSmena, filterDate, filterMonth])
 
   useEffect(() => {
     const id = setInterval(refreshAll, 30_000)
@@ -424,33 +468,83 @@ export default function ManagerPage() {
 
       <div className="p-5 md:p-6 space-y-6">
 
-        {/* ── 1. HOLAT / YANGILASH ──────────────────────────────────────────── */}
+        {/* ── 1. FILTRLAR ───────────────────────────────────────────────────── */}
         <div className="flex flex-wrap items-center gap-3">
+
+          {/* Davr filtri */}
+          <div className="flex items-center gap-0.5 bg-card border border-border rounded-xl p-1">
+            {([
+              { key: 'latest', label: 'Oxirgi' },
+              { key: 'today',  label: 'Bugun'  },
+              { key: 'month',  label: 'Oy'     },
+              { key: 'custom', label: 'Sana'   },
+            ] as { key: FilterMode; label: string }[]).map(({ key, label }) => (
+              <button key={key} onClick={() => setFilterMode(key)}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  filterMode === key
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                }`}>{label}</button>
+            ))}
+          </div>
+
+          {/* Smena filtri */}
+          <div className="flex items-center gap-0.5 bg-card border border-border rounded-xl p-1">
+            {([
+              { key: 'all', label: 'Hammasi' },
+              { key: 'A',   label: 'Smena A' },
+              { key: 'B',   label: 'Smena B' },
+              { key: 'D',   label: 'Smena D' },
+            ] as { key: FilterSmena; label: string }[]).map(({ key, label }) => (
+              <button key={key} onClick={() => setFilterSmena(key)}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  filterSmena === key
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                }`}>{label}</button>
+            ))}
+          </div>
+
+          {/* Oy tanlash */}
+          {filterMode === 'month' && (
+            <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5">
+              <span className="text-xs text-muted-foreground font-medium">Oy:</span>
+              <input type="month" value={filterMonth}
+                onChange={e => setFilterMonth(e.target.value)}
+                className="text-sm font-medium bg-transparent border-0 focus:outline-none text-foreground" />
+            </div>
+          )}
+
+          {/* Kunlik sana tanlash */}
+          {filterMode === 'custom' && (
+            <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5">
+              <span className="text-xs text-muted-foreground font-medium">Sana:</span>
+              <input type="date" value={filterDate}
+                onChange={e => setFilterDate(e.target.value)}
+                className="text-sm font-medium bg-transparent border-0 focus:outline-none text-foreground" />
+            </div>
+          )}
+
+          {/* Holat badge */}
           {critCount > 0 && (
-            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-950/50 border border-rose-700/50">
-              <AlertTriangle className="w-4 h-4 text-rose-400" />
-              <span className="text-sm font-semibold text-rose-300">{critCount} ta seh — KRITIK</span>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-rose-950/50 border border-rose-700/50">
+              <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+              <span className="text-xs font-semibold text-rose-300">{critCount} seh — KRITIK</span>
             </div>
           )}
           {warnCount > 0 && (
-            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-950/50 border border-amber-700/50">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-950/50 border border-amber-700/50">
               <span className="w-2 h-2 rounded-full bg-amber-500" />
-              <span className="text-sm font-semibold text-amber-300">{warnCount} ta seh — Diqqat</span>
+              <span className="text-xs font-semibold text-amber-300">{warnCount} seh — Diqqat</span>
             </div>
           )}
-          {critCount === 0 && warnCount === 0 && !gcaLoad && !dLoad && (
-            <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-950/50 border border-emerald-700/50">
-              <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              <span className="text-sm font-semibold text-emerald-300">Barcha sehlar — Normal</span>
-            </div>
-          )}
+
+          {/* Yangilash */}
           <div className="ml-auto flex items-center gap-2">
             <span suppressHydrationWarning className="hidden sm:block text-xs text-muted-foreground">
               {lastUpdated.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </span>
-            <button
-              onClick={refreshAll}
-              disabled={refreshing}
+            <button onClick={refreshAll} disabled={refreshing}
               className="flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-xl text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
