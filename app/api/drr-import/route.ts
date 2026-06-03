@@ -34,14 +34,15 @@ export async function GET() {
 // ─── POST: Upload & parse Excel ────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const session = await getSession()
-  if (!session || !['superadmin', 'admin'].includes(session.role)) {
+  if (!session || !['superadmin', 'admin', 'drr_inspector'].includes(session.role)) {
     return NextResponse.json({ error: 'Ruxsat yo\'q' }, { status: 401 })
   }
 
   try {
-    const formData = await req.formData()
-    const file     = formData.get('file') as File | null
+    const formData   = await req.formData()
+    const file       = formData.get('file') as File | null
     if (!file) return NextResponse.json({ error: 'Fayl topilmadi' }, { status: 400 })
+    const shiftLabel = (formData.get('shift_label') as string | null)?.trim() || null  // A | B | D | null
 
     const buffer = Buffer.from(await file.arrayBuffer())
     const result = parseGsipDRR(buffer)
@@ -93,17 +94,22 @@ export async function POST(req: NextRequest) {
     const totalVeh   = rows.reduce((s, r) => s + r.vehCnt, 0)
     const models     = [...new Set(rows.map(r => r.modelLabel))].join(', ')
 
+    // Ensure shift_label column exists (idempotent)
+    try {
+      await sql`ALTER TABLE drr_import_batches ADD COLUMN IF NOT EXISTS shift_label TEXT`
+    } catch {}
+
     // Batch summary
     await sql`
       INSERT INTO drr_import_batches
         (import_batch, imported_by, file_name,
          date_from, date_to, shift_from, shift_to,
-         row_count, total_count, models)
+         row_count, total_count, models, shift_label)
       VALUES
         (${importBatch}, ${session.name}, ${file.name},
          ${meta.dateFrom}::date, ${meta.dateTo}::date,
          ${meta.shiftFrom}, ${meta.shiftTo},
-         ${rows.length}, ${totalCount}, ${models})
+         ${rows.length}, ${totalCount}, ${models}, ${shiftLabel})
     `
 
     return NextResponse.json({
@@ -127,7 +133,7 @@ export async function POST(req: NextRequest) {
 // ─── DELETE: Remove a batch ────────────────────────────────────────────────────
 export async function DELETE(req: NextRequest) {
   const session = await getSession()
-  if (!session || !['superadmin', 'admin'].includes(session.role)) {
+  if (!session || !['superadmin', 'admin', 'drr_inspector'].includes(session.role)) {
     return NextResponse.json({ error: 'Ruxsat yo\'q' }, { status: 401 })
   }
 

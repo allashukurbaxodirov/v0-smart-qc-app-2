@@ -40,7 +40,7 @@ interface ParsePreview {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function DRRAdminPage() {
   const [tab, setTab]         = useState<'import' | 'history'>('import')
-  const [session, setSession] = useState<{ role: string; name: string } | null>(null)
+  const [session, setSession] = useState<{ role: string; name: string; shift: string | null } | null>(null)
   useEffect(() => {
     fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => { if (d) setSession(d) })
   }, [])
@@ -54,8 +54,17 @@ export default function DRRAdminPage() {
   const [batches,       setBatches]       = useState<ImportBatch[]>([])
   const [loadingBatches, setLoadingBatches] = useState(false)
   const [deletingId,    setDeletingId]    = useState<string>('')
+  const [selSmena,      setSelSmena]      = useState<string>('')  // '' | 'A' | 'B' | 'D'
 
-  const isAdmin = session && ['superadmin', 'admin'].includes(session.role)
+  const canUpload = session && ['superadmin', 'admin', 'drr_inspector'].includes(session.role)
+  const isAdmin   = session && ['superadmin', 'admin'].includes(session.role)
+
+  // Inspektorda smena avtomatik tanlanadi
+  useEffect(() => {
+    if (session?.role === 'drr_inspector' && session.shift) {
+      setSelSmena(session.shift)
+    }
+  }, [session])
 
   // Load batches
   const loadBatches = useCallback(async () => {
@@ -95,6 +104,7 @@ export default function DRRAdminPage() {
     try {
       const fd = new FormData()
       fd.append('file', file)
+      if (selSmena) fd.append('shift_label', selSmena)
       const res  = await fetch('/api/drr-import', { method: 'POST', body: fd })
       const data = await res.json()
       if (!res.ok) {
@@ -179,17 +189,19 @@ export default function DRRAdminPage() {
                 </div>
               </div>
 
-              {!isAdmin && (
-                <div className="border border-amber-500/30 bg-amber-500/10 rounded-lg p-3 flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                  <p className="text-sm text-amber-300">Faqat admin fayllarni yuklashi mumkin</p>
+              {/* Smena ko'rsatgich — inspektorda */}
+              {session?.role === 'drr_inspector' && session.shift && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/30 rounded-lg">
+                  <span className="w-2 h-2 rounded-full bg-primary" />
+                  <span className="text-sm font-bold text-primary">Smena {session.shift}</span>
+                  <span className="text-xs text-muted-foreground ml-1">(avtomatik)</span>
                 </div>
               )}
 
               {/* Drop zone */}
               <div
-                onDrop={isAdmin ? handleDrop : undefined}
-                onDragOver={isAdmin ? (e) => { e.preventDefault(); setDragOver(true) } : undefined}
+                onDrop={canUpload ? handleDrop : undefined}
+                onDragOver={canUpload ? (e) => { e.preventDefault(); setDragOver(true) } : undefined}
                 onDragLeave={() => setDragOver(false)}
                 className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
                   dragOver
@@ -197,9 +209,9 @@ export default function DRRAdminPage() {
                     : file
                     ? 'border-green-500/50 bg-green-500/5'
                     : 'border-border hover:border-orange-400/40'
-                } ${!isAdmin ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                } ${!canUpload ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                 onClick={() => {
-                  if (!isAdmin) return
+                  if (!canUpload) return
                   document.getElementById('drr-file-input')?.click()
                 }}
               >
@@ -246,7 +258,7 @@ export default function DRRAdminPage() {
 
               <button
                 onClick={handleUpload}
-                disabled={!file || uploading || !isAdmin}
+                disabled={!file || uploading || !canUpload}
                 className="w-full py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ background: 'linear-gradient(135deg, #f97316, #ea580c)', color: '#fff', boxShadow: '0 4px 20px #f9731630' }}
               >

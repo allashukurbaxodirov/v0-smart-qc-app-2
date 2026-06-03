@@ -39,7 +39,7 @@ interface ParsePreview {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function DRLAdminPage() {
   const [tab, setTab]   = useState<'import' | 'entry' | 'history'>('import')
-  const [session, setSession] = useState<{ role: string; name: string } | null>(null)
+  const [session, setSession] = useState<{ role: string; name: string; shift: string | null } | null>(null)
   useEffect(() => {
     fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => { if (d) setSession(d) })
   }, [])
@@ -55,7 +55,15 @@ export default function DRLAdminPage() {
   const [deletingId, setDeletingId] = useState<string>('')
   const [selSmena, setSelSmena] = useState<string>('')  // '' | 'A' | 'B' | 'D'
 
-  const isAdmin = session && ['superadmin', 'admin'].includes(session.role)
+  const canUpload = session && ['superadmin', 'admin', 'drl_inspector'].includes(session.role)
+  const isAdmin   = session && ['superadmin', 'admin'].includes(session.role)
+
+  // Inspektorda smena avtomatik tanlanadi
+  useEffect(() => {
+    if (session?.role === 'drl_inspector' && session.shift) {
+      setSelSmena(session.shift)
+    }
+  }, [session])
 
   // Load batches
   const loadBatches = useCallback(async () => {
@@ -182,17 +190,10 @@ export default function DRLAdminPage() {
                 </div>
               </div>
 
-              {!isAdmin && (
-                <div className="border border-amber-500/30 bg-amber-500/10 rounded-lg p-3 flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
-                  <p className="text-sm text-amber-300">Faqat admin fayllarni yuklashi mumkin</p>
-                </div>
-              )}
-
               {/* Drop zone */}
               <div
-                onDrop={isAdmin ? handleDrop : undefined}
-                onDragOver={isAdmin ? (e) => { e.preventDefault(); setDragOver(true) } : undefined}
+                onDrop={canUpload ? handleDrop : undefined}
+                onDragOver={canUpload ? (e) => { e.preventDefault(); setDragOver(true) } : undefined}
                 onDragLeave={() => setDragOver(false)}
                 className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${
                   dragOver
@@ -200,9 +201,9 @@ export default function DRLAdminPage() {
                     : file
                     ? 'border-success/50 bg-success/5'
                     : 'border-border hover:border-primary/40'
-                } ${!isAdmin ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+                } ${!canUpload ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
                 onClick={() => {
-                  if (!isAdmin) return
+                  if (!canUpload) return
                   document.getElementById('drl-file-input')?.click()
                 }}
               >
@@ -243,29 +244,37 @@ export default function DRLAdminPage() {
               {/* Smena tanlash */}
               <div className="space-y-1.5">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                  Smena (ixtiyoriy — DRL Defect Details fayl uchun)
+                  Smena
                 </p>
-                <div className="flex gap-2">
-                  {[
-                    { key: '',  label: '— Belgilanmagan' },
-                    { key: 'A', label: 'A Smena' },
-                    { key: 'B', label: 'B Smena' },
-                    { key: 'D', label: 'D Smena' },
-                  ].map(s => (
-                    <button
-                      key={s.key}
-                      type="button"
-                      onClick={() => setSelSmena(s.key)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                        selSmena === s.key
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'bg-background border-border text-muted-foreground hover:border-primary/50'
-                      }`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
+                {session?.role === 'drl_inspector' && session.shift ? (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/30 rounded-lg">
+                    <span className="w-2 h-2 rounded-full bg-primary" />
+                    <span className="text-sm font-bold text-primary">Smena {session.shift}</span>
+                    <span className="text-xs text-muted-foreground ml-1">(avtomatik)</span>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    {[
+                      { key: '',  label: '— Belgilanmagan' },
+                      { key: 'A', label: 'A Smena' },
+                      { key: 'B', label: 'B Smena' },
+                      { key: 'D', label: 'D Smena' },
+                    ].map(s => (
+                      <button
+                        key={s.key}
+                        type="button"
+                        onClick={() => setSelSmena(s.key)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                          selSmena === s.key
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background border-border text-muted-foreground hover:border-primary/50'
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {uploadErr && (
@@ -277,7 +286,7 @@ export default function DRLAdminPage() {
 
               <button
                 onClick={handleUpload}
-                disabled={!file || uploading || !isAdmin}
+                disabled={!file || uploading || !canUpload}
                 className="w-full py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', boxShadow: '0 4px 20px #3b82f630' }}
               >

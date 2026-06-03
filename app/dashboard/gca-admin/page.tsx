@@ -315,6 +315,15 @@ export default function GCAAdminPage() {
                   <h2 className="text-base font-bold text-foreground">GCA Excel yuklash (GSIP)</h2>
                 </div>
 
+                {/* GCA auditor uchun smena ko'rsatgich */}
+                {isGcaAuditor && session?.shift && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/30 rounded-lg">
+                    <span className="w-2 h-2 rounded-full bg-primary" />
+                    <span className="text-sm font-bold text-primary">Smena {session.shift}</span>
+                    <span className="text-xs text-muted-foreground ml-1">(avtomatik qo'llaniladi)</span>
+                  </div>
+                )}
+
                 {/* Drop area */}
                 <div
                   onDragOver={e => { e.preventDefault(); setGsipDragOver(true) }}

@@ -44,7 +44,7 @@ export async function GET() {
 // ─── POST: Upload & parse Excel ────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const session = await getSession()
-  if (!session || !['superadmin', 'admin'].includes(session.role)) {
+  if (!session || !['superadmin', 'admin', 'drl_inspector'].includes(session.role)) {
     return NextResponse.json({ error: 'Ruxsat yo\'q' }, { status: 401 })
   }
 
@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
 // ─── DELETE: Remove a batch ────────────────────────────────────────────────────
 export async function DELETE(req: NextRequest) {
   const session = await getSession()
-  if (!session || !['superadmin', 'admin'].includes(session.role)) {
+  if (!session || !['superadmin', 'admin', 'drl_inspector'].includes(session.role)) {
     return NextResponse.json({ error: 'Ruxsat yo\'q' }, { status: 401 })
   }
 
