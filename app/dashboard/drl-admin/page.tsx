@@ -163,7 +163,6 @@ export default function DRLAdminPage() {
           {([
             { key: 'import',  label: '📁 GSIP Import' },
             { key: 'history', label: '🕓 Import Tarixi' },
-            { key: 'entry',   label: '✏️ Qo\'lda kiritish' },
           ] as const).map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -433,23 +432,6 @@ export default function DRLAdminPage() {
           </div>
         )}
 
-        {/* ── TAB: ENTRY ───────────────────────────────────────────────────── */}
-        {tab === 'entry' && (
-          <div className="flex flex-col items-center gap-4 py-8">
-            <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-              <Clock className="w-7 h-7 text-amber-400" />
-            </div>
-            <p className="text-foreground font-semibold">Qo&apos;lda nuqson kiritish</p>
-            <p className="text-sm text-muted-foreground text-center max-w-xs">
-              GSIP da kiritilmagan nuqsonlarni qo&apos;lda qo&apos;shing
-            </p>
-            <Link href="/dashboard/drl-admin/entry">
-              <button className="px-6 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-semibold hover:opacity-90 transition-all">
-                Nuqson kiritish sahifasiga o&apos;tish →
-              </button>
-            </Link>
-          </div>
-        )}
       </div>
     </div>
   )
