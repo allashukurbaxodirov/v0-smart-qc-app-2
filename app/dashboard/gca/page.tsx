@@ -800,11 +800,6 @@ export default function GCAPage() {
                       <span className="text-xs text-muted-foreground">target: {pTarget.toFixed(0)}</span>
                     </div>
                   </div>
-                  <div className="bg-orange-500/10 border border-orange-500/20 rounded-xl p-5">
-                    <div className="mb-2 text-orange-400"><AlertTriangle className="w-5 h-5" /></div>
-                    <p className="text-2xl font-bold text-foreground">{Number(stats.totals.total_weight).toFixed(0)}</p>
-                    <p className="text-xs text-muted-foreground mt-1">Jami og&apos;irlik</p>
-                  </div>
                   <div className="bg-violet-500/10 border border-violet-500/20 rounded-xl p-5">
                     <div className="mb-2 text-violet-400"><Car className="w-5 h-5" /></div>
                     <p className="text-2xl font-bold text-foreground">{stats.totals.veh_count.toLocaleString()}</p>
