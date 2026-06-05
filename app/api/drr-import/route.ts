@@ -52,11 +52,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Faylda ma\'lumot topilmadi' }, { status: 400 })
     }
 
-    // Generate batch UUID
-    const [batchRow] = await sql`SELECT gen_random_uuid() AS id`
-    const importBatch = batchRow.id
+    const totalCount = rows.reduce((s, r) => s + r.count, 0)
+    const totalVeh   = rows.reduce((s, r) => s + r.vehCnt, 0)
+    const models     = [...new Set(rows.map(r => r.modelLabel))].join(', ')
 
-    // Bulk insert — chunks of 200
+    // Ensure shift_label column exists (idempotent)
+    try {
+      await sql`ALTER TABLE drr_import_batches ADD COLUMN IF NOT EXISTS shift_label TEXT`
+    } catch {}
+
+    // 1. AVVAL batch yaratiladi (foreign key shart)
+    const [batchRow] = await sql`
+      INSERT INTO drr_import_batches
+        (imported_by, file_name,
+         date_from, date_to, shift_from, shift_to,
+         row_count, total_count, models, shift_label)
+      VALUES
+        (${session.name}, ${file.name},
+         ${meta.dateFrom}::date, ${meta.dateTo}::date,
+         ${meta.shiftFrom}, ${meta.shiftTo},
+         ${rows.length}, ${totalCount}, ${models}, ${shiftLabel})
+      RETURNING import_batch
+    `
+    const importBatch = batchRow.import_batch
+
+    // 2. KEYIN qatorlar kiritiladi
     const CHUNK = 200
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK)
@@ -84,33 +104,11 @@ export async function POST(req: NextRequest) {
           prod_team:    r.prodTeam || null,
           shop:         r.shop,
           count:        r.count,
-          drr_ratio:    0,           // DRL Ratio sariq — 0
+          drr_ratio:    0,
           veh_cnt:      r.vehCnt,
         })))}
       `
     }
-
-    const totalCount = rows.reduce((s, r) => s + r.count, 0)
-    const totalVeh   = rows.reduce((s, r) => s + r.vehCnt, 0)
-    const models     = [...new Set(rows.map(r => r.modelLabel))].join(', ')
-
-    // Ensure shift_label column exists (idempotent)
-    try {
-      await sql`ALTER TABLE drr_import_batches ADD COLUMN IF NOT EXISTS shift_label TEXT`
-    } catch {}
-
-    // Batch summary
-    await sql`
-      INSERT INTO drr_import_batches
-        (import_batch, imported_by, file_name,
-         date_from, date_to, shift_from, shift_to,
-         row_count, total_count, models, shift_label)
-      VALUES
-        (${importBatch}, ${session.name}, ${file.name},
-         ${meta.dateFrom}::date, ${meta.dateTo}::date,
-         ${meta.shiftFrom}, ${meta.shiftTo},
-         ${rows.length}, ${totalCount}, ${models}, ${shiftLabel})
-    `
 
     return NextResponse.json({
       ok:          true,

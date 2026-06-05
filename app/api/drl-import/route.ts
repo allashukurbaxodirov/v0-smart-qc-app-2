@@ -90,11 +90,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Faylda ma\'lumot topilmadi' }, { status: 400 })
     }
 
-    // Generate batch UUID
-    const [batchRow] = await sql`SELECT gen_random_uuid() AS id`
-    const importBatch = batchRow.id
+    const totalCount = rows.reduce((s: number, r: any) => s + r.count, 0)
+    const models     = [...new Set(rows.map((r: any) => r.modelLabel))].join(', ')
 
-    // Bulk insert rows in chunks of 200
+    // 1. AVVAL batch yaratiladi (foreign key shart)
+    const [batchRow] = await sql`
+      INSERT INTO drl_import_batches
+        (imported_by, file_name,
+         date_from, date_to, shift_from, shift_to, shift_label,
+         row_count, total_count, models)
+      VALUES
+        (${session.name}, ${file.name},
+         ${meta.dateFrom}::date, ${meta.dateTo}::date,
+         ${meta.shiftFrom}, ${meta.shiftTo}, ${shiftLabel},
+         ${rows.length}, ${totalCount}, ${models})
+      RETURNING import_batch
+    `
+    const importBatch = batchRow.import_batch
+
+    // 2. KEYIN qatorlar kiritiladi
     const CHUNK = 200
     for (let i = 0; i < rows.length; i += CHUNK) {
       const chunk = rows.slice(i, i + CHUNK)
@@ -125,22 +139,6 @@ export async function POST(req: NextRequest) {
         })))}
       `
     }
-
-    const totalCount = rows.reduce((s: number, r: any) => s + r.count, 0)
-    const models     = [...new Set(rows.map((r: any) => r.modelLabel))].join(', ')
-
-    // Save batch summary (with shift_label)
-    await sql`
-      INSERT INTO drl_import_batches
-        (import_batch, imported_by, file_name,
-         date_from, date_to, shift_from, shift_to, shift_label,
-         row_count, total_count, models)
-      VALUES
-        (${importBatch}, ${session.name}, ${file.name},
-         ${meta.dateFrom}::date, ${meta.dateTo}::date,
-         ${meta.shiftFrom}, ${meta.shiftTo}, ${shiftLabel},
-         ${rows.length}, ${totalCount}, ${models})
-    `
 
     return NextResponse.json({
       ok:          true,
