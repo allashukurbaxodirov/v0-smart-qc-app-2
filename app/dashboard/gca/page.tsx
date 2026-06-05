@@ -817,8 +817,8 @@ export default function GCAPage() {
                     <Car className={`w-8 h-8 flex-shrink-0 ${m.model_group === 'R7' ? 'text-blue-400' : 'text-green-400'}`} />
                     <div>
                       <p className={`text-base font-bold ${m.model_group === 'R7' ? 'text-blue-400' : 'text-green-400'}`}>{m.model_label}</p>
-                      <p className="text-2xl font-bold text-foreground">{Number(m.total_weight).toFixed(0)} <span className="text-sm font-normal text-muted-foreground">og'irlik</span></p>
-                      <p className="text-xs text-muted-foreground">{m.veh_count} avto · WDPV {Number(m.wdpv).toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-foreground">{Number(m.wdpv).toFixed(2)} <span className="text-sm font-normal text-muted-foreground">WDPV</span></p>
+                      <p className="text-xs text-muted-foreground">{m.veh_count} avto</p>
                     </div>
                   </div>
                 ))}
