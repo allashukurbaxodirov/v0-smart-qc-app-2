@@ -103,12 +103,15 @@ function buildResponse(user: { tabelNumber: string; email: string | null; name: 
   })
   const redirect = ROLE_REDIRECTS[user.role] ?? '/dashboard'
   const response = NextResponse.json({ ok: true, redirect, name: user.name, role: user.role })
+  // COOKIE_SECURE=false qo'yilsa lokal HTTP serverda ishlaydi
+  // HTTPS serverda (Vercel/nginx+ssl) COOKIE_SECURE=true qiling
+  const secureCookie = process.env.COOKIE_SECURE !== 'false'
   response.cookies.set('qc_session', sessionPayload, {
     httpOnly: true,
     sameSite: 'lax',
     path:     '/',
     maxAge:   60 * 60 * 8,
-    secure:   process.env.NODE_ENV === 'production',
+    secure:   secureCookie,
   })
   return response
 }

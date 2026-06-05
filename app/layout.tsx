@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import { GCAProvider } from '@/lib/gca-context'
 import { DRecordsProvider } from '@/lib/d-records-context'
 import { ShiftProvider } from '@/lib/shift-context'
@@ -45,7 +44,6 @@ export default function RootLayout({
               <QRecordsProvider>
                 <IncomingProvider>
                   {children}
-                  {process.env.NODE_ENV === 'production' && <Analytics />}
                 </IncomingProvider>
               </QRecordsProvider>
             </ShiftProvider>
