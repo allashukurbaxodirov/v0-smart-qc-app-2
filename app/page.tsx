@@ -60,37 +60,14 @@ export default function WelcomePage() {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 pt-8">
-              <Link href="/login" className="flex-1">
-                <Button size="lg" className="w-full">
+              <Link href="/login">
+                <Button size="lg">
                   Kirish <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </Link>
-              <Link href="/dashboard" className="flex-1">
-                <Button size="lg" variant="outline" className="w-full">
-                  Demo ko&apos;rish
                 </Button>
               </Link>
             </div>
           </div>
 
-          {/* Right Visual */}
-          <div className="hidden lg:block">
-            <div className="relative">
-              {/* Placeholder dashboard preview */}
-              <div className="aspect-square rounded-2xl bg-card border border-border shadow-lg p-6">
-                <div className="space-y-4">
-                  <div className="h-8 bg-primary/20 rounded-lg w-3/4"></div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="h-24 bg-primary/10 rounded-lg"></div>
-                    <div className="h-24 bg-success/10 rounded-lg"></div>
-                    <div className="h-24 bg-warning/10 rounded-lg"></div>
-                    <div className="h-24 bg-critical/10 rounded-lg"></div>
-                  </div>
-                  <div className="h-40 bg-muted/20 rounded-lg"></div>
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
       </main>
 
