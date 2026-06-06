@@ -21,53 +21,49 @@ export default function WelcomePage() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-6 py-20">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-          {/* Left Content */}
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <h1 className="text-5xl font-bold text-foreground leading-tight">
-                Smart Quality Control
-              </h1>
-              <p className="text-lg text-muted-foreground">
-                UzAuto Motors uchun ilg&apos;or sifat nazorat tizimi. Real vaqtda ishlab chiqarish jarayonini kuzatish, defektlarni tahlil qilish va ishlab chiqarish samaradorligini oshirish.
-              </p>
-            </div>
-
-            {/* Features Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FeatureCard
-                icon={<BarChart3 className="w-6 h-6" />}
-                title="Real-vaqt Analitika"
-                description="Ishlab chiqarish ko&apos;rsatkichlarini real vaqtda kuzatish"
-              />
-              <FeatureCard
-                icon={<Shield className="w-6 h-6" />}
-                title="Defekt Boshqaruvi"
-                description="Avtomobil sifat muammolarini tuzatish va kuzatish"
-              />
-              <FeatureCard
-                icon={<Zap className="w-6 h-6" />}
-                title="Samaradorlik"
-                description="Ishlab chiqarish jarayonini optimallashtirish"
-              />
-              <FeatureCard
-                icon={<Shield className="w-6 h-6" />}
-                title="Audit va Hisobot"
-                description="To&apos;liq audit dori va batafsil hisobotlar"
-              />
-            </div>
-
-            {/* CTA Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 pt-8">
-              <Link href="/login">
-                <Button size="lg">
-                  Kirish <ArrowRight className="w-4 h-4 ml-2" />
-                </Button>
-              </Link>
-            </div>
+      <main className="max-w-3xl mx-auto px-6 py-20">
+        <div className="flex flex-col items-center text-center space-y-8">
+          <div className="space-y-4">
+            <h1 className="text-5xl font-bold text-foreground leading-tight">
+              Smart Quality Control
+            </h1>
+            <p className="text-lg text-muted-foreground">
+              UzAuto Motors uchun ilg&apos;or sifat nazorat tizimi. Real vaqtda ishlab chiqarish jarayonini kuzatish, defektlarni tahlil qilish va ishlab chiqarish samaradorligini oshirish.
+            </p>
           </div>
 
+          {/* Features Grid */}
+          <div className="grid grid-cols-2 gap-4 w-full">
+            <FeatureCard
+              icon={<BarChart3 className="w-6 h-6" />}
+              title="Real-vaqt Analitika"
+              description="Ishlab chiqarish ko&apos;rsatkichlarini real vaqtda kuzatish"
+            />
+            <FeatureCard
+              icon={<Shield className="w-6 h-6" />}
+              title="Defekt Boshqaruvi"
+              description="Avtomobil sifat muammolarini tuzatish va kuzatish"
+            />
+            <FeatureCard
+              icon={<Zap className="w-6 h-6" />}
+              title="Samaradorlik"
+              description="Ishlab chiqarish jarayonini optimallashtirish"
+            />
+            <FeatureCard
+              icon={<Shield className="w-6 h-6" />}
+              title="Audit va Hisobot"
+              description="To&apos;liq audit dori va batafsil hisobotlar"
+            />
+          </div>
+
+          {/* CTA */}
+          <div className="pt-4">
+            <Link href="/login">
+              <Button size="lg">
+                Kirish <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </main>
 
