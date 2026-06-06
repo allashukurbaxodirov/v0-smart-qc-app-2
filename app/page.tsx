@@ -27,7 +27,7 @@ export default function WelcomePage() {
           <div className="space-y-8">
             <div className="space-y-4">
               <h1 className="text-5xl font-bold text-foreground leading-tight">
-                Avtomobil Ishlab Chiqarish Sifat Kontroli
+                Smart Quality Control
               </h1>
               <p className="text-lg text-muted-foreground">
                 UzAuto Motors uchun ilg&apos;or sifat nazorat tizimi. Real vaqtda ishlab chiqarish jarayonini kuzatish, defektlarni tahlil qilish va ishlab chiqarish samaradorligini oshirish.
