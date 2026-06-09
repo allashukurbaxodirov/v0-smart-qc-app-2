@@ -25,6 +25,7 @@
 
 import * as XLSX from 'xlsx'
 import { prodTeamToShop, prodTeamToRole, modelGroupToLabel } from './gsip-pareto-parser'
+import type { ShiftCalendar } from './gsip-drr-parser'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,7 @@ export interface DRLDetailRow {
   count:      number    // aggregate count
   drlRatio:   number    // sum of DRL ratios (or just count, since ratio = 1 per defect)
   vehCnt:     number    // unique PONO count
+  defectDate: string | null  // aniq kun (oylik import uchun)
 }
 
 export interface DRLDetailMeta {
@@ -255,6 +257,7 @@ export function parseGsipDRL(buffer: Buffer): DRLDetailParseResult {
     count:      agg.count,
     drlRatio:   Math.round(agg.drlRatioSum * 10) / 10,
     vehCnt:     agg.ponos.size,
+    defectDate: null,
   }))
 
   // ── Top 10 ────────────────────────────────────────────────────────────────
@@ -307,4 +310,136 @@ export function parseGsipDRL(buffer: Buffer): DRLDetailParseResult {
   }
 
   return { meta, rows, top10, skipped, warnings, rawCount }
+}
+
+// ─── By-Smena (Oylik) Parser ──────────────────────────────────────────────────
+
+function drlToDateStr(v: any): string {
+  if (v == null || v === '') return ''
+  if (typeof v === 'number') {
+    const d = new Date((v - 25569) * 86400 * 1000)
+    return d.toISOString().split('T')[0]
+  }
+  if (v instanceof Date) return v.toISOString().split('T')[0]
+  const s = String(v).trim()
+  if (/^\d{2}\.\d{2}\.\d{4}/.test(s)) {
+    const p = s.substring(0, 10).split('.')
+    return `${p[2]}-${p[1]}-${p[0]}`
+  }
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10)
+  const d = new Date(s)
+  return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0]
+}
+
+export interface DRLBySmenaResult {
+  meta:         DRLDetailMeta
+  bySmena:      Record<string, { rows: DRLDetailRow[]; rawCount: number; skipped: number }>
+  warnings:     string[]
+  totalRaw:     number
+  totalSkipped: number
+}
+
+export function parseGsipDRLBySmena(buffer: Buffer, calendar: ShiftCalendar): DRLBySmenaResult {
+  const warnings: string[] = []
+  let totalSkipped = 0
+  let totalRaw     = 0
+
+  const wb = XLSX.read(buffer, { type: 'buffer' })
+  const ws = wb.Sheets[wb.SheetNames[0]]
+  const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+
+  const filterStr = String(raw[2]?.[0] ?? '')
+  const meta = parseFilterRow(filterStr)
+
+  const dataRows = raw.slice(5)
+
+  // bySmena aggregate maps: smena → { key → AggEntry }
+  interface AggEntry {
+    rowType: string; modelGroup: string; modelLabel: string
+    partLv1: string; partLv2: string; partLv3: string; partLv4: string
+    faultId: number | null; faultCode: string; faultName: string
+    prodTeam: string; shop: string
+    count: number; drlRatioSum: number; ponos: Set<string>
+    defectDate: string
+  }
+  const smenaAgg: Record<string, Record<string, AggEntry>> = {}
+  const smenaRaw: Record<string, number> = {}
+  const smenaSkip: Record<string, number> = {}
+
+  for (const r of dataRows) {
+    if (!r || !r[0]) { totalSkipped++; continue }
+    const rowType = String(r[0] ?? '').trim().toUpperCase()
+    if (rowType !== 'S') { totalSkipped++; continue }
+
+    totalRaw++
+
+    const dateStr  = drlToDateStr(r[13])   // col 13 = Defect Date
+    const rawShift = String(r[11] ?? '').trim().toUpperCase()  // col 11 = E/N
+
+    const smena = (calendar[dateStr]?.[rawShift as 'E' | 'N']) ?? null
+    if (!smena || smena === '—') { totalSkipped++; continue }
+
+    if (!smenaAgg[smena])  { smenaAgg[smena]  = {}; smenaRaw[smena] = 0; smenaSkip[smena] = 0 }
+    smenaRaw[smena]++
+
+    const partLv1       = String(r[1]  ?? '').trim()
+    const partLv2       = String(r[2]  ?? '').trim()
+    const partLv3       = String(r[3]  ?? '').trim()
+    const partLv4       = String(r[4]  ?? '').trim()
+    const faultRaw      = String(r[6]  ?? '').trim()
+    const pono          = String(r[7]  ?? '').trim()
+    const prodTeamShort = String(r[14] ?? '').trim()
+    const modelGroup    = String(r[28] ?? '').trim()
+    const drlRatioRaw   = r[43]
+    const faultIdRaw    = r[50]
+    const bpdFull       = String(r[54] ?? '').trim()
+
+    if (!faultRaw) { smenaSkip[smena]++; continue }
+
+    const prodTeam = bpdFull || ('00.' + prodTeamShort)
+    const shop     = prodTeamToShop(prodTeam)
+
+    let faultCode: string, faultName: string
+    const m3 = faultRaw.match(/^(\d{3})\.?\s+(.+)$/)
+    const mL = faultRaw.match(/^([A-Za-z])\s+(.+)$/)
+    if (m3) { faultCode = m3[1]; faultName = m3[2] }
+    else if (mL) { faultCode = mL[1]; faultName = mL[2] }
+    else { faultCode = '—'; faultName = faultRaw }
+
+    const faultId  = (faultIdRaw !== '' && faultIdRaw != null && !isNaN(Number(faultIdRaw))) ? Number(faultIdRaw) : null
+    const drlRatio = (drlRatioRaw !== '' && drlRatioRaw != null && !isNaN(Number(drlRatioRaw))) ? Number(drlRatioRaw) : 1
+
+    const key = `${dateStr}||${faultCode}||${faultName}||${prodTeam}||${modelGroup}||${partLv1}`
+
+    if (!smenaAgg[smena][key]) {
+      smenaAgg[smena][key] = {
+        rowType, modelGroup, modelLabel: modelGroupToLabel(modelGroup),
+        partLv1, partLv2, partLv3, partLv4,
+        faultId, faultCode, faultName, prodTeam, shop,
+        count: 0, drlRatioSum: 0, ponos: new Set(),
+        defectDate: dateStr,
+      }
+    }
+    const agg = smenaAgg[smena][key]
+    agg.count += 1
+    agg.drlRatioSum += drlRatio
+    if (pono) agg.ponos.add(pono)
+  }
+
+  const bySmena: DRLBySmenaResult['bySmena'] = {}
+  for (const [smena, aggMap] of Object.entries(smenaAgg)) {
+    const rows: DRLDetailRow[] = Object.values(aggMap).map(agg => ({
+      rowType: agg.rowType, modelGroup: agg.modelGroup, modelLabel: agg.modelLabel,
+      partLv1: agg.partLv1, partLv2: agg.partLv2, partLv3: agg.partLv3, partLv4: agg.partLv4,
+      faultId: agg.faultId, faultCode: agg.faultCode, faultName: agg.faultName,
+      prodTeam: agg.prodTeam, shop: agg.shop,
+      count: agg.count, drlRatio: Math.round(agg.drlRatioSum * 10) / 10,
+      vehCnt: agg.ponos.size, defectDate: agg.defectDate,
+    }))
+    bySmena[smena] = { rows, rawCount: smenaRaw[smena] ?? 0, skipped: smenaSkip[smena] ?? 0 }
+  }
+
+  if (totalRaw === 0) warnings.push('Smena jadvali mos kelmadi yoki faylda DRL ma\'lumoti topilmadi.')
+
+  return { meta, bySmena, warnings, totalRaw, totalSkipped }
 }

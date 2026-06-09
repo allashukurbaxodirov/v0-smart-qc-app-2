@@ -31,6 +31,7 @@
  */
 
 import * as XLSX from 'xlsx'
+import type { ShiftCalendar } from './gsip-drr-parser'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -274,4 +275,102 @@ export function parseGsipGCA(buffer: Buffer): GCAParseResult {
     totalWeight,
     vehCount: vins.size,
   }
+}
+
+// ─── By-Smena (Oylik) Parser ──────────────────────────────────────────────────
+
+export interface GCABySmenaResult {
+  meta:         GCAImportMeta
+  bySmena:      Record<string, { rows: GCAImportRow[]; rawCount: number; skipped: number; totalWeight: number; vehCount: number }>
+  warnings:     string[]
+  totalRaw:     number
+  totalSkipped: number
+}
+
+export function parseGCABySmena(buffer: Buffer, calendar: ShiftCalendar): GCABySmenaResult {
+  const warnings:     string[] = []
+  let   totalSkipped = 0
+  let   totalRaw     = 0
+
+  const wb = XLSX.read(buffer, { type: 'buffer' })
+  const ws = wb.Sheets[wb.SheetNames[0]]
+  const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+
+  const filterStr = String(raw[2]?.[0] ?? '')
+  const meta      = parseGCAFilterRow(filterStr)
+  const dataRows  = raw.slice(5)
+
+  // bySmena buckets
+  const smenaRows:   Record<string, GCAImportRow[]> = {}
+  const smenaRaw:    Record<string, number>          = {}
+  const smenaSkip:   Record<string, number>          = {}
+  const smenaWeight: Record<string, number>          = {}
+  const smenaVins:   Record<string, Set<string>>     = {}
+
+  for (const r of dataRows) {
+    if (!r || r.every((c: any) => c === '' || c == null)) { totalSkipped++; continue }
+    if (!r[0] && r[0] !== 0) { totalSkipped++; continue }
+
+    totalRaw++
+
+    const reportingDate = parseReportingDate(r[0])
+    // GCA has no E/N per row — use E slot (kunduz smena)
+    const smena = calendar[reportingDate]?.['E'] ?? null
+    if (!smena || smena === '—') { totalSkipped++; continue }
+
+    if (!smenaRows[smena]) {
+      smenaRows[smena]   = []
+      smenaRaw[smena]    = 0
+      smenaSkip[smena]   = 0
+      smenaWeight[smena] = 0
+      smenaVins[smena]   = new Set()
+    }
+    smenaRaw[smena]++
+
+    const partLv1      = String(r[1]  ?? '').trim()
+    const partLv2      = String(r[2]  ?? '').trim()
+    const partLv3      = String(r[3]  ?? '').trim()
+    const partLv4      = String(r[4]  ?? '').trim()
+    const partLv5      = String(r[5]  ?? '').trim()
+    const faultRaw     = String(r[6]  ?? '').trim()
+    const gcaWeightRaw = r[7]
+    const defectNote   = String(r[8]  ?? '').trim()
+    const faultDesc    = String(r[9]  ?? '').trim()
+    const zoneDesc     = String(r[10] ?? '').trim()
+    const category     = String(r[11] ?? '').trim()
+    const prodTeam     = String(r[12] ?? '').trim()
+    const seqNo        = String(r[13] ?? '').trim()
+    const vin          = String(r[14] ?? '').trim()
+
+    const gcaWeight  = (gcaWeightRaw !== '' && gcaWeightRaw != null && !isNaN(Number(gcaWeightRaw)))
+      ? Number(gcaWeightRaw) : 0
+    const { faultCode, faultName } = parseFault(faultRaw)
+    const shop       = prodTeamToShopGCA(prodTeam)
+    const modelGroup = vinToModelGroup(vin)
+    const modelLabel = modelGroupToLabel(modelGroup)
+
+    smenaWeight[smena] += gcaWeight
+    if (vin) smenaVins[smena].add(vin)
+
+    smenaRows[smena].push({
+      reportingDate, partLv1, partLv2, partLv3, partLv4, partLv5,
+      faultCode, faultName, gcaWeight, defectNote, faultDesc, zoneDesc, category,
+      prodTeam, shop, seqNo, vin, modelGroup, modelLabel,
+    })
+  }
+
+  const bySmena: GCABySmenaResult['bySmena'] = {}
+  for (const smena of Object.keys(smenaRows)) {
+    bySmena[smena] = {
+      rows:        smenaRows[smena],
+      rawCount:    smenaRaw[smena]    ?? 0,
+      skipped:     smenaSkip[smena]   ?? 0,
+      totalWeight: smenaWeight[smena] ?? 0,
+      vehCount:    smenaVins[smena]?.size ?? 0,
+    }
+  }
+
+  if (totalRaw === 0) warnings.push('Smena jadvali mos kelmadi yoki GCA ma\'lumoti topilmadi.')
+
+  return { meta, bySmena, warnings, totalRaw, totalSkipped }
 }
