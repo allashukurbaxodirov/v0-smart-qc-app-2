@@ -852,8 +852,8 @@ export default function GCAPage() {
                               <th className="px-4 py-3 text-center text-xs font-semibold text-green-400">F-5</th>
                               <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Avto</th>
                               <th className="px-4 py-3 text-center text-xs font-semibold text-indigo-400">WDPV</th>
-                              <th className="px-4 py-3 text-center text-xs font-semibold text-blue-300">DAMAS target</th>
-                              <th className="px-4 py-3 text-center text-xs font-semibold text-green-300">LABO target</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-foreground">DAMAS target</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-foreground">LABO target</th>
                               <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Status</th>
                             </tr>
                           </thead>
@@ -924,8 +924,8 @@ export default function GCAPage() {
                               <th className="px-4 py-3 text-center text-xs font-semibold text-blue-400">F-10 soni</th>
                               <th className="px-4 py-3 text-center text-xs font-semibold text-indigo-400">F-10 WDPV</th>
                               <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Kombinat target</th>
-                              <th className="px-4 py-3 text-center text-xs font-semibold text-blue-300">DAMAS target</th>
-                              <th className="px-4 py-3 text-center text-xs font-semibold text-green-300">LABO target</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-foreground">DAMAS target</th>
+                              <th className="px-4 py-3 text-center text-xs font-semibold text-foreground">LABO target</th>
                               <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Status</th>
                             </tr>
                           </thead>
