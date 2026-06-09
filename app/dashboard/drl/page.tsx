@@ -401,7 +401,7 @@ function DRLPageContent() {
       />
 
       <div className="p-6 space-y-6">
-        {/* Top bar */}
+        {/* ── Top bar ── */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link href="/dashboard">
             <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -409,40 +409,55 @@ function DRLPageContent() {
             </button>
           </Link>
 
-          {/* Smena filter chips */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {([
-              { key: 'all', label: 'Barchasi' },
-              { key: 'A',   label: 'A smena' },
-              { key: 'B',   label: 'B smena' },
-              { key: 'D',   label: 'D smena' },
-            ] as { key: SmenaTab; label: string }[]).map(s => {
-              const cnt = s.key === 'all'
-                ? batches.length
-                : batches.filter(b => b.shift_label === s.key).length
-              return (
-                <button key={s.key}
-                  onClick={() => setSelSmena(s.key)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
-                    selSmena === s.key
-                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                      : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/50'
-                  }`}>
-                  {s.label}
-                  {cnt > 0 && (
-                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                      selSmena === s.key ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'
-                    }`}>{cnt}</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
           <div className="flex items-center gap-3 flex-wrap">
+            {/* Smena chips — GCA style */}
+            <div className="flex items-center bg-muted/40 border border-border rounded-lg p-0.5 gap-0.5">
+              {([
+                { key: 'all', label: 'Barchasi' },
+                { key: 'A',   label: 'A smena'  },
+                { key: 'B',   label: 'B smena'  },
+                { key: 'D',   label: 'D smena'  },
+              ] as { key: SmenaTab; label: string }[]).map(s => {
+                const cnt = s.key === 'all'
+                  ? batches.length
+                  : batches.filter(b => b.shift_label === s.key).length
+                return (
+                  <button key={s.key}
+                    onClick={() => { setSelSmena(s.key); if (s.key === 'all') setFilterMode('batch') }}
+                    className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                      selSmena === s.key
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}>
+                    {s.label}
+                    {cnt > 0 && (
+                      <span className={`ml-1.5 text-[10px] px-1 py-0.5 rounded-full ${
+                        selSmena === s.key ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'
+                      }`}>{cnt}</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Yangilash */}
+            <button onClick={() => {
+              const shiftArg = selSmena !== 'all' ? selSmena : undefined
+              if (filterMode === 'batch') {
+                if (selSmena !== 'all') loadStats({ shift: selSmena })
+                else loadStats({ batch: selBatch })
+              } else {
+                const range = getDateRange(filterMode, selDate, selMonth, selYear)
+                if (range) loadStats({ ...range, shift: shiftArg })
+              }
+            }}
+              className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Yangilash
+            </button>
+
             {isAdmin && (
               <Link href="/dashboard/drl-admin">
-                <button className="flex items-center gap-1.5 px-3 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-all">
+                <button className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all">
                   <FileSpreadsheet className="w-3.5 h-3.5" /> Yangi Import
                 </button>
               </Link>
@@ -450,89 +465,64 @@ function DRLPageContent() {
           </div>
         </div>
 
-        {/* Date info badge */}
-        {stats && !loading && (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 border border-border rounded-lg w-fit text-xs text-muted-foreground">
-            <Calendar className="w-3.5 h-3.5 shrink-0 text-primary" />
-            {selSmena !== 'all' && (
-              <span className="font-semibold text-foreground">{selSmena} Smena</span>
+        {/* ── Time filter — faqat smena tanlanganda ── */}
+        {selSmena !== 'all' && (
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center bg-muted/40 border border-border rounded-xl p-1 gap-1">
+              {([
+                { key: 'batch',  label: 'Hammasi' },
+                { key: 'kunlik', label: 'Kunlik'  },
+                { key: 'oylik',  label: 'Oylik'   },
+                { key: 'yillik', label: 'Yillik'  },
+              ] as { key: FilterMode; label: string }[]).map(m => (
+                <button key={m.key}
+                  onClick={() => setFilterMode(m.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                    filterMode === m.key
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+            {filterMode === 'kunlik' && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <input type="date" value={selDate} onChange={e => setSelDate(e.target.value)}
+                  className="bg-transparent text-sm text-foreground outline-none" />
+              </div>
             )}
-            {selSmena !== 'all' && <span className="text-border">•</span>}
-            <span>{formatDateRange(stats.totals.date_from, stats.totals.date_to)}</span>
+            {filterMode === 'oylik' && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <input type="month" value={selMonth} onChange={e => setSelMonth(e.target.value)}
+                  className="bg-transparent text-sm text-foreground outline-none" />
+              </div>
+            )}
+            {filterMode === 'yillik' && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
+                <Calendar className="w-4 h-4 text-muted-foreground" />
+                <select value={selYear} onChange={e => setSelYear(e.target.value)}
+                  className="bg-transparent text-sm text-foreground outline-none">
+                  {[2024, 2025, 2026, 2027].map(y => (
+                    <option key={y} value={String(y)}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Filter tabs */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Mode tabs */}
-          <div className="flex items-center bg-muted/40 border border-border rounded-xl p-1 gap-1">
-            {([
-              { key: 'batch',   label: 'Hammasi' },
-              { key: 'kunlik',  label: 'Kunlik' },
-              { key: 'oylik',   label: 'Oylik' },
-              { key: 'yillik',  label: 'Yillik' },
-            ] as { key: FilterMode; label: string }[]).map(m => (
-              <button key={m.key}
-                onClick={() => setFilterMode(m.key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  filterMode === m.key
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}>
-                {m.label}
-              </button>
-            ))}
+        {/* ── Date info badge ── */}
+        {stats && !loading && selSmena !== 'all' && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-muted/30 border border-border rounded-lg w-fit text-xs text-muted-foreground">
+            <Calendar className="w-3.5 h-3.5 shrink-0 text-indigo-500" />
+            <span className="font-semibold text-foreground">{selSmena} Smena</span>
+            <span className="text-border">•</span>
+            <span>{formatDateRange(stats.totals.date_from, stats.totals.date_to)}</span>
           </div>
-
-
-          {/* Kunlik — date picker */}
-          {filterMode === 'kunlik' && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
-              <input type="date" value={selDate}
-                onChange={e => setSelDate(e.target.value)}
-                className="bg-transparent text-sm text-foreground outline-none" />
-            </div>
-          )}
-
-          {/* Oylik — month picker */}
-          {filterMode === 'oylik' && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
-              <input type="month" value={selMonth}
-                onChange={e => setSelMonth(e.target.value)}
-                className="bg-transparent text-sm text-foreground outline-none" />
-            </div>
-          )}
-
-          {/* Yillik — year select */}
-          {filterMode === 'yillik' && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-card border border-border rounded-lg">
-              <Calendar className="w-4 h-4 text-muted-foreground" />
-              <select value={selYear} onChange={e => setSelYear(e.target.value)}
-                className="bg-transparent text-sm text-foreground outline-none">
-                {[2024, 2025, 2026, 2027].map(y => (
-                  <option key={y} value={String(y)}>{y}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Refresh */}
-          <button onClick={() => {
-            const shiftArg = selSmena !== 'all' ? selSmena : undefined
-            if (filterMode === 'batch') {
-              if (selSmena !== 'all') loadStats({ shift: selSmena })
-              else loadStats({ batch: selBatch })
-            } else {
-              const range = getDateRange(filterMode, selDate, selMonth, selYear)
-              if (range) loadStats({ ...range, shift: shiftArg })
-            }
-          }}
-            className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Yangilash
-          </button>
-        </div>
+        )}
 
         {/* Empty state */}
         {empty && !loading && (
