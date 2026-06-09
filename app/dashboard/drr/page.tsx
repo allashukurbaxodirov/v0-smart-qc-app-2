@@ -7,8 +7,9 @@ import PageHeader from '@/components/dashboard/page-header'
 import {
   ChevronLeft, TrendingDown, AlertTriangle, RefreshCw,
   Car, Layers, Building2, FileSpreadsheet, Bell, Users,
-  X, Search, Calendar,
+  X, Search, Calendar, BookOpen, Upload, CheckCircle2, ChevronRight,
 } from 'lucide-react'
+import type { ShiftCalendar } from '@/lib/gsip-drr-parser'
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from 'recharts'
@@ -176,6 +177,9 @@ function DRRPageContent() {
   const [escModal,  setEscModal]  = useState<EscalationModal | null>(null)
   const [escSaving, setEscSaving] = useState(false)
   const [escDone,   setEscDone]   = useState<Set<string>>(new Set())
+
+  // Oylik hisobot modal
+  const [monthlyOpen, setMonthlyOpen] = useState(false)
 
   // Drilldown drawer
   const [drill,        setDrill]        = useState<DrillData | null>(null)
@@ -357,6 +361,7 @@ function DRRPageContent() {
   // ── Asosiy dashboard ───────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-background">
+      {monthlyOpen && <MonthlyReportModal onClose={() => setMonthlyOpen(false)} />}
       <PageHeader
         title="DRR Dashboard"
         description="Daily Rejection Rate — GSIP import ma'lumotlari tahlili"
@@ -376,6 +381,14 @@ function DRRPageContent() {
           </Link>
 
           <div className="flex items-center gap-3 flex-wrap">
+            {session?.role === 'superadmin' && (
+              <button
+                onClick={() => setMonthlyOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-all"
+              >
+                <BookOpen className="w-3.5 h-3.5" /> Oylik Hisobot
+              </button>
+            )}
             {isAdmin && (
               <Link href="/dashboard/drr-admin">
                 <button className="flex items-center gap-1.5 px-3 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-all">
@@ -1011,5 +1024,375 @@ export default function DRRPage() {
     <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>}>
       <DRRPageContent />
     </Suspense>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OYLIK HISOBOT MODAL
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const MONTHS_UZ = ['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentabr','Oktabr','Noyabr','Dekabr']
+const SMENA_OPTS = ['A', 'B', 'D', '—'] as const
+type SmenaOpt = 'A' | 'B' | 'D' | '—'
+
+interface MonthlyImportResult {
+  ok: boolean
+  meta: { dateFrom: string; dateTo: string; shiftFrom: string; shiftTo: string }
+  results: Record<string, { importBatch: string; rowCount: number; rawCount: number; totalCount: number; totalVeh: number }>
+  warnings: string[]
+  totalRaw: number
+  totalSkipped: number
+}
+
+type DayCalendar = { E: SmenaOpt; N: SmenaOpt }
+
+function buildDaysInMonth(year: number, month: number): string[] {
+  const count = new Date(year, month, 0).getDate()
+  return Array.from({ length: count }, (_, i) => {
+    const d = i + 1
+    return `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+  })
+}
+
+function autoFill(days: string[], startSmena: SmenaOpt): Record<string, DayCalendar> {
+  const rota: SmenaOpt[] = ['A', 'B', 'D']
+  const idx = rota.indexOf(startSmena as any)
+  const start = idx < 0 ? 0 : idx
+  const cal: Record<string, DayCalendar> = {}
+  days.forEach((date, i) => {
+    const e = rota[(start + i * 2)     % 3]
+    const n = rota[(start + i * 2 + 1) % 3]
+    cal[date] = { E: e, N: n }
+  })
+  return cal
+}
+
+export function MonthlyReportModal({ onClose }: { onClose: () => void }) {
+  const today  = new Date()
+  const prevM  = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+  const [year,  setYear]  = useState(prevM.getFullYear())
+  const [month, setMonth] = useState(prevM.getMonth() + 1)
+  const [step,  setStep]  = useState<1 | 2 | 3>(1)
+
+  const days = buildDaysInMonth(year, month)
+
+  const [calendar, setCalendar] = useState<Record<string, DayCalendar>>(() =>
+    Object.fromEntries(days.map(d => [d, { E: 'A' as SmenaOpt, N: 'B' as SmenaOpt }]))
+  )
+
+  // Oy o'zgarganda jadvalni yangilash
+  useEffect(() => {
+    const newDays = buildDaysInMonth(year, month)
+    setCalendar(Object.fromEntries(newDays.map(d => [d, { E: 'A' as SmenaOpt, N: 'B' as SmenaOpt }])))
+  }, [year, month])
+
+  const setDay = (date: string, slot: 'E' | 'N', val: SmenaOpt) => {
+    setCalendar(p => ({ ...p, [date]: { ...p[date], [slot]: val } }))
+  }
+
+  const applyAutoFill = (start: SmenaOpt) => {
+    const newDays = buildDaysInMonth(year, month)
+    setCalendar(autoFill(newDays, start))
+  }
+
+  // File upload
+  const [file,      setFile]      = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [result,    setResult]    = useState<MonthlyImportResult | null>(null)
+  const [error,     setError]     = useState('')
+
+  const handleUpload = async () => {
+    if (!file) return
+    setUploading(true)
+    setError('')
+    try {
+      // Build ShiftCalendar (skip "—" entries)
+      const cal: ShiftCalendar = {}
+      for (const [date, slots] of Object.entries(calendar)) {
+        const e = slots.E !== '—' ? slots.E : undefined
+        const n = slots.N !== '—' ? slots.N : undefined
+        if (e || n) cal[date] = { ...(e ? { E: e } : {}), ...(n ? { N: n } : {}) }
+      }
+
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('calendar', JSON.stringify(cal))
+
+      const res  = await fetch('/api/drr-import/monthly', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error ?? 'Xatolik'); return }
+      setResult(data)
+    } catch (e: any) {
+      setError(e.message ?? 'Tarmoq xatosi')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center">
+              <BookOpen className="w-4 h-4 text-indigo-400" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-foreground">Oylik DRR Hisobot</h2>
+              <p className="text-xs text-muted-foreground">Smena jadvali bilan import</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
+            <X className="w-4 h-4 text-muted-foreground" />
+          </button>
+        </div>
+
+        {/* Steps indicator */}
+        <div className="flex items-center gap-2 px-6 py-3 border-b border-border bg-muted/10">
+          {([
+            { n: 1, label: 'Oy tanlash' },
+            { n: 2, label: 'Smena jadvali' },
+            { n: 3, label: 'Fayl yuklash' },
+          ] as const).map(({ n, label }) => (
+            <div key={n} className="flex items-center gap-2">
+              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border-2 ${
+                step === n ? 'bg-indigo-600 border-indigo-500 text-white' :
+                step > n   ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-400' :
+                             'bg-muted/30 border-border text-muted-foreground'
+              }`}>{step > n ? '✓' : n}</div>
+              <span className={`text-xs font-medium ${step === n ? 'text-foreground' : 'text-muted-foreground'}`}>{label}</span>
+              {n < 3 && <ChevronRight className="w-3 h-3 text-muted-foreground" />}
+            </div>
+          ))}
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6">
+
+          {/* ── STEP 1: Oy tanlash ─── */}
+          {step === 1 && (
+            <div className="space-y-6">
+              <p className="text-sm text-muted-foreground">
+                Qaysi oyning hisobotini kiritmoqchisiz?
+              </p>
+              <div className="flex items-center gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase">Yil</label>
+                  <select value={year} onChange={e => setYear(Number(e.target.value))}
+                    className="px-4 py-2.5 bg-muted/30 border border-border rounded-xl text-foreground text-sm font-semibold focus:outline-none">
+                    {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground uppercase">Oy</label>
+                  <select value={month} onChange={e => setMonth(Number(e.target.value))}
+                    className="px-4 py-2.5 bg-muted/30 border border-border rounded-xl text-foreground text-sm font-semibold focus:outline-none">
+                    {MONTHS_UZ.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-xl">
+                <p className="text-sm font-semibold text-indigo-400 mb-1">
+                  {MONTHS_UZ[month-1]} {year} — {buildDaysInMonth(year, month).length} kun
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Keyingi qadamda har kunning kunduz va tungi smenasini belgilaysiz
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 2: Smena jadvali ─── */}
+          {step === 2 && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-foreground">
+                  {MONTHS_UZ[month-1]} {year} — Smena jadvali
+                </p>
+                {/* Auto-fill */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">Avtoto'ldirish (1-kundan):</span>
+                  {(['A','B','D'] as SmenaOpt[]).map(s => (
+                    <button key={s} onClick={() => applyAutoFill(s)}
+                      className="px-2.5 py-1 bg-muted/40 border border-border rounded-lg text-xs font-bold text-foreground hover:bg-indigo-500/10 hover:border-indigo-500/30 hover:text-indigo-400 transition-all">
+                      {s} dan
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="bg-muted/10 border border-border rounded-xl overflow-hidden">
+                <div className="grid grid-cols-[auto_1fr_1fr] text-xs font-semibold text-muted-foreground border-b border-border bg-muted/20">
+                  <div className="px-4 py-2.5">Kun</div>
+                  <div className="px-4 py-2.5 text-center border-l border-border">☀ Kunduz (E)</div>
+                  <div className="px-4 py-2.5 text-center border-l border-border">🌙 Tungi (N)</div>
+                </div>
+                <div className="divide-y divide-border max-h-[380px] overflow-y-auto">
+                  {days.map((date, i) => {
+                    const d     = i + 1
+                    const dow   = new Date(date).getDay()
+                    const isWkd = dow === 0 || dow === 6
+                    return (
+                      <div key={date} className={`grid grid-cols-[auto_1fr_1fr] items-center ${isWkd ? 'bg-amber-500/5' : ''}`}>
+                        <div className="px-4 py-2 min-w-[72px]">
+                          <span className={`text-sm font-bold ${isWkd ? 'text-amber-400' : 'text-foreground'}`}>{d}-{MONTHS_UZ[month-1].toLowerCase().slice(0,3)}</span>
+                          {isWkd && <span className="ml-1 text-[10px] text-amber-400/60">dam</span>}
+                        </div>
+                        {(['E','N'] as const).map(slot => (
+                          <div key={slot} className="px-3 py-1.5 border-l border-border">
+                            <div className="flex items-center gap-1 justify-center">
+                              {SMENA_OPTS.map(opt => (
+                                <button
+                                  key={opt}
+                                  onClick={() => setDay(date, slot, opt)}
+                                  className={`w-8 h-7 rounded-md text-xs font-bold border transition-all ${
+                                    calendar[date]?.[slot] === opt
+                                      ? opt === 'A' ? 'bg-blue-600  text-white border-blue-500'
+                                      : opt === 'B' ? 'bg-green-600 text-white border-green-500'
+                                      : opt === 'D' ? 'bg-purple-600 text-white border-purple-500'
+                                      :               'bg-muted text-muted-foreground border-border'
+                                      : 'bg-transparent text-muted-foreground border-border/50 hover:border-border'
+                                  }`}
+                                >
+                                  {opt}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Legend */}
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-blue-600" />A smena</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-green-600" />B smena</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-purple-600" />D smena</span>
+                <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-muted border border-border" />— (dam olish / tayinlanmagan)</span>
+              </div>
+            </div>
+          )}
+
+          {/* ── STEP 3: Fayl yuklash ─── */}
+          {step === 3 && (
+            <div className="space-y-5">
+              <div className="p-4 bg-indigo-500/5 border border-indigo-500/20 rounded-xl text-xs text-muted-foreground">
+                <p className="font-semibold text-indigo-400 mb-1">{MONTHS_UZ[month-1]} {year} — Smena jadvali tayyorlandi ✓</p>
+                <p>Endi GSIP DRR Excel faylini yuklang. Tizim har bir yozuvni smena jadvaliga ko&apos;ra A/B/D ga ajratadi.</p>
+              </div>
+
+              {/* File drag-drop */}
+              {!result && (
+                <label className={`flex flex-col items-center justify-center gap-3 p-8 border-2 border-dashed rounded-2xl cursor-pointer transition-all ${
+                  file ? 'border-indigo-500/60 bg-indigo-500/5' : 'border-border hover:border-indigo-500/40 hover:bg-indigo-500/5'
+                }`}>
+                  <Upload className={`w-8 h-8 ${file ? 'text-indigo-400' : 'text-muted-foreground'}`} />
+                  {file ? (
+                    <>
+                      <p className="text-sm font-semibold text-indigo-400">{file.name}</p>
+                      <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-semibold text-foreground">Excel faylni tanlang yoki tashlang</p>
+                      <p className="text-xs text-muted-foreground">GSIP DRR Defect Details — .xlsx format</p>
+                    </>
+                  )}
+                  <input type="file" accept=".xlsx,.xls" className="hidden"
+                    onChange={e => { setFile(e.target.files?.[0] ?? null); setResult(null); setError('') }} />
+                </label>
+              )}
+
+              {error && (
+                <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-sm text-red-400">
+                  {error}
+                </div>
+              )}
+
+              {/* Result */}
+              {result && (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-emerald-400">
+                    <CheckCircle2 className="w-5 h-5" />
+                    <p className="text-sm font-bold">Muvaffaqiyatli import qilindi!</p>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {Object.entries(result.results).map(([smena, r]) => (
+                      <div key={smena} className={`rounded-xl border p-4 ${
+                        smena === 'A' ? 'border-blue-500/30 bg-blue-500/5' :
+                        smena === 'B' ? 'border-green-500/30 bg-green-500/5' :
+                                        'border-purple-500/30 bg-purple-500/5'
+                      }`}>
+                        <p className={`text-lg font-bold mb-1 ${
+                          smena === 'A' ? 'text-blue-400' : smena === 'B' ? 'text-green-400' : 'text-purple-400'
+                        }`}>{smena} Smena</p>
+                        <p className="text-2xl font-bold text-foreground">{r.totalCount.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">nuqson · {r.totalVeh} mashina</p>
+                        <p className="text-xs text-muted-foreground">{r.rawCount} qayd</p>
+                      </div>
+                    ))}
+                  </div>
+                  {result.warnings.length > 0 && (
+                    <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                      {result.warnings.map((w, i) => (
+                        <p key={i} className="text-xs text-amber-400">⚠ {w}</p>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Jami {result.totalRaw.toLocaleString()} qayd import qilindi · {result.totalSkipped.toLocaleString()} o&apos;tkazib yuborildi
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between px-6 py-4 border-t border-border bg-muted/10">
+          <button
+            onClick={() => step === 1 ? onClose() : setStep(s => (s - 1) as 1 | 2 | 3)}
+            className="px-4 py-2 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-all"
+          >
+            {step === 1 ? 'Yopish' : '← Orqaga'}
+          </button>
+
+          {step < 3 && (
+            <button
+              onClick={() => setStep(s => (s + 1) as 1 | 2 | 3)}
+              className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 transition-all"
+            >
+              Davom etish →
+            </button>
+          )}
+
+          {step === 3 && !result && (
+            <button
+              onClick={handleUpload}
+              disabled={!file || uploading}
+              className="px-5 py-2 rounded-xl bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all flex items-center gap-2"
+            >
+              {uploading ? (
+                <><RefreshCw className="w-4 h-4 animate-spin" /> Yuklanmoqda...</>
+              ) : (
+                <><Upload className="w-4 h-4" /> Import qilish</>
+              )}
+            </button>
+          )}
+
+          {step === 3 && result && (
+            <button onClick={onClose}
+              className="px-5 py-2 rounded-xl bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition-all">
+              Tugallash ✓
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }

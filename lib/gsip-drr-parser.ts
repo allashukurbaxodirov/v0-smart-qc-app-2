@@ -348,3 +348,174 @@ export function parseGsipDRR(buffer: Buffer): DRRParseResult {
 
   return { meta, rows, top10, skipped, warnings, rawCount }
 }
+
+// ─── Monthly (oylik) parser — smena bo'yicha ajratadi ─────────────────────────
+// shiftCalendar: { "2026-05-01": { E: "A", N: "B" }, ... }
+// E = kunduz (erta), N = tungi shift
+// Qiymat: "A" | "B" | "D" | undefined (undefined = tayinlanmagan, skip)
+
+export type ShiftCalendar = Record<string, { E?: string; N?: string }>
+
+function toDateStr(v: any): string {
+  if (!v && v !== 0) return ''
+  if (v instanceof Date) return v.toISOString().split('T')[0]
+  if (typeof v === 'number') {
+    return new Date(Math.round((v - 25569) * 86400000)).toISOString().split('T')[0]
+  }
+  return String(v).substring(0, 10)
+}
+
+export interface DRRBySmenaResult {
+  meta:    DRRImportMeta
+  bySmena: Record<string, {
+    rows:     DRRImportRow[]
+    top10:    DRRTop10Fault[]
+    rawCount: number
+    skipped:  number
+  }>
+  warnings:    string[]
+  totalRaw:    number
+  totalSkipped: number
+}
+
+export function parseGsipDRRBySmena(
+  buffer: Buffer,
+  calendar: ShiftCalendar,
+): DRRBySmenaResult {
+  const warnings: string[] = []
+  let totalSkipped = 0
+  let totalRaw = 0
+
+  const wb = XLSX.read(buffer, { type: 'buffer' })
+  const ws = wb.Sheets[wb.SheetNames[0]]
+  const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+
+  const filterStr = String(raw[2]?.[0] ?? '')
+  const meta = parseDRRFilterRow(filterStr)
+
+  const dataRows = raw.slice(5)
+
+  // smena → aggMap
+  const smenaMaps: Record<string, Record<string, {
+    rowType: string; modelGroup: string; modelLabel: string
+    partLv1: string; partLv2: string; partLv3: string; partLv4: string
+    faultId: number | null; faultCode: string; faultName: string
+    defectNote: string; crew: string; prodTeam: string; shop: string
+    count: number; ponos: Set<string>
+  }>> = {}
+
+  for (const r of dataRows) {
+    if (!r || !r[0]) { totalSkipped++; continue }
+    const rowType = String(r[0]).trim().toUpperCase()
+    if (rowType !== 'S') { totalSkipped++; continue }
+
+    // Sana va shift aniqlash
+    const dateStr   = toDateStr(r[10])
+    const gsipShift = String(r[11] ?? '').trim().toUpperCase()  // E | N
+    const smena     = dateStr && gsipShift
+      ? (calendar[dateStr]?.[gsipShift as 'E' | 'N'] ?? null)
+      : null
+
+    if (!smena) { totalSkipped++; continue }
+
+    totalRaw++
+
+    const partLv1       = String(r[1]  ?? '').trim()
+    const partLv2       = String(r[2]  ?? '').trim()
+    const partLv3       = String(r[3]  ?? '').trim()
+    const partLv4       = String(r[4]  ?? '').trim()
+    const faultRaw      = String(r[6]  ?? '').trim()
+    const pono          = String(r[7]  ?? '').trim()
+    const defectNote    = String(r[9]  ?? '').trim()
+    const crew          = String(r[12] ?? '').trim()
+    const prodTeamShort = String(r[14] ?? '').trim()
+    const modelGroup    = String(r[28] ?? '').trim()
+    const faultIdRaw    = r[50]
+    const bpdFull       = String(r[54] ?? '').trim()
+
+    if (!faultRaw) { totalSkipped++; continue }
+
+    const prodTeam = bpdFull || ('00.' + prodTeamShort)
+    const shop     = prodTeamToShopDRR(prodTeam)
+
+    let faultCode: string, faultName: string
+    const m3 = faultRaw.match(/^(\d{3})\.?\s+(.+)$/)
+    const mL  = faultRaw.match(/^([A-Za-z])\s+(.+)$/)
+    if (m3)      { faultCode = m3[1]; faultName = m3[2] }
+    else if (mL) { faultCode = mL[1]; faultName = mL[2] }
+    else         { faultCode = '—';   faultName = faultRaw }
+
+    const faultIdNum = Number(faultIdRaw)
+    const faultId = (faultIdRaw !== '' && faultIdRaw != null && !isNaN(faultIdNum)) ? faultIdNum : null
+
+    if (!smenaMaps[smena]) smenaMaps[smena] = {}
+    const aggMap = smenaMaps[smena]
+    const key    = `${faultCode}||${faultName}||${prodTeam}||${modelGroup}||${partLv1}`
+
+    if (!aggMap[key]) {
+      aggMap[key] = {
+        rowType, modelGroup, modelLabel: modelGroupToLabelDRR(modelGroup),
+        partLv1, partLv2, partLv3, partLv4, faultId,
+        faultCode, faultName, defectNote, crew, prodTeam, shop,
+        count: 0, ponos: new Set(),
+      }
+    }
+    aggMap[key].count++
+    if (pono) aggMap[key].ponos.add(pono)
+  }
+
+  // AggMap → rows + top10 per smena
+  const bySmena: DRRBySmenaResult['bySmena'] = {}
+
+  for (const [smena, aggMap] of Object.entries(smenaMaps)) {
+    const rows: DRRImportRow[] = Object.values(aggMap).map(a => ({
+      rowType: a.rowType, modelGroup: a.modelGroup, modelLabel: a.modelLabel,
+      partLv1: a.partLv1, partLv2: a.partLv2, partLv3: a.partLv3, partLv4: a.partLv4,
+      faultId: a.faultId, faultCode: a.faultCode, faultName: a.faultName,
+      defectNote: a.defectNote, crew: a.crew, prodTeam: a.prodTeam, shop: a.shop,
+      count: a.count, drrRatio: 0, vehCnt: a.ponos.size,
+    }))
+
+    // Top10
+    const faultMap: Record<string, {
+      totalCount: number; totalVehCnt: number
+      teams: Record<string, number>; models: Record<string, number>; lv1s: Record<string, number>
+    }> = {}
+    for (const row of rows) {
+      const k = `${row.faultCode}||${row.faultName}`
+      if (!faultMap[k]) faultMap[k] = { totalCount: 0, totalVehCnt: 0, teams: {}, models: {}, lv1s: {} }
+      const f = faultMap[k]
+      f.totalCount  += row.count
+      f.totalVehCnt += row.vehCnt
+      f.teams[row.prodTeam]    = (f.teams[row.prodTeam]    || 0) + row.count
+      f.models[row.modelGroup] = (f.models[row.modelGroup] || 0) + row.count
+      f.lv1s[row.partLv1]     = (f.lv1s[row.partLv1]     || 0) + row.count
+    }
+    const top10: DRRTop10Fault[] = Object.entries(faultMap)
+      .sort((a, b) => b[1].totalCount - a[1].totalCount)
+      .slice(0, 10)
+      .map(([k, f], idx) => {
+        const [fc, fn] = k.split('||')
+        const topTeam = Object.entries(f.teams).sort((a, b) => b[1] - a[1])[0]
+        const topLv1  = Object.entries(f.lv1s).sort((a, b)  => b[1] - a[1])[0]
+        return {
+          rank: idx + 1, faultCode: fc, faultName: fn,
+          totalCount: f.totalCount, totalVehCnt: f.totalVehCnt,
+          topShop: prodTeamToShopDRR(topTeam?.[0] ?? ''),
+          topProdTeam: topTeam?.[0] ?? '',
+          modelDamas: f.models['R7'] ?? 0, modelLabo: f.models['R7A'] ?? 0,
+          topPartLv1: topLv1?.[0] ?? '',
+          assignedRole: prodTeamToRoleDRR(topTeam?.[0] ?? ''),
+        }
+      })
+
+    const rawCount = Object.values(aggMap).reduce((s, a) => s + a.count, 0)
+    bySmena[smena] = { rows, top10, rawCount, skipped: 0 }
+  }
+
+  if (totalRaw === 0) {
+    warnings.push('Smena jadvali mos kelmadi yoki ma\'lumot topilmadi.')
+  }
+
+  return { meta, bySmena, warnings, totalRaw, totalSkipped }
+}
