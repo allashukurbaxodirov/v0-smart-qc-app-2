@@ -38,6 +38,26 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // Smena kalendarini DB ga saqlash
+    const firstDate = Object.keys(calendar).sort()[0] ?? ''
+    const calYear   = firstDate ? Number(firstDate.slice(0, 4)) : new Date().getFullYear()
+    const calMonth  = firstDate ? Number(firstDate.slice(5, 7)) : new Date().getMonth() + 1
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS drr_monthly_calendars (
+          id SERIAL PRIMARY KEY, year INT NOT NULL, month INT NOT NULL,
+          calendar JSONB NOT NULL, updated_at TIMESTAMP DEFAULT NOW(), updated_by TEXT,
+          UNIQUE(year, month)
+        )
+      `
+      await sql`
+        INSERT INTO drr_monthly_calendars (year, month, calendar, updated_at, updated_by)
+        VALUES (${calYear}, ${calMonth}, ${JSON.stringify(calendar)}, NOW(), ${session.name})
+        ON CONFLICT (year, month) DO UPDATE
+          SET calendar=EXCLUDED.calendar, updated_at=NOW(), updated_by=EXCLUDED.updated_by
+      `
+    } catch { /* saqlay olmasa ham import davom etadi */ }
+
     // Ensure columns exist
     try {
       await sql`ALTER TABLE drr_import_batches ADD COLUMN IF NOT EXISTS shift_label TEXT`

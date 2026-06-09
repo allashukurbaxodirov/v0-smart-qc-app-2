@@ -1076,14 +1076,39 @@ export function MonthlyReportModal({ onClose }: { onClose: () => void }) {
 
   const days = buildDaysInMonth(year, month)
 
-  const [calendar, setCalendar] = useState<Record<string, DayCalendar>>(() =>
+  const [calendar,       setCalendar]       = useState<Record<string, DayCalendar>>(() =>
     Object.fromEntries(days.map(d => [d, { E: 'A' as SmenaOpt, N: 'B' as SmenaOpt }]))
   )
+  const [calSaved,       setCalSaved]       = useState(false)   // DB dan yuklangan
+  const [deleting,       setDeleting]       = useState(false)
+  const [deleteMsg,      setDeleteMsg]      = useState('')
 
-  // Oy o'zgarganda jadvalni yangilash
+  // Oy tanlananda DB dan kalendarni yuklash
   useEffect(() => {
     const newDays = buildDaysInMonth(year, month)
+    // Default bilan boshlash
     setCalendar(Object.fromEntries(newDays.map(d => [d, { E: 'A' as SmenaOpt, N: 'B' as SmenaOpt }])))
+    setCalSaved(false)
+    setDeleteMsg('')
+
+    fetch(`/api/drr-import/monthly-calendar?year=${year}&month=${month}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data?.found && data.calendar) {
+          // DB dan yuklangan kalendarni ishlatamiz
+          const loaded: Record<string, DayCalendar> = {}
+          for (const date of newDays) {
+            const saved = data.calendar[date]
+            loaded[date] = {
+              E: (saved?.E as SmenaOpt) ?? 'A',
+              N: (saved?.N as SmenaOpt) ?? 'B',
+            }
+          }
+          setCalendar(loaded)
+          setCalSaved(true)
+        }
+      })
+      .catch(() => {})
   }, [year, month])
 
   const setDay = (date: string, slot: 'E' | 'N', val: SmenaOpt) => {
@@ -1201,6 +1226,16 @@ export function MonthlyReportModal({ onClose }: { onClose: () => void }) {
                   Keyingi qadamda har kunning kunduz va tungi smenasini belgilaysiz
                 </p>
               </div>
+
+              {/* Saqlangan kalendar ko'rsatkichi */}
+              {calSaved && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                  <p className="text-xs font-semibold text-emerald-400">
+                    {MONTHS_UZ[month-1]} {year} uchun smena jadvali DB da saqlangan — avtomatik yuklandi
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
@@ -1314,6 +1349,16 @@ export function MonthlyReportModal({ onClose }: { onClose: () => void }) {
                 </div>
               )}
 
+              {deleteMsg && !result && (
+                <div className={`p-3 rounded-xl border text-sm font-semibold ${
+                  deleteMsg.startsWith('✓')
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                    : 'bg-red-500/10 border-red-500/30 text-red-400'
+                }`}>
+                  {deleteMsg}
+                </div>
+              )}
+
               {/* Result */}
               {result && (
                 <div className="space-y-3">
@@ -1347,6 +1392,47 @@ export function MonthlyReportModal({ onClose }: { onClose: () => void }) {
                   <p className="text-xs text-muted-foreground">
                     Jami {result.totalRaw.toLocaleString()} qayd import qilindi · {result.totalSkipped.toLocaleString()} o&apos;tkazib yuborildi
                   </p>
+
+                  {/* O'chirish tugmasi */}
+                  <div className="pt-2 border-t border-border">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      Smena jadvalini saqlab qolgan holda faqat import ma&apos;lumotlarini o&apos;chirish:
+                    </p>
+                    <button
+                      onClick={async () => {
+                        if (!confirm(`${MONTHS_UZ[month-1]} ${year} import ma'lumotlarini o'chirasizmi? Smena jadvali saqlanib qoladi.`)) return
+                        setDeleting(true)
+                        setDeleteMsg('')
+                        try {
+                          const res = await fetch(`/api/drr-import/monthly-calendar?year=${year}&month=${month}`, {
+                            method: 'DELETE'
+                          })
+                          const data = await res.json()
+                          if (res.ok) {
+                            setDeleteMsg(`✓ ${data.deletedBatches} ta batch o'chirildi. Smena jadvali saqlangan.`)
+                            setResult(null)
+                            setFile(null)
+                          } else {
+                            setDeleteMsg(`✗ Xato: ${data.error}`)
+                          }
+                        } catch {
+                          setDeleteMsg('✗ Server bilan aloqa xatosi')
+                        } finally {
+                          setDeleting(false)
+                        }
+                      }}
+                      disabled={deleting}
+                      className="px-4 py-2 rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-xs font-semibold hover:bg-red-500/20 transition-all disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {deleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : '🗑'}
+                      Faqat ma&apos;lumotlarni o&apos;chirish
+                    </button>
+                    {deleteMsg && (
+                      <p className={`text-xs mt-2 font-medium ${deleteMsg.startsWith('✓') ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {deleteMsg}
+                      </p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
