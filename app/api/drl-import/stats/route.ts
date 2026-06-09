@@ -25,6 +25,9 @@ export async function GET(req: NextRequest) {
   const isDateMode = !batchParam && !!(fromParam && toParam)
 
   try {
+    // Ensure defect_date column exists (added by monthly import, may not exist for older tables)
+    try { await sql`ALTER TABLE drl_imports ADD COLUMN IF NOT EXISTS defect_date DATE` } catch { /* ignore */ }
+
     let batchId = ''
     if (!isDateMode) {
       if (batchParam) {
@@ -47,21 +50,30 @@ export async function GET(req: NextRequest) {
     }
 
     // ── FROM + WHERE clauses ─────────────────────────────────────────────────
-    // When shift filter is needed, JOIN with drl_import_batches
+    // When shift filter is needed in date mode, JOIN with drl_import_batches
     const needsJoin = isDateMode && !!shiftParam
 
     const fromClause = needsJoin
       ? sql`FROM drl_imports i JOIN drl_import_batches b ON b.import_batch = i.import_batch`
       : sql`FROM drl_imports i`
 
-    // date overlap: batch range overlaps the requested [from, to] window
-    // works for both daily uploads (date_from=date_to=day) and monthly (date_from=Apr1, date_to=Apr30)
+    // Exact date filtering:
+    //   - Oylik import: defect_date per-qator aniq saqlanadi → exact kun filter
+    //   - Kunlik import: defect_date=NULL → batch date_from/date_to range ishlatiladi
+    // Bu DRR dagi fix bilan bir xil.
+    const dateFilter = isDateMode
+      ? sql`(
+          (i.defect_date IS NOT NULL AND i.defect_date >= ${fromParam!}::date AND i.defect_date <= ${toParam!}::date)
+          OR
+          (i.defect_date IS NULL     AND i.date_to    >= ${fromParam!}::date AND i.date_from   <= ${toParam!}::date)
+        )`
+      : sql`i.import_batch = ${batchId}::uuid`
+
+    const shiftFilter = needsJoin ? sql`AND b.shift_label = ${shiftParam!}` : sql``
+
     const whereClause = isDateMode
-      ? (needsJoin
-          ? sql`WHERE i.date_to >= ${fromParam}::date AND i.date_from <= ${toParam}::date
-                  AND b.shift_label = ${shiftParam}`
-          : sql`WHERE i.date_to >= ${fromParam}::date AND i.date_from <= ${toParam}::date`)
-      : sql`WHERE i.import_batch = ${batchId}::uuid`
+      ? sql`WHERE ${dateFilter} ${shiftFilter}`
+      : sql`WHERE ${dateFilter}`
 
     const [totals] = await sql`
       SELECT
