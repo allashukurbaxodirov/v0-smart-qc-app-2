@@ -400,17 +400,14 @@ function DRRPageContent() {
             {/* Smena chips — GCA style */}
             <div className="flex items-center bg-muted/40 border border-border rounded-lg p-0.5 gap-0.5">
               {([
-                { key: 'all', label: 'Barchasi' },
-                { key: 'A',   label: 'A smena'  },
-                { key: 'B',   label: 'B smena'  },
-                { key: 'D',   label: 'D smena'  },
+                { key: 'A', label: 'A smena' },
+                { key: 'B', label: 'B smena' },
+                { key: 'D', label: 'D smena' },
               ] as { key: SmenaFilter; label: string }[]).map(s => {
-                const cnt = s.key === 'all'
-                  ? batches.length
-                  : batches.filter(b => b.shift_label === s.key).length
+                const cnt = batches.filter(b => b.shift_label === s.key).length
                 return (
                   <button key={s.key}
-                    onClick={() => { setFilterSmena(s.key); if (s.key === 'all') setFilterMode('batch') }}
+                    onClick={() => { setFilterSmena(s.key) }}
                     className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
                       filterSmena === s.key
                         ? 'bg-indigo-600 text-white shadow-sm'

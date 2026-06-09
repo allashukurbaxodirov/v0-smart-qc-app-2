@@ -450,8 +450,8 @@ export default function GCAPage() {
           <div className="flex items-center gap-3 flex-wrap">
             {/* Shift filter tabs */}
             <div className="flex items-center bg-muted/40 border border-border rounded-lg p-0.5 gap-0.5">
-              {(['all', 'A', 'B', 'D'] as const).map(s => {
-                const count = s === 'all' ? batches.length : batches.filter(b => b.shift_label === s).length
+              {(['A', 'B', 'D'] as const).map(s => {
+                const count = batches.filter(b => b.shift_label === s).length
                 return (
                   <button
                     key={s}
@@ -462,7 +462,7 @@ export default function GCAPage() {
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {s === 'all' ? 'Barchasi' : `${s} smena`}
+                    {`${s} smena`}
                     {count > 0 && (
                       <span className={`ml-1.5 text-[10px] px-1 py-0.5 rounded-full ${
                         selShift === s ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'
