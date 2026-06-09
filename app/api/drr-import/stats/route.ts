@@ -16,9 +16,10 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const batchParam = searchParams.get('batch')
-  const fromParam  = searchParams.get('from')   // YYYY-MM-DD
-  const toParam    = searchParams.get('to')     // YYYY-MM-DD
+  const batchParam  = searchParams.get('batch')
+  const fromParam   = searchParams.get('from')   // YYYY-MM-DD
+  const toParam     = searchParams.get('to')     // YYYY-MM-DD
+  const smenaParam  = searchParams.get('smena')  // 'A' | 'B' | 'D' | null
 
   // Date-range mode: from+to berilgan, batch yo'q
   const isDateMode = !batchParam && !!(fromParam && toParam)
@@ -41,12 +42,19 @@ export async function GET(req: NextRequest) {
 
     // Oylik import: defect_date aniq saqlanadi → exact kun filter
     // Kunlik import: defect_date=NULL → batch date_from/date_to range ishlatiladi
+    // smena filter: shift_label bo'yicha subquery
+    const smenaSubquery = smenaParam
+      ? sql`AND import_batch IN (
+          SELECT import_batch FROM drr_import_batches WHERE shift_label = ${smenaParam}
+        )`
+      : sql``
+
     const whereClause = isDateMode
       ? sql`WHERE (
           (defect_date IS NOT NULL AND defect_date >= ${fromParam}::date AND defect_date <= ${toParam}::date)
           OR
           (defect_date IS NULL AND date_from <= ${toParam}::date AND date_to >= ${fromParam}::date)
-        )`
+        ) ${smenaSubquery}`
       : sql`WHERE import_batch = ${batchId}::uuid`
 
     // Jami statistika

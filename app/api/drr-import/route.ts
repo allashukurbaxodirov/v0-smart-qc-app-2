@@ -19,7 +19,7 @@ export async function GET() {
     const batches = await sql`
       SELECT import_batch, imported_at, imported_by, file_name,
              date_from::text, date_to::text, shift_from, shift_to,
-             row_count, total_count, models, status
+             row_count, total_count, models, status, shift_label
       FROM drr_import_batches
       ORDER BY imported_at DESC
       LIMIT 50

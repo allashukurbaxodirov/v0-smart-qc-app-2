@@ -70,6 +70,7 @@ interface Batch {
   shift_from:   string
   shift_to:     string
   total_count:  number
+  shift_label:  string | null
 }
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
@@ -408,6 +409,36 @@ function DRLPageContent() {
             </button>
           </Link>
 
+          {/* Smena filter chips */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {([
+              { key: 'all', label: 'Barchasi' },
+              { key: 'A',   label: 'A smena' },
+              { key: 'B',   label: 'B smena' },
+              { key: 'D',   label: 'D smena' },
+            ] as { key: SmenaTab; label: string }[]).map(s => {
+              const cnt = s.key === 'all'
+                ? batches.length
+                : batches.filter(b => b.shift_label === s.key).length
+              return (
+                <button key={s.key}
+                  onClick={() => setSelSmena(s.key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    selSmena === s.key
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                      : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/50'
+                  }`}>
+                  {s.label}
+                  {cnt > 0 && (
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      selSmena === s.key ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'
+                    }`}>{cnt}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
           <div className="flex items-center gap-3 flex-wrap">
             {isAdmin && (
               <Link href="/dashboard/drl-admin">
@@ -417,26 +448,6 @@ function DRLPageContent() {
               </Link>
             )}
           </div>
-        </div>
-
-        {/* Smena tabs */}
-        <div className="flex items-center gap-1 bg-muted/40 border border-border rounded-xl p-1 w-fit">
-          {([
-            { key: 'all', label: 'Barchasi' },
-            { key: 'A',   label: 'A Smena' },
-            { key: 'B',   label: 'B Smena' },
-            { key: 'D',   label: 'D Smena' },
-          ] as { key: SmenaTab; label: string }[]).map(s => (
-            <button key={s.key}
-              onClick={() => setSelSmena(s.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                selSmena === s.key
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}>
-              {s.label}
-            </button>
-          ))}
         </div>
 
         {/* Date info badge */}

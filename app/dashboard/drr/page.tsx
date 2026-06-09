@@ -85,7 +85,10 @@ interface Batch {
   shift_from:   string
   shift_to:     string
   total_count:  number
+  shift_label:  string | null
 }
+
+type SmenaFilter = 'all' | 'A' | 'B' | 'D'
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 type FilterMode = 'batch' | 'kunlik' | 'oylik' | 'yillik'
@@ -168,10 +171,11 @@ function DRRPageContent() {
   const todayStr   = new Date().toISOString().split('T')[0]
   const monthStr   = todayStr.substring(0, 7)
   const yearStr    = todayStr.substring(0, 4)
-  const [filterMode, setFilterMode] = useState<FilterMode>('batch')
-  const [selDate,    setSelDate]    = useState(todayStr)
-  const [selMonth,   setSelMonth]   = useState(monthStr)
-  const [selYear,    setSelYear]    = useState(yearStr)
+  const [filterMode,  setFilterMode]  = useState<FilterMode>('batch')
+  const [filterSmena, setFilterSmena] = useState<SmenaFilter>('all')
+  const [selDate,     setSelDate]     = useState(todayStr)
+  const [selMonth,    setSelMonth]    = useState(monthStr)
+  const [selYear,     setSelYear]     = useState(yearStr)
 
   // Eskalatsiya modal
   const [escModal,  setEscModal]  = useState<EscalationModal | null>(null)
@@ -215,12 +219,13 @@ function DRRPageContent() {
   }, [batchParam])
 
   // Statistika yuklash
-  const loadStats = useCallback(async (params: { batch?: string; from?: string; to?: string }) => {
+  const loadStats = useCallback(async (params: { batch?: string; from?: string; to?: string; smena?: SmenaFilter }) => {
     setLoading(true)
     setEmpty(false)
+    const smenaQ = params.smena && params.smena !== 'all' ? `&smena=${params.smena}` : ''
     let url = '/api/drr-import/stats'
     if (params.batch) url = `/api/drr-import/stats?batch=${params.batch}`
-    else if (params.from && params.to) url = `/api/drr-import/stats?from=${params.from}&to=${params.to}`
+    else if (params.from && params.to) url = `/api/drr-import/stats?from=${params.from}&to=${params.to}${smenaQ}`
     try {
       const res  = await fetch(url)
       const data = await res.json()
@@ -237,19 +242,30 @@ function DRRPageContent() {
     }
   }, [])
 
-  // Batch mode
+  // Batch mode: smena tanlananda mos batch ni topib ko'rsatish
   useEffect(() => {
     if (filterMode !== 'batch') return
-    if (selBatch) loadStats({ batch: selBatch })
-    else if (batches.length === 0 && !loading) setEmpty(true)
-  }, [filterMode, selBatch, loadStats])
+    if (batches.length === 0) { if (!loading) setEmpty(true); return }
+
+    if (filterSmena === 'all') {
+      // Eng so'nggi batch
+      const target = batches[0]?.import_batch
+      if (target) loadStats({ batch: target })
+      else setEmpty(true)
+    } else {
+      // filterSmena ga mos eng so'nggi batch
+      const match = batches.find(b => b.shift_label === filterSmena)
+      if (match) loadStats({ batch: match.import_batch })
+      else { setEmpty(true); setStats(null); setLoading(false) }
+    }
+  }, [filterMode, filterSmena, selBatch, batches, loadStats])
 
   // Date mode
   useEffect(() => {
     if (filterMode === 'batch') return
     const range = getDateRange(filterMode, selDate, selMonth, selYear)
-    if (range) loadStats({ from: range.from, to: range.to })
-  }, [filterMode, selDate, selMonth, selYear, loadStats])
+    if (range) loadStats({ from: range.from, to: range.to, smena: filterSmena })
+  }, [filterMode, filterSmena, selDate, selMonth, selYear, loadStats])
 
   // Eskalatsiya yuborish
   const submitEscalation = async () => {
@@ -380,6 +396,36 @@ function DRRPageContent() {
             </button>
           </Link>
 
+          {/* Smena filter chips */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {([
+              { key: 'all', label: 'Barchasi' },
+              { key: 'A',   label: 'A smena' },
+              { key: 'B',   label: 'B smena' },
+              { key: 'D',   label: 'D smena' },
+            ] as { key: SmenaFilter; label: string }[]).map(s => {
+              const cnt = s.key === 'all'
+                ? batches.length
+                : batches.filter(b => b.shift_label === s.key).length
+              return (
+                <button key={s.key}
+                  onClick={() => setFilterSmena(s.key)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+                    filterSmena === s.key
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                      : 'bg-card border-border text-muted-foreground hover:text-foreground hover:border-indigo-500/50'
+                  }`}>
+                  {s.label}
+                  {cnt > 0 && (
+                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                      filterSmena === s.key ? 'bg-white/20 text-white' : 'bg-muted text-muted-foreground'
+                    }`}>{cnt}</span>
+                  )}
+                </button>
+              )
+            })}
+          </div>
+
           <div className="flex items-center gap-3 flex-wrap">
             {session?.role === 'superadmin' && (
               <button
@@ -457,10 +503,12 @@ function DRRPageContent() {
 
           {/* Refresh */}
           <button onClick={() => {
-            if (filterMode === 'batch') loadStats({ batch: selBatch })
-            else {
+            if (filterMode === 'batch') {
+              const match = filterSmena === 'all' ? batches[0] : batches.find(b => b.shift_label === filterSmena)
+              if (match) loadStats({ batch: match.import_batch })
+            } else {
               const range = getDateRange(filterMode, selDate, selMonth, selYear)
-              if (range) loadStats(range)
+              if (range) loadStats({ ...range, smena: filterSmena })
             }
           }}
             className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors">
