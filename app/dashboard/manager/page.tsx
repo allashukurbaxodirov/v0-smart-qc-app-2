@@ -496,7 +496,10 @@ export default function ManagerPage() {
               { key: 'B',   label: 'Smena B' },
               { key: 'D',   label: 'Smena D' },
             ] as { key: FilterSmena; label: string }[]).map(({ key, label }) => (
-              <button key={key} onClick={() => setFilterSmena(key)}
+              <button key={key} onClick={() => {
+                setFilterSmena(key)
+                if (key !== 'all') setActiveShift(key as Shift)
+              }}
                 className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
                   filterSmena === key
                     ? 'bg-primary text-primary-foreground shadow-sm'
