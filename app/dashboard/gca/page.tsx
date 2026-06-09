@@ -886,10 +886,10 @@ export default function GCAPage() {
                                       <span className="block text-[10px] text-muted-foreground">≤ {target}</span>
                                     )}
                                   </td>
-                                  <td className="px-4 py-3 text-center text-sm text-blue-300">
+                                  <td className="px-4 py-3 text-center text-sm text-foreground">
                                     {tgtDamas != null ? tgtDamas.toFixed(1) : '—'}
                                   </td>
-                                  <td className="px-4 py-3 text-center text-sm text-green-300">
+                                  <td className="px-4 py-3 text-center text-sm text-foreground">
                                     {tgtLabo != null ? tgtLabo.toFixed(1) : '—'}
                                   </td>
                                   <td className="px-4 py-3 text-center">
@@ -953,10 +953,10 @@ export default function GCAPage() {
                                   <td className="px-4 py-3 text-center text-sm text-foreground">
                                     {target < 999 ? target.toFixed(1) : '—'}
                                   </td>
-                                  <td className="px-4 py-3 text-center text-sm text-blue-300">
+                                  <td className="px-4 py-3 text-center text-sm text-foreground">
                                     {tgtDamas != null ? tgtDamas.toFixed(1) : '—'}
                                   </td>
-                                  <td className="px-4 py-3 text-center text-sm text-green-300">
+                                  <td className="px-4 py-3 text-center text-sm text-foreground">
                                     {tgtLabo != null ? tgtLabo.toFixed(1) : '—'}
                                   </td>
                                   <td className="px-4 py-3 text-center">
