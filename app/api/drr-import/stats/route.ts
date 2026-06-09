@@ -39,8 +39,9 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // date_from <= toParam AND date_to >= fromParam  →  kesishuvchi batchlar
     const whereClause = isDateMode
-      ? sql`WHERE date_from >= ${fromParam}::date AND date_from <= ${toParam}::date`
+      ? sql`WHERE date_from <= ${toParam}::date AND date_to >= ${fromParam}::date`
       : sql`WHERE import_batch = ${batchId}::uuid`
 
     // Jami statistika
