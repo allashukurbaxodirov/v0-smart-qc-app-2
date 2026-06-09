@@ -39,9 +39,14 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // date_from <= toParam AND date_to >= fromParam  →  kesishuvchi batchlar
+    // Oylik import: defect_date aniq saqlanadi → exact kun filter
+    // Kunlik import: defect_date=NULL → batch date_from/date_to range ishlatiladi
     const whereClause = isDateMode
-      ? sql`WHERE date_from <= ${toParam}::date AND date_to >= ${fromParam}::date`
+      ? sql`WHERE (
+          (defect_date IS NOT NULL AND defect_date >= ${fromParam}::date AND defect_date <= ${toParam}::date)
+          OR
+          (defect_date IS NULL AND date_from <= ${toParam}::date AND date_to >= ${fromParam}::date)
+        )`
       : sql`WHERE import_batch = ${batchId}::uuid`
 
     // Jami statistika

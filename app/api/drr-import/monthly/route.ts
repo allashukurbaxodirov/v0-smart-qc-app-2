@@ -38,9 +38,12 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Ensure shift_label column exists
+    // Ensure columns exist
     try {
       await sql`ALTER TABLE drr_import_batches ADD COLUMN IF NOT EXISTS shift_label TEXT`
+    } catch {}
+    try {
+      await sql`ALTER TABLE drr_imports ADD COLUMN IF NOT EXISTS defect_date DATE`
     } catch {}
 
     const results: Record<string, {
@@ -98,6 +101,7 @@ export async function POST(req: NextRequest) {
             count:        r.count,
             drr_ratio:    0,
             veh_cnt:      r.vehCnt,
+            defect_date:  r.defectDate || null,   // aniq kun — kunlik filtrlash uchun
           })))}
         `
       }

@@ -49,6 +49,7 @@ export interface DRRImportRow {
   count:       number        // aggregate count (nechta raw record)
   drrRatio:    number        // 0 (DRL Ratio sariq — ishlatilmaydi)
   vehCnt:      number        // unique PONO soni (unique mashina soni)
+  defectDate:  string | null // "2026-05-13" — oylik importda aniq kun (kunlik filtrlash uchun)
 }
 
 export interface DRRImportMeta {
@@ -293,8 +294,9 @@ export function parseGsipDRR(buffer: Buffer): DRRParseResult {
     prodTeam:   agg.prodTeam,
     shop:       agg.shop,
     count:      agg.count,
-    drrRatio:   0,              // DRL Ratio sariq — 0 saqlanadi
-    vehCnt:     agg.ponos.size, // unique PONO soni
+    drrRatio:   0,
+    vehCnt:     agg.ponos.size,
+    defectDate: null,           // Kunlik import — batch date_from ishlatiladi
   }))
 
   // ── Top 10 (fault_code bo'yicha barcha grouplarni birlashtirish) ──────────
@@ -401,6 +403,7 @@ export function parseGsipDRRBySmena(
     partLv1: string; partLv2: string; partLv3: string; partLv4: string
     faultId: number | null; faultCode: string; faultName: string
     defectNote: string; crew: string; prodTeam: string; shop: string
+    defectDate: string   // aniq kun — kunlik filtrlash uchun
     count: number; ponos: Set<string>
   }>> = {}
 
@@ -450,13 +453,15 @@ export function parseGsipDRRBySmena(
 
     if (!smenaMaps[smena]) smenaMaps[smena] = {}
     const aggMap = smenaMaps[smena]
-    const key    = `${faultCode}||${faultName}||${prodTeam}||${modelGroup}||${partLv1}`
+    // dateStr ni ham key ga qo'shamiz — har kun alohida satr saqlanadi
+    const key    = `${dateStr}||${faultCode}||${faultName}||${prodTeam}||${modelGroup}||${partLv1}`
 
     if (!aggMap[key]) {
       aggMap[key] = {
         rowType, modelGroup, modelLabel: modelGroupToLabelDRR(modelGroup),
         partLv1, partLv2, partLv3, partLv4, faultId,
         faultCode, faultName, defectNote, crew, prodTeam, shop,
+        defectDate: dateStr,
         count: 0, ponos: new Set(),
       }
     }
@@ -474,6 +479,7 @@ export function parseGsipDRRBySmena(
       faultId: a.faultId, faultCode: a.faultCode, faultName: a.faultName,
       defectNote: a.defectNote, crew: a.crew, prodTeam: a.prodTeam, shop: a.shop,
       count: a.count, drrRatio: 0, vehCnt: a.ponos.size,
+      defectDate: a.defectDate,
     }))
 
     // Top10
