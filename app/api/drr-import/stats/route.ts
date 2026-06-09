@@ -25,6 +25,9 @@ export async function GET(req: NextRequest) {
   const isDateMode = !batchParam && !!(fromParam && toParam)
 
   try {
+    // Ensure defect_date column exists (added by monthly import, may not exist for older tables)
+    try { await sql`ALTER TABLE drr_imports ADD COLUMN IF NOT EXISTS defect_date DATE` } catch { /* ignore */ }
+
     // ── WHERE clause helper ────────────────────────────────────────────────
     let batchId = ''
     if (!isDateMode) {
@@ -67,8 +70,8 @@ export async function GET(req: NextRequest) {
         COALESCE(SUM(CASE WHEN model_group='R7A' THEN count ELSE 0 END), 0)::int   AS labo_count,
         COALESCE(SUM(CASE WHEN model_group='R7'  THEN veh_cnt ELSE 0 END), 0)::int AS damas_veh,
         COALESCE(SUM(CASE WHEN model_group='R7A' THEN veh_cnt ELSE 0 END), 0)::int AS labo_veh,
-        MIN(date_from)::text  AS date_from,
-        MAX(date_to)::text    AS date_to,
+        COALESCE(MIN(defect_date), MIN(date_from))::text  AS date_from,
+        COALESCE(MAX(defect_date), MAX(date_to))::text    AS date_to,
         MIN(shift_from)       AS shift_from,
         MAX(shift_to)         AS shift_to,
         MAX(file_name)        AS file_name

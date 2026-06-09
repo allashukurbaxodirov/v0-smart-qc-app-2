@@ -81,8 +81,8 @@ export async function GET(req: NextRequest) {
         COALESCE(SUM(i.count), 0)::int                                            AS total_count,
         COALESCE(SUM(CASE WHEN i.model_group='R7'  THEN i.count ELSE 0 END), 0)::int AS damas_count,
         COALESCE(SUM(CASE WHEN i.model_group='R7A' THEN i.count ELSE 0 END), 0)::int AS labo_count,
-        MIN(i.date_from)::text  AS date_from,
-        MAX(i.date_to)::text    AS date_to,
+        COALESCE(MIN(i.defect_date), MIN(i.date_from))::text  AS date_from,
+        COALESCE(MAX(i.defect_date), MAX(i.date_to))::text    AS date_to,
         MIN(i.shift_from)       AS shift_from,
         MAX(i.shift_to)         AS shift_to,
         MAX(i.file_name)        AS file_name
