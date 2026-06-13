@@ -19,7 +19,8 @@ export async function GET(req: NextRequest) {
   const batchParam  = searchParams.get('batch')
   const fromParam   = searchParams.get('from')   // YYYY-MM-DD
   const toParam     = searchParams.get('to')     // YYYY-MM-DD
-  const smenaParam  = searchParams.get('smena')  // 'A' | 'B' | 'D' | null
+  // Accept both 'smena' (DRR dashboard) and 'shift' (manager panel / DRL style)
+  const smenaParam  = searchParams.get('smena') ?? searchParams.get('shift')  // 'A' | 'B' | 'D' | null
 
   // Date-range mode: from+to berilgan, batch yo'q
   const isDateMode = !batchParam && !!(fromParam && toParam)
@@ -34,10 +35,17 @@ export async function GET(req: NextRequest) {
       if (batchParam) {
         batchId = batchParam
       } else {
-        const [latest] = await sql`
-          SELECT import_batch::text AS id FROM drr_import_batches
-          ORDER BY imported_at DESC LIMIT 1
-        `
+        // Batch mode: smena filter → eng so'nggi o'sha smena batchi
+        const [latest] = smenaParam
+          ? await sql`
+              SELECT import_batch::text AS id FROM drr_import_batches
+              WHERE shift_label = ${smenaParam}
+              ORDER BY imported_at DESC LIMIT 1
+            `
+          : await sql`
+              SELECT import_batch::text AS id FROM drr_import_batches
+              ORDER BY imported_at DESC LIMIT 1
+            `
         if (!latest) return NextResponse.json({ empty: true })
         batchId = latest.id
       }

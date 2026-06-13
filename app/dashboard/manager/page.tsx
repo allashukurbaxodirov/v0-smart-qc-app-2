@@ -209,7 +209,11 @@ function buildGsipQs(mode: FilterMode, smena: FilterSmena, date: string, month: 
     to   = `${month}-${String(last).padStart(2, '0')}`
   } else if (mode === 'custom') { from = date; to = date }
 
-  if (!from) return ''
+  // 'latest' mode: no date range, but still pass smena so APIs pick latest batch of that smena
+  if (!from) {
+    if (smena !== 'all') return `?shift=${smena}`
+    return ''
+  }
   const p = new URLSearchParams({ from, to })
   if (smena !== 'all') p.set('shift', smena)
   return '?' + p

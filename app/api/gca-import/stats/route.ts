@@ -29,23 +29,31 @@ export async function GET(req: NextRequest) {
       if (batchParam) {
         batchId = batchParam
       } else {
-        const [latest] = await sql`
-          SELECT import_batch::text AS id FROM gca_import_batches
-          ORDER BY imported_at DESC LIMIT 1
-        `
+        // Batch mode: shift filter → eng so'nggi o'sha shift batchi
+        const [latest] = shiftParam
+          ? await sql`
+              SELECT import_batch::text AS id FROM gca_import_batches
+              WHERE shift_label = ${shiftParam}
+              ORDER BY imported_at DESC LIMIT 1
+            `
+          : await sql`
+              SELECT import_batch::text AS id FROM gca_import_batches
+              ORDER BY imported_at DESC LIMIT 1
+            `
         if (!latest) return NextResponse.json({ empty: true })
         batchId = latest.id
       }
     }
 
-    // FROM clause — JOIN batches only when shift filter needed
-    const fromClause = (isDateMode && shiftParam)
+    // FROM clause — JOIN batches only when shift filter needed in date mode
+    const needsJoin = !!shiftParam && isDateMode
+    const fromClause = needsJoin
       ? sql`FROM gca_imports i JOIN gca_import_batches b ON b.import_batch = i.import_batch`
       : sql`FROM gca_imports i`
 
     // WHERE clause
     const whereClause = isDateMode
-      ? (shiftParam
+      ? (needsJoin
           ? sql`WHERE i.reporting_date >= ${fromParam}::date AND i.reporting_date <= ${toParam}::date
                   AND b.shift_label = ${shiftParam}`
           : sql`WHERE i.reporting_date >= ${fromParam}::date AND i.reporting_date <= ${toParam}::date`)
