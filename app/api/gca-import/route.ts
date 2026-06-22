@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import sql from '@/lib/db'
 import { parseGsipGCA } from '@/lib/gca-parser'
+import { SHOP_ROLE_MAP } from '@/app/api/escalations/route'
 
 async function getSession() {
   const cs = await cookies()
@@ -108,6 +109,92 @@ export async function POST(req: NextRequest) {
           model_label:    r.modelLabel || null,
         })))}
       `
+    }
+
+    // ── Auto-escalation: GCA weight >= 20 bo'lgan nuqsonlar ──────────────────
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS escalations (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          source TEXT NOT NULL DEFAULT 'gca',
+          import_batch UUID, fault_code TEXT NOT NULL DEFAULT '—',
+          fault_name TEXT NOT NULL, shop TEXT NOT NULL, prod_team TEXT,
+          total_count INT NOT NULL DEFAULT 0, total_weight NUMERIC DEFAULT 0,
+          drl_ratio NUMERIC, model_damas INT DEFAULT 0, model_labo INT DEFAULT 0,
+          assigned_role TEXT NOT NULL DEFAULT 'ga_engineer', assigned_name TEXT,
+          priority TEXT NOT NULL DEFAULT 'medium', status TEXT NOT NULL DEFAULT 'open',
+          engineer_note TEXT, root_cause TEXT, action_taken TEXT,
+          transfer_to TEXT, transfer_reason TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          resolved_at TIMESTAMPTZ, due_date DATE,
+          created_by TEXT, created_by_name TEXT
+        )
+      `
+      const topFaults = await sql`
+        SELECT
+          CASE
+            WHEN UPPER(prod_team) LIKE 'PA.%' OR UPPER(prod_team) = 'PA' THEN 'PAINT SHOP'
+            WHEN UPPER(prod_team) LIKE 'BO.%' OR UPPER(prod_team) = 'BO' THEN 'WELDING'
+            WHEN UPPER(prod_team) LIKE 'PR.%' OR UPPER(prod_team) = 'PR' THEN 'PRESS SHOP'
+            WHEN UPPER(prod_team) LIKE 'GA.%' OR UPPER(prod_team) = 'GA' THEN 'GA'
+            WHEN UPPER(prod_team) LIKE 'SQE.%' OR UPPER(prod_team) = 'SQE' THEN 'SQE'
+            WHEN UPPER(prod_team) LIKE 'QE.%' OR UPPER(prod_team) = 'QE' THEN 'QE'
+            WHEN UPPER(prod_team) LIKE 'PE.%' OR UPPER(prod_team) = 'PE' THEN 'PE'
+            ELSE COALESCE(shop, 'GA')
+          END AS resolved_shop,
+          fault_code,
+          fault_name,
+          prod_team,
+          COUNT(*)::int                      AS row_count,
+          SUM(gca_weight)::numeric           AS total_weight,
+          COUNT(DISTINCT vin)::int           AS veh_count,
+          COUNT(DISTINCT CASE WHEN model_group='R7'  THEN vin END)::int AS model_damas,
+          COUNT(DISTINCT CASE WHEN model_group='R7A' THEN vin END)::int AS model_labo
+        FROM gca_imports
+        WHERE import_batch = ${batchId}::uuid
+          AND gca_weight >= 20
+          AND fault_code IS NOT NULL AND fault_code != ''
+        GROUP BY resolved_shop, fault_code, fault_name, prod_team
+        HAVING SUM(gca_weight) >= 20
+        ORDER BY SUM(gca_weight) DESC
+        LIMIT 30
+      `
+      for (const f of topFaults) {
+        const shopKey = f.resolved_shop as string
+        const role = SHOP_ROLE_MAP[shopKey] ?? 'ga_engineer'
+        const w = Number(f.total_weight)
+        const prio = w >= 200 ? 'critical' : w >= 100 ? 'high' : w >= 50 ? 'medium' : 'low'
+        const [ex] = await sql`
+          SELECT id FROM escalations
+          WHERE fault_code = ${f.fault_code} AND shop = ${shopKey}
+            AND source = 'gca' AND status NOT IN ('resolved','cancelled')
+          LIMIT 1
+        `
+        if (ex) {
+          await sql`
+            UPDATE escalations SET
+              total_weight = GREATEST(total_weight, ${w}),
+              updated_at   = NOW()
+            WHERE id = ${ex.id}::uuid
+          `
+        } else {
+          await sql`
+            INSERT INTO escalations
+              (source, import_batch, fault_code, fault_name, shop, prod_team,
+               total_count, total_weight, model_damas, model_labo,
+               assigned_role, priority, created_by_name)
+            VALUES
+              ('gca', ${batchId}::uuid, ${f.fault_code}, ${f.fault_name},
+               ${shopKey}, ${f.prod_team ?? null},
+               ${f.veh_count}, ${w},
+               ${f.model_damas}, ${f.model_labo},
+               ${role}, ${prio}, ${importedBy})
+          `
+        }
+      }
+    } catch (escErr) {
+      console.warn('GCA auto-escalation error:', (escErr as Error).message)
     }
 
     return NextResponse.json({

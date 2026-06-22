@@ -214,6 +214,52 @@ const weldingEngineerSidebarItems: SidebarItem[] = [
   },
 ]
 
+const pressEngineerSidebarItems: SidebarItem[] = [
+  {
+    label: 'Press Shop Muhandis',
+    href: '/dashboard/press-shop-engineer',
+    icon: <Clipboard className="w-5 h-5" />,
+    section: 'main',
+  },
+]
+
+const paintEngineerSidebarItems: SidebarItem[] = [
+  {
+    label: 'Paint Shop Muhandis',
+    href: '/dashboard/paint-shop-engineer',
+    icon: <Clipboard className="w-5 h-5" />,
+    section: 'main',
+  },
+]
+
+const sqeEngineerSidebarItems: SidebarItem[] = [
+  {
+    label: 'SQE Muhandis',
+    href: '/dashboard/sqe-engineer',
+    icon: <Clipboard className="w-5 h-5" />,
+    section: 'main',
+  },
+]
+
+const qeEngineerSidebarItems: SidebarItem[] = [
+  {
+    label: 'QE Muhandis',
+    href: '/dashboard/qe-engineer',
+    icon: <Clipboard className="w-5 h-5" />,
+    section: 'main',
+  },
+]
+
+const peEngineerSidebarItems: SidebarItem[] = [
+  {
+    label: 'PE Muhandis',
+    href: '/dashboard/pe-engineer',
+    icon: <Clipboard className="w-5 h-5" />,
+    section: 'main',
+  },
+
+]
+
 const drrInspectorSidebarItems: SidebarItem[] = [
   {
     label: 'DRR Tahlil',
@@ -358,6 +404,16 @@ export default function Sidebar() {
     sidebarItems = gaEngineerSidebarItems
   } else if (userRole === 'welding_engineer') {
     sidebarItems = weldingEngineerSidebarItems
+  } else if (userRole === 'press_engineer') {
+    sidebarItems = pressEngineerSidebarItems
+  } else if (userRole === 'paint_engineer') {
+    sidebarItems = paintEngineerSidebarItems
+  } else if (userRole === 'sqe_engineer') {
+    sidebarItems = sqeEngineerSidebarItems
+  } else if (userRole === 'qe_engineer') {
+    sidebarItems = qeEngineerSidebarItems
+  } else if (userRole === 'pe_engineer') {
+    sidebarItems = peEngineerSidebarItems
   } else if (userRole === 'manager') {
     sidebarItems = managerSidebarItems
   } else if (userRole === 'drr_inspector') {
@@ -421,8 +477,13 @@ export default function Sidebar() {
             admin:               { label: 'Admin',             color: 'bg-blue-400/20 text-blue-200 border-blue-400/30' },
             manager:             { label: 'Rahbar',            color: 'bg-indigo-400/20 text-indigo-200 border-indigo-400/30' },
             gca_auditor:         { label: 'GCA Auditor',       color: 'bg-emerald-400/20 text-emerald-200 border-emerald-400/30' },
-            ga_engineer:         { label: 'GA Engineer',       color: 'bg-teal-400/20 text-teal-200 border-teal-400/30' },
-            welding_engineer:    { label: 'Welding Engineer',  color: 'bg-sky-400/20 text-sky-200 border-sky-400/30' },
+            ga_engineer:         { label: 'GA Engineer',          color: 'bg-teal-400/20 text-teal-200 border-teal-400/30' },
+            welding_engineer:    { label: 'Welding Engineer',     color: 'bg-sky-400/20 text-sky-200 border-sky-400/30' },
+            press_engineer:      { label: 'Press Shop Muhandis',  color: 'bg-orange-400/20 text-orange-200 border-orange-400/30' },
+            paint_engineer:      { label: 'Paint Shop Muhandis',  color: 'bg-violet-400/20 text-violet-200 border-violet-400/30' },
+            sqe_engineer:        { label: 'SQE Muhandis',         color: 'bg-pink-400/20 text-pink-200 border-pink-400/30' },
+            qe_engineer:         { label: 'QE Muhandis',          color: 'bg-cyan-400/20 text-cyan-200 border-cyan-400/30' },
+            pe_engineer:         { label: 'PE Muhandis',          color: 'bg-lime-400/20 text-lime-200 border-lime-400/30' },
             drr_inspector:       { label: 'DRR Inspector',     color: 'bg-orange-400/20 text-orange-200 border-orange-400/30' },
             drl_inspector:       { label: 'DRL Inspector',     color: 'bg-amber-400/20 text-amber-200 border-amber-400/30' },
             d10_inspector:       { label: 'D10 Inspector',     color: 'bg-cyan-400/20 text-cyan-200 border-cyan-400/30' },

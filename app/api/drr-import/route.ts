@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import sql from '@/lib/db'
 import { parseGsipDRR } from '@/lib/gsip-drr-parser'
+import { SHOP_ROLE_MAP } from '@/app/api/escalations/route'
 
 async function getSession() {
   const cs = await cookies()
@@ -110,13 +111,99 @@ export async function POST(req: NextRequest) {
       `
     }
 
+    // ── Auto-escalation: shop+fault_code bo'yicha guruhlab, threshold >= 5 ──
+    try {
+      await sql`
+        CREATE TABLE IF NOT EXISTS escalations (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          source TEXT NOT NULL DEFAULT 'drl',
+          import_batch UUID,
+          fault_code TEXT NOT NULL DEFAULT '—',
+          fault_name TEXT NOT NULL,
+          shop TEXT NOT NULL,
+          prod_team TEXT,
+          total_count INT NOT NULL DEFAULT 0,
+          total_weight NUMERIC DEFAULT 0,
+          drl_ratio NUMERIC,
+          model_damas INT DEFAULT 0,
+          model_labo INT DEFAULT 0,
+          assigned_role TEXT NOT NULL DEFAULT 'ga_engineer',
+          assigned_name TEXT,
+          priority TEXT NOT NULL DEFAULT 'medium',
+          status TEXT NOT NULL DEFAULT 'open',
+          engineer_note TEXT,
+          root_cause TEXT,
+          action_taken TEXT,
+          transfer_to TEXT,
+          transfer_reason TEXT,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          resolved_at TIMESTAMPTZ,
+          due_date DATE,
+          created_by TEXT,
+          created_by_name TEXT
+        )
+      `
+      // Top nuqsonlarni guruhlab auto-escalation yaratish
+      const topFaults = await sql`
+        SELECT
+          shop,
+          fault_code,
+          fault_name,
+          prod_team,
+          SUM(count)::int         AS total_count,
+          SUM(CASE WHEN model_group='R7'  THEN count ELSE 0 END)::int AS model_damas,
+          SUM(CASE WHEN model_group='R7A' THEN count ELSE 0 END)::int AS model_labo
+        FROM drr_imports
+        WHERE import_batch = ${importBatch}::uuid
+          AND shop IS NOT NULL AND shop != ''
+        GROUP BY shop, fault_code, fault_name, prod_team
+        HAVING SUM(count) >= 5
+        ORDER BY SUM(count) DESC
+        LIMIT 30
+      `
+      for (const f of topFaults) {
+        const role = SHOP_ROLE_MAP[f.shop] ?? 'ga_engineer'
+        const prio = f.total_count >= 50 ? 'critical' : f.total_count >= 20 ? 'high' : 'medium'
+        // Mavjud ochiq eskalatsiya bo'lsa yangilash, yo'qsa yaratish
+        const [ex] = await sql`
+          SELECT id FROM escalations
+          WHERE fault_code = ${f.fault_code} AND shop = ${f.shop}
+            AND source = 'drr' AND status NOT IN ('resolved','cancelled')
+          LIMIT 1
+        `
+        if (ex) {
+          await sql`
+            UPDATE escalations SET
+              total_count = GREATEST(total_count, ${f.total_count}),
+              updated_at  = NOW()
+            WHERE id = ${ex.id}::uuid
+          `
+        } else {
+          await sql`
+            INSERT INTO escalations
+              (source, import_batch, fault_code, fault_name, shop, prod_team,
+               total_count, model_damas, model_labo, assigned_role, priority,
+               created_by_name)
+            VALUES
+              ('drr', ${importBatch}::uuid, ${f.fault_code}, ${f.fault_name},
+               ${f.shop}, ${f.prod_team ?? null},
+               ${f.total_count}, ${f.model_damas}, ${f.model_labo},
+               ${role}, ${prio}, ${session.name})
+          `
+        }
+      }
+    } catch (escErr) {
+      console.warn('DRR auto-escalation error:', (escErr as Error).message)
+    }
+
     return NextResponse.json({
       ok:          true,
       importBatch,
-      rowCount:    rows.length,    // DB ga yozilgan aggregate satrlar
-      rawCount,                    // asl raw yozuvlar soni
-      totalCount,                  // jami nuqsonlar
-      totalVeh,                    // jami unique mashina (PONO)
+      rowCount:    rows.length,
+      rawCount,
+      totalCount,
+      totalVeh,
       skipped,
       warnings,
       meta,
