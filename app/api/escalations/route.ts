@@ -69,6 +69,8 @@ async function ensureTable() {
   await sql`CREATE INDEX IF NOT EXISTS idx_escalations_source ON escalations(source)`
   await sql`CREATE INDEX IF NOT EXISTS idx_escalations_role   ON escalations(assigned_role)`
   await sql`CREATE INDEX IF NOT EXISTS idx_escalations_status ON escalations(status)`
+  // yangi ustunlar (mavjud jadvalga qo'shish)
+  await sql`ALTER TABLE escalations ADD COLUMN IF NOT EXISTS action_image TEXT`
 }
 
 // ─── GET ─────────────────────────────────────────────────────────────────────
@@ -97,7 +99,7 @@ export async function GET(req: NextRequest) {
         model_damas, model_labo,
         assigned_role, assigned_name,
         priority, status,
-        engineer_note, root_cause, action_taken,
+        engineer_note, root_cause, action_taken, action_image,
         transfer_to, transfer_reason,
         created_at, updated_at, resolved_at, due_date,
         created_by_name
@@ -222,7 +224,7 @@ export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json()
     const {
-      id, status, engineerNote, rootCause, actionTaken,
+      id, status, engineerNote, rootCause, actionTaken, actionImage,
       transferTo, transferReason, priority,
     } = body
 
@@ -237,6 +239,7 @@ export async function PATCH(req: NextRequest) {
         engineer_note   = COALESCE(${engineerNote?? null}, engineer_note),
         root_cause      = COALESCE(${rootCause   ?? null}, root_cause),
         action_taken    = COALESCE(${actionTaken ?? null}, action_taken),
+        action_image    = COALESCE(${actionImage ?? null}, action_image),
         transfer_to     = COALESCE(${transferTo  ?? null}, transfer_to),
         transfer_reason = COALESCE(${transferReason ?? null}, transfer_reason),
         assigned_name   = COALESCE(${session.name ?? null}, assigned_name),

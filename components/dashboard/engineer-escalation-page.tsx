@@ -5,6 +5,7 @@ import PageHeader from '@/components/dashboard/page-header'
 import {
   AlertTriangle, CheckCircle2, Clock, ArrowRightLeft,
   RefreshCw, Loader2, Bell, Send, X, ChevronDown, ChevronUp,
+  Camera, ImagePlus, Trash2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 
@@ -26,6 +27,7 @@ interface Escalation {
   engineer_note: string | null
   root_cause: string | null
   action_taken: string | null
+  action_image: string | null
   transfer_to: string | null
   transfer_reason: string | null
   created_at: string
@@ -39,6 +41,7 @@ interface ActionForm {
   engineerNote: string
   rootCause: string
   actionTaken: string
+  actionImage: string   // base64
   status: 'in_progress' | 'resolved'
   transferTo: string
   transferReason: string
@@ -171,6 +174,7 @@ export default function EngineerEscalationPage({ role, roleLabel, shopFilter, de
       engineerNote:  esc.engineer_note ?? '',
       rootCause:     esc.root_cause    ?? '',
       actionTaken:   esc.action_taken  ?? '',
+      actionImage:   esc.action_image  ?? '',
       status:        esc.status === 'open' ? 'in_progress' : esc.status as any,
       transferTo:    '',
       transferReason:'',
@@ -192,6 +196,7 @@ export default function EngineerEscalationPage({ role, roleLabel, shopFilter, de
           engineerNote:   form.engineerNote  || undefined,
           rootCause:      form.rootCause     || undefined,
           actionTaken:    form.actionTaken   || undefined,
+          actionImage:    form.actionImage   || undefined,
           transferTo:     form.mode === 'transfer' ? form.transferTo    : undefined,
           transferReason: form.mode === 'transfer' ? form.transferReason: undefined,
         }),
@@ -364,12 +369,27 @@ export default function EngineerEscalationPage({ role, roleLabel, shopFilter, de
 
                   {/* Kengaytirilgan ma'lumot */}
                   {expandedId === esc.id && (
-                    <div className="px-5 pb-4 bg-muted/10 border-t border-border/50 text-xs text-muted-foreground space-y-1">
+                    <div className="px-5 pb-4 bg-muted/10 border-t border-border/50 text-xs text-muted-foreground space-y-2">
                       {esc.engineer_note && <p><span className="font-medium">Izoh:</span> {esc.engineer_note}</p>}
                       {esc.transfer_reason && <p><span className="font-medium">Uzatish sababi:</span> {esc.transfer_reason}</p>}
                       {esc.resolved_at && <p><span className="font-medium">Yopilgan:</span> {new Date(esc.resolved_at).toLocaleString('uz-UZ')}</p>}
                       {esc.due_date && <p><span className="font-medium">Muddat:</span> {esc.due_date}</p>}
                       {esc.created_by_name && <p><span className="font-medium">Kiritgan:</span> {esc.created_by_name}</p>}
+                      {esc.action_image && (
+                        <div className="pt-1">
+                          <p className="font-medium mb-1.5 flex items-center gap-1">
+                            <Camera className="w-3.5 h-3.5 text-emerald-400" />
+                            Bartaraf etilganlik rasmi:
+                          </p>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={esc.action_image}
+                            alt="Bartaraf etilganlik rasmi"
+                            className="max-h-64 rounded-lg border border-emerald-500/30 object-contain bg-black/10 cursor-zoom-in"
+                            onClick={() => window.open(esc.action_image!, '_blank')}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -447,6 +467,73 @@ export default function EngineerEscalationPage({ role, roleLabel, shopFilter, de
                               </button>
                             ))}
                           </div>
+
+                          {/* Rasm yuklash — faqat "Bartaraf etildi" holatida majburiy */}
+                          <div className={`space-y-2 rounded-xl p-3 border-2 transition-all ${
+                            form.status === 'resolved'
+                              ? form.actionImage
+                                ? 'border-emerald-500/40 bg-emerald-500/5'
+                                : 'border-red-500/40 bg-red-500/5'
+                              : 'border-border bg-muted/10'
+                          }`}>
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                                <Camera className="w-3.5 h-3.5" />
+                                Bartaraf etilganlik rasmi
+                                {form.status === 'resolved' && (
+                                  <span className="text-red-400 font-bold">*majburiy</span>
+                                )}
+                              </label>
+                              {form.actionImage && (
+                                <button type="button"
+                                  onClick={() => setForm(f => f ? { ...f, actionImage: '' } : null)}
+                                  className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 transition-colors">
+                                  <Trash2 className="w-3 h-3" /> O&apos;chirish
+                                </button>
+                              )}
+                            </div>
+
+                            {form.actionImage ? (
+                              <div className="relative">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={form.actionImage}
+                                  alt="Bartaraf etilganlik rasmi"
+                                  className="w-full max-h-48 object-contain rounded-lg border border-border bg-black/10"
+                                />
+                                <span className="absolute top-2 right-2 bg-emerald-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3" /> Yuklandi
+                                </span>
+                              </div>
+                            ) : (
+                              <label className="flex flex-col items-center justify-center gap-2 py-6 rounded-lg border-2 border-dashed border-border hover:border-primary/50 cursor-pointer transition-all bg-background hover:bg-primary/5">
+                                <ImagePlus className="w-7 h-7 text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground text-center">
+                                  Rasmni tanlang yoki tortib tashlang<br/>
+                                  <span className="text-[10px] opacity-60">JPG, PNG, WEBP — max 5MB</span>
+                                </span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={e => {
+                                    const file = e.target.files?.[0]
+                                    if (!file) return
+                                    if (file.size > 5 * 1024 * 1024) {
+                                      alert('Fayl hajmi 5MB dan oshmasin')
+                                      return
+                                    }
+                                    const reader = new FileReader()
+                                    reader.onload = ev => {
+                                      const base64 = ev.target?.result as string
+                                      setForm(f => f ? { ...f, actionImage: base64 } : null)
+                                    }
+                                    reader.readAsDataURL(file)
+                                  }}
+                                />
+                              </label>
+                            )}
+                          </div>
                         </div>
                       ) : (
                         <div className="space-y-3">
@@ -480,7 +567,8 @@ export default function EngineerEscalationPage({ role, roleLabel, shopFilter, de
                           Bekor
                         </button>
                         <button onClick={submitForm} disabled={saving ||
-                          (form.mode === 'transfer' && (!form.transferTo || !form.transferReason))}
+                          (form.mode === 'transfer' && (!form.transferTo || !form.transferReason)) ||
+                          (form.mode === 'resolve' && form.status === 'resolved' && !form.actionImage)}
                           className="flex-1 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
                           {saving
                             ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saqlanmoqda...</>
