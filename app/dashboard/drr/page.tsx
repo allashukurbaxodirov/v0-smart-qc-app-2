@@ -272,25 +272,25 @@ function DRRPageContent() {
     if (!escModal) return
     setEscSaving(true)
     try {
-      await fetch('/api/drr-escalations', {
+      const res = await fetch('/api/escalations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          source:       'drr',
           importBatch:  stats?.batchId,
           faultCode:    escModal.fault.fault_code,
           faultName:    escModal.fault.fault_name,
           shop:         escModal.fault.top_shop,
           prodTeam:     escModal.fault.top_prod_team,
           totalCount:   escModal.fault.total_count,
-          totalVehCnt:  escModal.fault.total_veh_cnt,
           modelDamas:   escModal.fault.model_damas,
           modelLabo:    escModal.fault.model_labo,
           assignedRole: escModal.assignedRole,
-          assignedName: escModal.assignedName,
           priority:     escModal.priority,
           note:         escModal.note,
         }),
       })
+      if (!res.ok) throw new Error(await res.text())
       setEscDone(prev => new Set(prev).add(escModal.fault.fault_code))
       setEscModal(null)
     } finally {

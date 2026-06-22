@@ -297,10 +297,11 @@ function DRLPageContent() {
     if (!escModal) return
     setEscSaving(true)
     try {
-      await fetch('/api/drl-escalations', {
+      const res = await fetch('/api/escalations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          source:       'drl',
           importBatch:  stats?.batchId,
           faultCode:    escModal.fault.fault_code,
           faultName:    escModal.fault.fault_name,
@@ -311,11 +312,11 @@ function DRLPageContent() {
           modelDamas:   escModal.fault.model_damas,
           modelLabo:    escModal.fault.model_labo,
           assignedRole: escModal.assignedRole,
-          assignedName: escModal.assignedName,
           priority:     escModal.priority,
           note:         escModal.note,
         }),
       })
+      if (!res.ok) throw new Error(await res.text())
       setEscDone(prev => new Set(prev).add(escModal.fault.fault_code))
       setEscModal(null)
     } finally {
