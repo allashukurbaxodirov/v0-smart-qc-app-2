@@ -23,6 +23,11 @@ const ROLES = [
   { value: 'incoming_inspector', label: 'Incoming Inspector',  needsShift: true,  needsShop: false },
   { value: 'ga_engineer',        label: 'GA Engineer',         needsShift: false, needsShop: true  },
   { value: 'welding_engineer',   label: 'Welding Engineer',    needsShift: false, needsShop: true  },
+  { value: 'press_engineer',     label: 'Press Shop Muhandis', needsShift: false, needsShop: true  },
+  { value: 'paint_engineer',     label: 'Paint Shop Muhandis', needsShift: false, needsShop: true  },
+  { value: 'sqe_engineer',       label: 'SQE Muhandis',        needsShift: false, needsShop: false },
+  { value: 'qe_engineer',        label: 'QE Muhandis',         needsShift: false, needsShop: false },
+  { value: 'pe_engineer',        label: 'PE Muhandis',         needsShift: false, needsShop: false },
 ]
 
 const ROLE_COLORS: Record<string, string> = {
@@ -38,6 +43,11 @@ const ROLE_COLORS: Record<string, string> = {
   incoming_inspector: 'bg-teal-500/15 text-teal-600 border-teal-500/40',
   ga_engineer:        'bg-lime-500/15 text-lime-600 border-lime-500/40',
   welding_engineer:   'bg-sky-500/15 text-sky-600 border-sky-500/40',
+  press_engineer:     'bg-orange-500/15 text-orange-600 border-orange-500/40',
+  paint_engineer:     'bg-fuchsia-500/15 text-fuchsia-600 border-fuchsia-500/40',
+  sqe_engineer:       'bg-teal-500/15 text-teal-600 border-teal-500/40',
+  qe_engineer:        'bg-cyan-500/15 text-cyan-600 border-cyan-500/40',
+  pe_engineer:        'bg-green-500/15 text-green-600 border-green-500/40',
 }
 
 interface User {
