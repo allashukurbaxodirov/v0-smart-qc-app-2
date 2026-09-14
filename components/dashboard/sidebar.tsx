@@ -602,12 +602,12 @@ function SidebarSection({
           item.comingSoon ? (
             <div
               key={`${item.href}__${item.label}`}
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium opacity-40 cursor-not-allowed select-none"
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium cursor-not-allowed select-none text-white/50"
               title="Tez kunda"
             >
-              {item.icon}
+              <span className="opacity-60">{item.icon}</span>
               <span className="flex-1 truncate">{item.label}</span>
-              <span className="text-[9px] font-bold uppercase tracking-wide bg-white/10 text-white/60 px-1.5 py-0.5 rounded-full border border-white/10 shrink-0">
+              <span className="text-[9px] font-bold uppercase tracking-wide bg-white/15 text-white/70 px-1.5 py-0.5 rounded-full border border-white/20 shrink-0 whitespace-nowrap">
                 Tez kunda
               </span>
             </div>
