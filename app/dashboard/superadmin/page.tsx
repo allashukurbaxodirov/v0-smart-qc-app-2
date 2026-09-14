@@ -11,6 +11,8 @@ import {
   Loader2, Search, LogIn,
   AlertCircle, Key,
   Clock, UserX, LayoutGrid,
+  Bell, TrendingUp, CheckCircle2, ArrowRightLeft,
+  Download, Filter,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -83,8 +85,51 @@ function fmtTime(iso: string) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ─── Eskalatsiya tiplari ──────────────────────────────────────────────────────
+interface EscRow {
+  id: string; source: string; fault_code: string; fault_name: string
+  shop: string; total_count: number; total_weight: number
+  assigned_role: string; priority: string; status: string
+  root_cause: string | null; action_taken: string | null; action_image: string | null
+  created_at: string; resolved_at: string | null; created_by_name: string | null
+}
+
+const ENG_ROLES = [
+  { value: 'ga_engineer',      label: 'GA Muhandis',        color: 'bg-emerald-500', text: 'text-emerald-600', bg: 'bg-emerald-500/10 border-emerald-500/30' },
+  { value: 'welding_engineer', label: 'Welding Muhandis',   color: 'bg-sky-500',     text: 'text-sky-600',     bg: 'bg-sky-500/10 border-sky-500/30' },
+  { value: 'press_engineer',   label: 'Press Muhandis',     color: 'bg-amber-500',   text: 'text-amber-600',   bg: 'bg-amber-500/10 border-amber-500/30' },
+  { value: 'paint_engineer',   label: 'Paint Muhandis',     color: 'bg-violet-500',  text: 'text-violet-600',  bg: 'bg-violet-500/10 border-violet-500/30' },
+  { value: 'sqe_engineer',     label: 'SQE Muhandis',       color: 'bg-pink-500',    text: 'text-pink-600',    bg: 'bg-pink-500/10 border-pink-500/30' },
+  { value: 'qe_engineer',      label: 'QE Muhandis',        color: 'bg-cyan-500',    text: 'text-cyan-600',    bg: 'bg-cyan-500/10 border-cyan-500/30' },
+  { value: 'pe_engineer',      label: 'PE Muhandis',        color: 'bg-lime-500',    text: 'text-lime-600',    bg: 'bg-lime-500/10 border-lime-500/30' },
+]
+
+const ESC_SOURCE_CLS: Record<string, string> = {
+  drr: 'bg-sky-500/15 text-sky-600 border-sky-500/30',
+  gca: 'bg-violet-500/15 text-violet-600 border-violet-500/30',
+  drl: 'bg-amber-500/15 text-amber-600 border-amber-500/30',
+}
+const ESC_PRIO_CLS: Record<string, string> = {
+  critical: 'bg-red-500/15 text-red-600 border-red-500/30',
+  high:     'bg-orange-500/15 text-orange-600 border-orange-500/30',
+  medium:   'bg-amber-500/15 text-amber-600 border-amber-500/30',
+  low:      'bg-blue-500/15 text-blue-600 border-blue-500/30',
+}
+const ESC_STATUS_CLS: Record<string, string> = {
+  open:        'bg-red-500/15 text-red-600 border-red-500/30',
+  in_progress: 'bg-amber-500/15 text-amber-600 border-amber-500/30',
+  resolved:    'bg-emerald-500/15 text-emerald-600 border-emerald-500/30',
+  cancelled:   'bg-muted/20 text-muted-foreground border-border',
+}
+const ESC_STATUS_LABEL: Record<string, string> = {
+  open: '🔴 Ochiq', in_progress: '🟡 Jarayonda', resolved: '✅ Yopildi', cancelled: '⛔ Bekor',
+}
+const ESC_PRIO_LABEL: Record<string, string> = {
+  critical: '🔴 Kritik', high: '🟠 Yuqori', medium: '🟡 O\'rtacha', low: '🔵 Past',
+}
+
 export default function SuperAdminPage() {
-  const [tab, setTab] = useState<'users' | 'security' | 'targets' | 'data'>('users')
+  const [tab, setTab] = useState<'users' | 'security' | 'targets' | 'data' | 'escalations'>('users')
 
   // ── Toast ──────────────────────────────────────────────────────────────────
   const [toasts, setToasts] = useState<Toast[]>([])
@@ -345,6 +390,82 @@ export default function SuperAdminPage() {
   }
 
   // ══════════════════════════════════════════════════════════════════════════
+  // TAB 5 — ESKALATSIYALAR
+  // ══════════════════════════════════════════════════════════════════════════
+  const [escRows,      setEscRows]      = useState<EscRow[]>([])
+  const [escLoading,   setEscLoading]   = useState(false)
+  const [escRoleFilter, setEscRoleFilter] = useState('all')
+  const [escStatusFilter, setEscStatusFilter] = useState('all')
+  const [escSourceFilter, setEscSourceFilter] = useState('all')
+  const [escExpanded,  setEscExpanded]  = useState<string | null>(null)
+
+  const fetchEscalations = useCallback(async () => {
+    setEscLoading(true)
+    try {
+      const res = await fetch('/api/escalations')
+      if (res.ok) setEscRows(await res.json())
+    } catch { toast('Eskalatsiyalarni yuklashda xatolik', false) }
+    finally { setEscLoading(false) }
+  }, [toast])
+
+  useEffect(() => { if (tab === 'escalations') fetchEscalations() }, [tab, fetchEscalations])
+
+  // Eskalatsiya statistikasi (har bir muhandis uchun)
+  const escByRole = useMemo(() => ENG_ROLES.map(r => {
+    const rows = escRows.filter(e => e.assigned_role === r.value)
+    const open     = rows.filter(e => e.status === 'open').length
+    const inProg   = rows.filter(e => e.status === 'in_progress').length
+    const resolved = rows.filter(e => e.status === 'resolved').length
+    const critical = rows.filter(e => e.priority === 'critical' && e.status !== 'resolved').length
+    const withImage = rows.filter(e => e.status === 'resolved' && e.action_image).length
+    const avgMs = (() => {
+      const times = rows.filter(e => e.resolved_at).map(e =>
+        new Date(e.resolved_at!).getTime() - new Date(e.created_at).getTime()
+      )
+      return times.length > 0 ? times.reduce((a, b) => a + b, 0) / times.length : 0
+    })()
+    return { ...r, total: rows.length, open, inProg, resolved, critical, withImage, avgHours: Math.round(avgMs / 3_600_000) }
+  }), [escRows])
+
+  const escFiltered = useMemo(() => {
+    return escRows.filter(e => {
+      if (escRoleFilter   !== 'all' && e.assigned_role !== escRoleFilter) return false
+      if (escStatusFilter !== 'all' && e.status        !== escStatusFilter) return false
+      if (escSourceFilter !== 'all' && e.source        !== escSourceFilter) return false
+      return true
+    })
+  }, [escRows, escRoleFilter, escStatusFilter, escSourceFilter])
+
+  const escTotals = useMemo(() => ({
+    total:    escRows.length,
+    open:     escRows.filter(e => e.status === 'open').length,
+    inProg:   escRows.filter(e => e.status === 'in_progress').length,
+    resolved: escRows.filter(e => e.status === 'resolved').length,
+    critical: escRows.filter(e => e.priority === 'critical' && e.status !== 'resolved').length,
+    withImg:  escRows.filter(e => e.action_image).length,
+  }), [escRows])
+
+  // CSV eksport
+  const exportEscCsv = () => {
+    const rows = [
+      ['Manba','Kod','Nuqson','Sehi','Soni','Muhandis','Ustuvorlik','Holat','Ildiz sabab','Ko\'rilgan chora','Sana'],
+      ...escFiltered.map(e => [
+        e.source, e.fault_code, e.fault_name, e.shop, e.total_count,
+        ENG_ROLES.find(r => r.value === e.assigned_role)?.label ?? e.assigned_role,
+        ESC_PRIO_LABEL[e.priority] ?? e.priority,
+        ESC_STATUS_LABEL[e.status] ?? e.status,
+        e.root_cause ?? '', e.action_taken ?? '',
+        new Date(e.created_at).toLocaleDateString('uz-UZ'),
+      ])
+    ]
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    const a = document.createElement('a')
+    a.href = 'data:text/csv;charset=utf-8,﻿' + encodeURIComponent(csv)
+    a.download = `eskalatsiyalar_${new Date().toISOString().slice(0,10)}.csv`
+    a.click()
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
   // TAB 4 — MA'LUMOTLAR
   // ══════════════════════════════════════════════════════════════════════════
   const [dbStats,       setDbStats]      = useState({ gca: 0, d10: 0, d20: 0, qrecords: 0, incoming: 0 })
@@ -417,10 +538,11 @@ export default function SuperAdminPage() {
         <div className="flex items-center gap-3 flex-wrap">
         <div className="flex gap-1 p-1 bg-muted/40 rounded-xl border border-border w-fit flex-wrap">
           {([
-            { key: 'users',    label: 'Foydalanuvchilar', icon: <Users    className="w-4 h-4" />, badge: stats.noShift + stats.noShop > 0 ? stats.noShift + stats.noShop : null },
-            { key: 'security', label: 'Xavfsizlik',        icon: <Shield   className="w-4 h-4" />, badge: warnings.length > 0 ? warnings.length : null },
-            { key: 'targets',  label: 'WDPV Targetlar',    icon: <Target   className="w-4 h-4" />, badge: null },
-            { key: 'data',     label: "Ma'lumotlar",        icon: <Database className="w-4 h-4" />, badge: null },
+            { key: 'users',        label: 'Foydalanuvchilar', icon: <Users    className="w-4 h-4" />, badge: stats.noShift + stats.noShop > 0 ? stats.noShift + stats.noShop : null },
+            { key: 'security',     label: 'Xavfsizlik',        icon: <Shield   className="w-4 h-4" />, badge: warnings.length > 0 ? warnings.length : null },
+            { key: 'targets',      label: 'WDPV Targetlar',    icon: <Target   className="w-4 h-4" />, badge: null },
+            { key: 'escalations',  label: 'Eskalatsiyalar',    icon: <Bell     className="w-4 h-4" />, badge: escTotals.open > 0 ? escTotals.open : null },
+            { key: 'data',         label: "Ma'lumotlar",        icon: <Database className="w-4 h-4" />, badge: null },
           ] as const).map(({ key, label, icon, badge }) => (
             <button
               key={key}
@@ -1036,6 +1158,292 @@ export default function SuperAdminPage() {
                   <RefreshCw className="w-4 h-4" /> Reset
                 </Button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════
+            TAB 5: ESKALATSIYALAR NAZORATI
+        ══════════════════════════════════════════════════════════════════ */}
+        {tab === 'escalations' && (
+          <div className="space-y-5">
+
+            {/* Umumiy KPI + yangilash */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                {[
+                  { label: 'Jami',     value: escTotals.total,    cls: 'text-foreground',   bg: 'bg-card border-border' },
+                  { label: 'Ochiq',    value: escTotals.open,     cls: 'text-red-600',      bg: 'bg-card border-red-500/30' },
+                  { label: 'Jarayonda',value: escTotals.inProg,   cls: 'text-amber-600',    bg: 'bg-card border-amber-500/30' },
+                  { label: 'Yopildi', value: escTotals.resolved, cls: 'text-emerald-600',  bg: 'bg-card border-emerald-500/30' },
+                  { label: 'Kritik',   value: escTotals.critical, cls: 'text-red-600',      bg: 'bg-card border-red-500/40' },
+                  { label: 'Rasmli',   value: escTotals.withImg,  cls: 'text-violet-600',   bg: 'bg-card border-violet-500/30' },
+                ].map(s => (
+                  <div key={s.label} className={`rounded-xl border-2 p-3 ${s.bg}`}>
+                    <p className={`text-xl font-bold ${s.cls}`}>{s.value}</p>
+                    <p className="text-[11px] text-muted-foreground">{s.label}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={exportEscCsv}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all">
+                  <Download className="w-3.5 h-3.5" /> CSV
+                </button>
+                <button onClick={fetchEscalations} disabled={escLoading}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-card border border-border rounded-lg text-xs text-muted-foreground hover:text-foreground disabled:opacity-50 transition-all">
+                  <RefreshCw className={`w-3.5 h-3.5 ${escLoading ? 'animate-spin' : ''}`} /> Yangilash
+                </button>
+              </div>
+            </div>
+
+            {/* Muhandislar samaradorligi kartochkalari */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+              {escByRole.map(r => (
+                <button key={r.value}
+                  onClick={() => setEscRoleFilter(escRoleFilter === r.value ? 'all' : r.value)}
+                  className={`rounded-xl border-2 p-3 text-left transition-all hover:scale-[1.02] ${
+                    escRoleFilter === r.value ? r.bg + ' shadow-sm' : 'bg-card border-border hover:border-border/60'
+                  }`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`w-2.5 h-2.5 rounded-full ${r.color}`} />
+                    <span className="text-xs font-bold text-foreground truncate">{r.label.split(' ')[0]}</span>
+                  </div>
+                  <p className="text-lg font-bold text-foreground">{r.total}</p>
+                  <div className="flex gap-1.5 mt-1 flex-wrap">
+                    {r.open > 0 && <span className="text-[10px] bg-red-500/15 text-red-600 px-1 rounded font-semibold">{r.open} ochiq</span>}
+                    {r.resolved > 0 && <span className="text-[10px] bg-emerald-500/15 text-emerald-600 px-1 rounded">{r.resolved} yopildi</span>}
+                  </div>
+                  {r.avgHours > 0 && <p className="text-[10px] text-muted-foreground mt-1">~{r.avgHours}s o&apos;rtacha</p>}
+                </button>
+              ))}
+            </div>
+
+            {/* Muhandis samaradorligi jadvali */}
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
+              <div className="px-5 py-3 border-b border-border bg-muted/10 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-primary" />
+                <span className="text-sm font-bold text-foreground">Muhandis samaradorligi</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border bg-muted/20">
+                      <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">Muhandis</th>
+                      <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground">Jami</th>
+                      <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground">Ochiq</th>
+                      <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground">Jarayonda</th>
+                      <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground">Yopildi</th>
+                      <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground">Kritik</th>
+                      <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground">Bajarilish %</th>
+                      <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground">O&apos;rtacha vaqt</th>
+                      <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground">Rasmli</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/50">
+                    {escByRole.map(r => {
+                      const pct = r.total > 0 ? Math.round((r.resolved / r.total) * 100) : 0
+                      return (
+                        <tr key={r.value} className={`transition-colors hover:bg-muted/20 ${escRoleFilter === r.value ? 'bg-primary/5' : ''}`}>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${r.color}`} />
+                              <span className="font-semibold text-foreground">{r.label}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center font-bold text-foreground">{r.total}</td>
+                          <td className="px-4 py-3 text-center">
+                            {r.open > 0
+                              ? <span className="bg-red-500/15 text-red-600 px-2 py-0.5 rounded font-bold">{r.open}</span>
+                              : <span className="text-muted-foreground">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {r.inProg > 0
+                              ? <span className="bg-amber-500/15 text-amber-600 px-2 py-0.5 rounded">{r.inProg}</span>
+                              : <span className="text-muted-foreground">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="bg-emerald-500/15 text-emerald-600 px-2 py-0.5 rounded font-semibold">{r.resolved}</span>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {r.critical > 0
+                              ? <span className="bg-red-500/15 text-red-600 px-2 py-0.5 rounded font-bold">{r.critical}</span>
+                              : <span className="text-emerald-500 text-sm">✓</span>}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 bg-muted rounded-full h-1.5 min-w-[60px]">
+                                <div className={`h-1.5 rounded-full transition-all ${pct >= 70 ? 'bg-emerald-500' : pct >= 40 ? 'bg-amber-500' : 'bg-red-500'}`}
+                                  style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="font-semibold text-foreground w-8 text-right">{pct}%</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center text-muted-foreground">
+                            {r.avgHours > 0 ? `${r.avgHours}s` : '—'}
+                          </td>
+                          <td className="px-4 py-3 text-center text-muted-foreground">
+                            {r.resolved > 0 ? `${r.withImage}/${r.resolved}` : '—'}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Filtrlar + to'liq jadval */}
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
+              <div className="px-5 py-3 border-b border-border flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Filter className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-sm font-bold text-foreground">
+                    To&apos;liq jadval <span className="text-muted-foreground font-normal text-xs">({escFiltered.length} ta)</span>
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Manba filtri */}
+                  <div className="flex gap-1 bg-muted/30 rounded-lg p-1">
+                    {['all','drr','gca','drl'].map(s => (
+                      <button key={s} onClick={() => setEscSourceFilter(s)}
+                        className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                          escSourceFilter === s ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                        }`}>
+                        {s === 'all' ? 'Barcha' : s.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Status filtri */}
+                  <div className="flex gap-1 bg-muted/30 rounded-lg p-1">
+                    {[
+                      { k: 'all', l: 'Barchasi' },
+                      { k: 'open', l: '🔴 Ochiq' },
+                      { k: 'in_progress', l: '🟡 Jarayonda' },
+                      { k: 'resolved', l: '✅ Yopildi' },
+                    ].map(s => (
+                      <button key={s.k} onClick={() => setEscStatusFilter(s.k)}
+                        className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all ${
+                          escStatusFilter === s.k ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                        }`}>
+                        {s.l}
+                      </button>
+                    ))}
+                  </div>
+                  {(escRoleFilter !== 'all' || escStatusFilter !== 'all' || escSourceFilter !== 'all') && (
+                    <button onClick={() => { setEscRoleFilter('all'); setEscStatusFilter('all'); setEscSourceFilter('all') }}
+                      className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-muted transition-colors">
+                      <X className="w-3 h-3" /> Filtrni tozalash
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {escLoading ? (
+                <div className="flex items-center justify-center py-12 gap-3">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">Yuklanmoqda...</span>
+                </div>
+              ) : escFiltered.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-2">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-400 opacity-40" />
+                  <p className="text-sm text-muted-foreground">Eskalatsiyalar topilmadi</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
+                  <table className="w-full text-xs min-w-[900px]">
+                    <thead className="sticky top-0 z-10">
+                      <tr className="border-b border-border bg-muted/30">
+                        <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">#</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">Manba</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">Nuqson</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">Sehi</th>
+                        <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground">Soni</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">Muhandis</th>
+                        <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground">Ustuvorlik</th>
+                        <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground">Holat</th>
+                        <th className="px-4 py-2.5 text-center font-semibold text-muted-foreground">Rasm</th>
+                        <th className="px-4 py-2.5 text-left font-semibold text-muted-foreground">Sana</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/40">
+                      {escFiltered.map((e, i) => {
+                        const engR = ENG_ROLES.find(r => r.value === e.assigned_role)
+                        const isOpen = escExpanded === e.id
+                        return (
+                          <React.Fragment key={e.id}>
+                            <tr onClick={() => setEscExpanded(isOpen ? null : e.id)}
+                              className={`cursor-pointer transition-colors hover:bg-muted/20 ${
+                                e.status === 'open' ? 'bg-red-500/5' : ''
+                              } ${isOpen ? 'bg-primary/5' : ''}`}>
+                              <td className="px-4 py-2.5 text-muted-foreground">{i + 1}</td>
+                              <td className="px-4 py-2.5">
+                                <span className={`px-1.5 py-0.5 rounded border text-[10px] font-bold uppercase ${ESC_SOURCE_CLS[e.source] ?? ''}`}>
+                                  {e.source}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <div className="flex items-center gap-1.5">
+                                  {e.fault_code !== '—' && (
+                                    <span className="font-mono text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded">{e.fault_code}</span>
+                                  )}
+                                  <span className="font-medium text-foreground truncate max-w-[140px]">{e.fault_name}</span>
+                                </div>
+                              </td>
+                              <td className="px-4 py-2.5 text-foreground font-semibold">{e.shop}</td>
+                              <td className="px-4 py-2.5 text-center font-bold text-foreground">{e.total_count}</td>
+                              <td className="px-4 py-2.5">
+                                {engR && (
+                                  <span className={`px-2 py-0.5 rounded border text-[10px] font-semibold ${engR.bg} ${engR.text}`}>
+                                    {engR.label}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${ESC_PRIO_CLS[e.priority] ?? ''}`}>
+                                  {ESC_PRIO_LABEL[e.priority] ?? e.priority}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${ESC_STATUS_CLS[e.status] ?? ''}`}>
+                                  {ESC_STATUS_LABEL[e.status] ?? e.status}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                {e.action_image
+                                  ? <span className="text-emerald-500 text-sm" title="Rasm yuklangan">📷</span>
+                                  : e.status === 'resolved'
+                                    ? <span className="text-red-400 text-xs" title="Rasm yo'q">⚠</span>
+                                    : <span className="text-muted-foreground/30">—</span>}
+                              </td>
+                              <td className="px-4 py-2.5 text-muted-foreground whitespace-nowrap">
+                                {new Date(e.created_at).toLocaleDateString('uz-UZ')}
+                              </td>
+                            </tr>
+                            {isOpen && (
+                              <tr className="bg-muted/10">
+                                <td colSpan={10} className="px-6 py-3 text-xs text-muted-foreground space-y-1.5">
+                                  {e.root_cause   && <p><span className="font-semibold text-foreground">Ildiz sabab:</span> {e.root_cause}</p>}
+                                  {e.action_taken && <p><span className="font-semibold text-foreground">Ko&apos;rilgan chora:</span> {e.action_taken}</p>}
+                                  {e.created_by_name && <p><span className="font-semibold text-foreground">Kiritgan:</span> {e.created_by_name}</p>}
+                                  {e.resolved_at && <p><span className="font-semibold text-foreground">Yopilgan:</span> {new Date(e.resolved_at).toLocaleString('uz-UZ')}</p>}
+                                  {e.action_image && (
+                                    <div className="pt-1">
+                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                      <img src={e.action_image} alt="proof" onClick={() => window.open(e.action_image!, '_blank')}
+                                        className="max-h-40 rounded-lg border border-emerald-500/30 cursor-zoom-in object-contain bg-black/5" />
+                                    </div>
+                                  )}
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </div>
         )}

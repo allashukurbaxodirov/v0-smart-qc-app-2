@@ -17,6 +17,7 @@ export interface IncomingRecord {
   shift: 'A' | 'B' | 'D'
   date: string
   createdByName: string | null
+  image: string | null
 }
 
 interface IncomingCtx {

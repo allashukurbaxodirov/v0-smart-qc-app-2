@@ -6,7 +6,7 @@ import PageHeader from '@/components/dashboard/page-header'
 import {
   ChevronLeft, RefreshCw, Package, AlertTriangle, CheckCircle,
   TrendingDown, Building2, Users, Calendar, ShieldCheck,
-  Layers, FileText, Activity,
+  Layers, FileText, Activity, X, ImageOff,
 } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -167,6 +167,34 @@ export default function IncomingDashboardPage() {
 
   // Active tab
   const [activeTab, setActiveTab] = useState<'overview' | 'suppliers' | 'parts' | 'defects'>('overview')
+
+  // Defect image modal
+  const [defectModal, setDefectModal] = useState<{ code: string | null; name: string } | null>(null)
+  const [defectImages, setDefectImages] = useState<{ id: string; image: string; partNumber: string; supplier: string; date: string }[]>([])
+  const [defectImgLoading, setDefectImgLoading] = useState(false)
+  const [lightbox, setLightbox] = useState<string | null>(null)
+
+  const openDefectModal = useCallback(async (code: string | null, name: string) => {
+    setDefectModal({ code, name })
+    setDefectImages([])
+    setDefectImgLoading(true)
+    try {
+      const res = await fetch('/api/incoming')
+      if (!res.ok) throw new Error()
+      const all: { id: string; defectCode: string | null; image: string | null; partNumber: string; supplier: string; date: string }[] = await res.json()
+      const filtered = all.filter(r =>
+        r.image && (code ? r.defectCode === code : true)
+      ).map(r => ({
+        id:          r.id,
+        image:       r.image!,
+        partNumber:  r.partNumber,
+        supplier:    r.supplier,
+        date:        r.date,
+      }))
+      setDefectImages(filtered)
+    } catch { /* ignore */ }
+    finally { setDefectImgLoading(false) }
+  }, [])
 
   useEffect(() => {
     fetch('/api/me').then(r => r.ok ? r.json() : null).then(d => { if (d) setSession(d) })
@@ -736,13 +764,17 @@ export default function IncomingDashboardPage() {
                     const maxDef = Number(stats.topDefects[0]?.total_defects ?? 1)
                     const pct    = Math.round((Number(d.total_defects) / maxDef) * 100)
                     return (
-                      <div key={i} className="bg-card border border-border rounded-xl p-4">
+                      <button
+                        key={i}
+                        onClick={() => openDefectModal(d.defect_code, d.defect_name)}
+                        className="bg-card border border-border rounded-xl p-4 text-left hover:border-red-400/50 hover:bg-red-500/5 transition-all group cursor-pointer w-full"
+                      >
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0 ${
                               i === 0 ? 'bg-red-600' : i === 1 ? 'bg-red-500' : i === 2 ? 'bg-orange-500' : 'bg-amber-500'
                             }`}>{i + 1}</span>
-                            <p className="text-sm font-semibold text-foreground leading-snug">{d.defect_name}</p>
+                            <p className="text-sm font-semibold text-foreground leading-snug group-hover:text-red-500 transition-colors">{d.defect_name}</p>
                           </div>
                           <span className="text-lg font-bold text-red-400 shrink-0">{Number(d.total_defects).toLocaleString()}</span>
                         </div>
@@ -758,7 +790,10 @@ export default function IncomingDashboardPage() {
                           <span className="text-xs text-muted-foreground">{d.supplier_count} ta supplier</span>
                           <span className="text-xs text-muted-foreground">{d.part_count} ta detal</span>
                         </div>
-                      </div>
+                        <p className="text-[10px] text-muted-foreground/60 mt-2 group-hover:text-muted-foreground transition-colors">
+                          📷 Rasmlarni ko&apos;rish uchun bosing
+                        </p>
+                      </button>
                     )
                   })}
                   {stats.topDefects.length === 0 && (
@@ -773,6 +808,106 @@ export default function IncomingDashboardPage() {
           </>
         )}
       </div>
+
+      {/* ── Nuqson rasmlari modali ──────────────────────────────────────── */}
+      {defectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setDefectModal(null)}
+          />
+          {/* Modal */}
+          <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+                <h3 className="text-sm font-bold text-foreground">{defectModal.name}</h3>
+                {defectModal.code && (
+                  <span className="text-xs font-mono bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded">
+                    {defectModal.code}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setDefectModal(null)}
+                className="p-1.5 rounded-lg hover:bg-muted transition-colors"
+              >
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-y-auto p-5">
+              {defectImgLoading ? (
+                <div className="flex items-center justify-center py-12 gap-3">
+                  <RefreshCw className="w-5 h-5 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">Rasmlar yuklanmoqda...</span>
+                </div>
+              ) : defectImages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 gap-3">
+                  <ImageOff className="w-10 h-10 text-muted-foreground/30" />
+                  <p className="text-sm text-muted-foreground text-center">
+                    Bu nuqson uchun hali rasm yuklanmagan
+                  </p>
+                  <p className="text-xs text-muted-foreground/60 text-center">
+                    Incoming Control sahifasida yozuv kiritishda rasm qo&apos;shing
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {defectImages.length} ta rasm topildi
+                  </p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {defectImages.map(img => (
+                      <div key={img.id} className="group relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={img.image}
+                          alt={img.partNumber}
+                          onClick={e => { e.stopPropagation(); setLightbox(img.image) }}
+                          className="w-full aspect-square object-cover rounded-xl border border-border cursor-zoom-in hover:border-primary/50 transition-all hover:scale-[1.02]"
+                        />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 rounded-xl transition-all flex items-end opacity-0 group-hover:opacity-100">
+                          <div className="p-2 w-full">
+                            <p className="text-white text-xs font-semibold truncate">{img.partNumber}</p>
+                            <p className="text-white/70 text-[10px] truncate">{img.supplier}</p>
+                            <p className="text-white/50 text-[10px]">{img.date}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Lightbox ─────────────────────────────────────────────────────── */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+          >
+            <X className="w-5 h-5 text-white" />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightbox}
+            alt="fullscreen"
+            className="max-w-full max-h-full rounded-xl object-contain"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   )
 }

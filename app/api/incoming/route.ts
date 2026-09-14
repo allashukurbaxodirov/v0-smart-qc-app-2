@@ -24,6 +24,7 @@ interface CachedIncoming {
   shift: string
   date: string
   created_by_name: string | null
+  image: string | null
 }
 
 // globalThis — HMR va server restart da yo'qolmasin
@@ -46,17 +47,19 @@ function toClient(r: CachedIncoming) {
     shift:          r.shift,
     date:           r.date,
     createdByName:  r.created_by_name,
+    image:          r.image,
   }
 }
 
 // ─── GET ───────────────────────────────────────────────────────────────────────
 export async function GET() {
   try {
+    await sql`ALTER TABLE incoming_records ADD COLUMN IF NOT EXISTS image TEXT`
     const rows = await sql`
       SELECT id, part_number, warehouse, supplier, part_name,
              total_count, defect_count,
              defect_code, defect_code_name, defect_reason,
-             shift, date::text, created_by_name
+             shift, date::text, created_by_name, image
       FROM incoming_records
       ORDER BY created_at DESC
       LIMIT 500
@@ -76,6 +79,7 @@ export async function GET() {
         shift:           row.shift,
         date:            row.date,
         created_by_name: row.created_by_name ?? null,
+        image:           row.image           ?? null,
       }
       const idx = memCache.findIndex(r => r.id === rec.id)
       if (idx >= 0) memCache[idx] = rec
@@ -96,10 +100,9 @@ export async function POST(req: Request) {
   const {
     partNumber, warehouse, supplier, partName,
     totalCount, defectCount, defectCode, defectCodeName,
-    defectReason, shift, date,
+    defectReason, shift, date, image,
   } = body
 
-  // Always use the authenticated user's name from session
   const createdByName = session.name ?? null
 
   let id: string
@@ -109,13 +112,13 @@ export async function POST(req: Request) {
         (part_number, warehouse, supplier, part_name,
          total_count, defect_count,
          defect_code, defect_code_name, defect_reason,
-         shift, date, created_by_name)
+         shift, date, created_by_name, image)
       VALUES
         (${partNumber}, ${warehouse}, ${supplier}, ${partName},
          ${totalCount}, ${defectCount ?? 0},
          ${defectCode ?? null}, ${defectCodeName ?? null},
          ${defectReason ?? null},
-         ${shift}, ${date}::date, ${createdByName})
+         ${shift}, ${date}::date, ${createdByName}, ${image ?? null})
       RETURNING id
     `
     id = row.id
@@ -137,6 +140,7 @@ export async function POST(req: Request) {
     shift,
     date,
     created_by_name:  createdByName,
+    image:            image ?? null,
   }
   memCache.unshift(rec)
   return NextResponse.json(toClient(rec))

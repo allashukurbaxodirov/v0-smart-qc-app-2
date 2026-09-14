@@ -25,6 +25,68 @@ const DEFECT_CODES = [
   { code: 'IC-12', name: "Yig'ilish xatosi"            },
 ]
 
+const SUPPLIERS = [
+  'OZOD PROM SERVIS',
+  'XORAZM AVTO NUR',
+  'PITNAK TEXMETPROM',
+  'SECRET TRADING',
+  'KARVAK 2019',
+  'SIRAN AVTO',
+  'PITNAK SHTAMP PROM',
+  'BAHTBEK INVEST SANOAT',
+  'BAHTIYOR OTA PROM',
+  'INSTRUMENT STEEL SERVIS',
+  'SHOVOTPODSHIPNIK',
+  'Uz Auto Austem',
+  'ASLBEK HAZARASP',
+  "BROTHER'S GOOD WILL",
+  'UZMINDA',
+  'UZERAEALTERNATOR',
+  'XORAZM UNIVERSAL TEXNIK',
+  'OOO "TECHNOLOGIES OF REAL TIME"',
+  'AVTOOYNA',
+  'PITNAK BEST FISHES',
+  'TEX METAL ROF',
+  'XAZORASP MASHINASOZ',
+  'Metal Polimer Himoya',
+  'MINI AKKUMULYATOR',
+  'MEGA DETAL PITNAK',
+  'URGANCH POLIMER SANOATI',
+  'UZ-TONG HEUNG CO',
+  'UZ DONG YANG CO',
+  'UZ DONG WON (Xorazm Baraka Avto)',
+  'UZ SAEMYUNG CO',
+  'Avto Climate Control',
+  'Shovot CNC',
+  'W-INDUSTRY',
+  'OOO REOGENT',
+  '"MEGA TECHNO-PART" MCHJ',
+  'METAL POLIMER XIMOYA',
+  'TUPROQQALA DEVELOPMENT',
+  'XORAZM PITNAK PLAST MCHJ',
+  'ASAKA MASHHUR BUSTONI',
+  'MET-FUR-SERVIS',
+  'KWANGJIN AUTOSYSTEMS',
+  '"O`zEraeCable" MChJ',
+  'Hakyor Intel',
+  'Jizzax Akkumlyator zavodi (DAZ)',
+  'Production and Latipov Service',
+  'Marifjon Hazorasp Servis',
+  '"REOGENT" MChJ',
+  'SARDOR ZARBDOR FAYZ',
+  'Auto Part Khorezm',
+  'M-BASE',
+  'Xorazm Suv Inshoati',
+  'Davron Profi Engineering',
+  '"Sayapir Mega Detal" MChJ',
+  'Ase Drop Invest',
+  'Charos Sevinch Baraka',
+  'Prujina Metal Master',
+  'Ulrus Meccanico',
+  'Azim Khiva',
+  'GIDRO STANKO SERVIS',
+]
+
 const WAREHOUSES = ['WAREHOUSE-1', 'WAREHOUSE-2', 'SP ZONE'] as const
 type Warehouse = typeof WAREHOUSES[number]
 
@@ -87,6 +149,18 @@ export default function IncomingAdminPage() {
     e.preventDefault()
     if (!form.partNumber.trim() || !form.supplier.trim() || !form.partName.trim()) return
     const selected = DEFECT_CODES.find(d => d.code === form.defectCode)
+
+    // Rasmni base64 ga aylantirish
+    let imageBase64: string | null = null
+    if (form.image) {
+      imageBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload  = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(form.image as File)
+      })
+    }
+
     await addRecord({
       partNumber:     form.partNumber.trim(),
       warehouse:      form.warehouse,
@@ -100,6 +174,7 @@ export default function IncomingAdminPage() {
       shift:          form.shift,
       date:           today(),
       createdByName:  null,
+      image:          imageBase64,
     })
     setShowSuccess(true)
     setTimeout(() => setShowSuccess(false), 3000)
@@ -234,14 +309,20 @@ export default function IncomingAdminPage() {
                   <label className="text-sm font-semibold text-foreground">
                     Yetkazuvchi (Supplier) <span className="text-rose-500">*</span>
                   </label>
-                  <Input
+                  <input
+                    list="supplier-list"
                     name="supplier"
                     value={form.supplier}
                     onChange={handleChange}
                     placeholder="Yetkazuvchi nomi..."
-                    className="bg-background border-border"
+                    className="flex h-10 w-full rounded-md border border-border bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                     required
                   />
+                  <datalist id="supplier-list">
+                    {SUPPLIERS.map(s => (
+                      <option key={s} value={s} />
+                    ))}
+                  </datalist>
                 </div>
 
                 {/* 4. Detal nomi */}
@@ -355,11 +436,25 @@ export default function IncomingAdminPage() {
                 {/* 9. Rasm */}
                 <div className="space-y-1.5">
                   <label className="text-sm font-semibold text-foreground">Rasm (ixtiyoriy)</label>
-                  <label className="flex flex-col items-center gap-2 border-2 border-dashed border-border rounded-xl p-4 cursor-pointer hover:border-primary/50 transition-colors">
-                    <Upload className="w-5 h-5 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">Rasm yuklash</span>
-                    {form.image && (
-                      <span className="text-xs text-primary font-medium">{form.image.name}</span>
+                  <label className={`flex flex-col items-center gap-2 border-2 border-dashed rounded-xl p-4 cursor-pointer transition-colors ${
+                    form.image ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-border hover:border-primary/50'
+                  }`}>
+                    {form.image ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={URL.createObjectURL(form.image)}
+                          alt="preview"
+                          className="max-h-32 rounded-lg object-contain"
+                        />
+                        <span className="text-xs text-emerald-600 font-medium">{form.image.name}</span>
+                        <span className="text-xs text-muted-foreground">Boshqa rasm tanlash uchun bosing</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-5 h-5 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground">Rasm yuklash (ixtiyoriy)</span>
+                      </>
                     )}
                     <input
                       type="file"
@@ -437,6 +532,7 @@ export default function IncomingAdminPage() {
                       <th className="px-4 py-3 text-center text-xs font-semibold text-rose-500">Nuqsonli</th>
                       <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Foiz</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Nuqson kodi</th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Rasm</th>
                       <th className="px-4 py-3"></th>
                     </tr>
                   </thead>
@@ -495,6 +591,19 @@ export default function IncomingAdminPage() {
                                 </div>
                               ) : (
                                 <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              {r.image ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={r.image}
+                                  alt="proof"
+                                  onClick={() => window.open(r.image!, '_blank')}
+                                  className="w-10 h-10 rounded-lg object-cover border border-border cursor-zoom-in mx-auto hover:scale-110 transition-transform"
+                                />
+                              ) : (
+                                <span className="text-xs text-muted-foreground/40">—</span>
                               )}
                             </td>
                             <td className="px-4 py-3">
