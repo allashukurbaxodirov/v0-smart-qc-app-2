@@ -343,12 +343,6 @@ const managerSidebarItems: SidebarItem[] = [
     section: 'dashboards',
   },
   {
-    label: 'Incoming Control',
-    href: '/dashboard/incoming-admin',
-    icon: <Package className="w-5 h-5" />,
-    section: 'dashboards',
-  },
-  {
     label: 'GCA Dashboard',
     href: '/dashboard/gca',
     icon: <BarChart3 className="w-5 h-5" />,
