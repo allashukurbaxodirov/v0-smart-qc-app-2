@@ -29,6 +29,7 @@ interface SidebarItem {
   href: string
   icon: React.ReactNode
   section: string
+  comingSoon?: boolean
 }
 
 const superAdminSidebarItems: SidebarItem[] = [
@@ -326,48 +327,61 @@ const managerSidebarItems: SidebarItem[] = [
     href: '/dashboard/manager',
     icon: <LayoutDashboard className="w-5 h-5" />,
     section: 'main',
+    comingSoon: true,
   },
   {
     label: 'Muhandislar tahlili',
     href: '/dashboard/engineer-analysis',
     icon: <Activity className="w-5 h-5" />,
     section: 'main',
+    comingSoon: true,
+  },
+  {
+    label: 'Incoming Dashboard',
+    href: '/dashboard/incoming',
+    icon: <BarChart3 className="w-5 h-5" />,
+    section: 'dashboards',
+  },
+  {
+    label: 'Incoming Control',
+    href: '/dashboard/incoming-admin',
+    icon: <Package className="w-5 h-5" />,
+    section: 'dashboards',
   },
   {
     label: 'GCA Dashboard',
     href: '/dashboard/gca',
     icon: <BarChart3 className="w-5 h-5" />,
     section: 'dashboards',
+    comingSoon: true,
   },
   {
     label: 'D10 Dashboard',
     href: '/dashboard/d10',
     icon: <BarChart3 className="w-5 h-5" />,
     section: 'dashboards',
+    comingSoon: true,
   },
   {
     label: 'D20 Dashboard',
     href: '/dashboard/d20',
     icon: <BarChart3 className="w-5 h-5" />,
     section: 'dashboards',
+    comingSoon: true,
   },
   {
     label: 'DRR Dashboard',
     href: '/dashboard/drr',
     icon: <Activity className="w-5 h-5" />,
     section: 'dashboards',
+    comingSoon: true,
   },
   {
     label: 'DRL Dashboard',
     href: '/dashboard/drl',
     icon: <Activity className="w-5 h-5" />,
     section: 'dashboards',
-  },
-  {
-    label: 'Incoming Control',
-    href: '/dashboard/incoming',
-    icon: <Package className="w-5 h-5" />,
-    section: 'dashboards',
+    comingSoon: true,
   },
 ]
 
@@ -590,20 +604,34 @@ function SidebarSection({
         {title}
       </p>
       <nav className="space-y-2">
-        {safeItems.map((item) => (
-          <Link
-            key={`${item.href}__${item.label}`}
-            href={item.href}
-            className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-              isActive(item.href)
-                ? 'bg-sidebar-primary text-sidebar-primary-foreground'
-                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-            }`}
-          >
-            {item.icon}
-            {item.label}
-          </Link>
-        ))}
+        {safeItems.map((item) =>
+          item.comingSoon ? (
+            <div
+              key={`${item.href}__${item.label}`}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium opacity-40 cursor-not-allowed select-none"
+              title="Tez kunda"
+            >
+              {item.icon}
+              <span className="flex-1 truncate">{item.label}</span>
+              <span className="text-[9px] font-bold uppercase tracking-wide bg-white/10 text-white/60 px-1.5 py-0.5 rounded-full border border-white/10 shrink-0">
+                Tez kunda
+              </span>
+            </div>
+          ) : (
+            <Link
+              key={`${item.href}__${item.label}`}
+              href={item.href}
+              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                isActive(item.href)
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              }`}
+            >
+              {item.icon}
+              {item.label}
+            </Link>
+          )
+        )}
       </nav>
     </div>
   )
