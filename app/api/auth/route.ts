@@ -14,7 +14,7 @@ const ROLE_REDIRECTS: Record<string, string> = {
   pdi_inspector:      '/dashboard/pdi-admin',
   ga_engineer:        '/dashboard/ga-engineer',
   welding_engineer:   '/dashboard/welding-engineer',
-  manager:            '/dashboard/manager',
+  manager:            '/dashboard/incoming',
   incoming_inspector: '/dashboard/incoming-admin',
 }
 

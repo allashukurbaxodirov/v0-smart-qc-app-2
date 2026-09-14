@@ -451,7 +451,7 @@ export default function Sidebar() {
     <>
       {/* Logo */}
       <div className="px-6 py-6 border-b border-sidebar-border">
-        <Link href="/dashboard/manager" className="flex items-center gap-3">
+        <Link href="/dashboard/incoming" className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-sidebar-primary flex items-center justify-center text-sidebar-primary-foreground font-bold text-lg">
             SQ
           </div>
